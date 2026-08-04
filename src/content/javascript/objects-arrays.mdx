@@ -1,0 +1,182 @@
+---
+title: オブジェクトと配列の基本
+minutes: 10
+slug: objects-arrays
+section: javascript
+description: オブジェクトと配列の作り方・読み方・書き方。ドット記法とブラケット記法、入れ子（オブジェクトの配列）まで。分割代入や map の土台になる。
+level: beginner
+prerequisites: ['javascript/values-and-types']
+---
+
+<LearnBox>
+
+- オブジェクト（名前付き）と配列（順番付き）の作る・読む・書く
+- ドット記法 `obj.name` とブラケット記法 `obj['name']` の使い分け
+- 入れ子（オブジェクトの配列）— `products.json` と同じ形
+
+</LearnBox>
+
+## 名前で引くか、順番で引くか {#intro}
+
+データのまとめ方には、大きく 2 つあります。
+
+- **オブジェクト** … 値に**名前**を付けて束ねる。「名前で引く」。1 つの商品（名前・価格・在庫）など。
+- **配列** … 値を**順番**に並べる。「番号で引く」。商品の一覧など。
+
+このパートの `map`・分割代入・スプレッドは、すべてこの 2 つの上に成り立っています。ここが土台です。
+
+## オブジェクト：作る・読む・書く {#object}
+
+`{ }` の中に「キー: 値」をカンマ区切りで並べます。
+
+```js
+const product = { name: 'トート', price: 3200, inStock: true }
+```
+
+```js
+const product = { name: 'トート', price: 3200 }
+//    ↑          ↑     ↑          ↑
+//    │          │     │          └─ キー price の値
+//    │          │     └─ キー（名前）
+//    │          └─ { } の中に「キー: 値」を並べる
+//    └─ オブジェクトを入れる箱
+```
+
+読むときは `.キー`、書き換えるときは `.キー = 値` です。
+
+```js
+console.log(product.name) // 'トート'（読む）
+product.price = 2800 // 書き換える
+product.color = '紺' // 新しいキーを足す
+```
+
+<JsNote feature="const でも中身は書き換えられる">
+
+`product` を `const` で作っても、`product.price = 2800` は通ります。`const` が禁止するのは「箱ごと別のものに入れ替えること」だけで、中身の書き換えは止めません（[const と let](/guide/javascript/const-let) で見たとおりです）。
+
+</JsNote>
+
+## 配列：作る・読む・書く {#array}
+
+`[ ]` の中に値を順番に並べます。読むときは `[番号]`。**番号は 0 から**始まります。
+
+```js
+const tags = ['調理器具', 'IH対応', '軽量']
+
+console.log(tags[0]) // '調理器具'（0 番目＝最初）
+console.log(tags.length) // 3（個数）
+tags.push('食洗機OK') // 末尾に足す
+```
+
+```js
+const tags = ['調理器具', 'IH対応']
+//    ↑       ↑
+//    │       └─ [ ] の中に値を順番に並べる
+//    └─ 配列を入れる箱（tags[0] が最初、tags[1] が次…）
+```
+
+- **`tags[0]`** … 0 番目。**最初の要素は 1 ではなく 0**。
+- **`tags.length`** … 要素の個数。
+- **`tags.push(値)`** … 末尾に 1 つ足す。
+
+## ドット記法とブラケット記法 {#dot-bracket}
+
+オブジェクトの値を読む書き方は 2 つあります。
+
+```js
+product.name // ドット記法（ふだんはこちら）
+product['name'] // ブラケット記法（同じ意味）
+```
+
+ふだんは短いドット記法で十分です。ブラケット記法が要るのは、**キー名が変数に入っているとき**です。
+
+```js
+const key = 'price'
+product[key] // product.price と同じ（3200）
+product.key // ✕ これは「key という名前のキー」を探してしまう
+```
+
+<Callout type="mistake" title="変数のキーはブラケットで">
+
+`product.key` と書くと、変数 `key` の中身ではなく「`key` という文字どおりの名前」を探します。**キーを変数で指定したいときはブラケット `product[key]`** を使います。
+
+</Callout>
+
+## 入れ子：オブジェクトの配列 {#nested}
+
+現実のデータは、たいてい**オブジェクトを配列に並べた形**です。このサイトの `products.json` もこの形です。
+
+```js
+const products = [
+  { id: 'p1', name: 'トート', price: 3200 },
+  { id: 'p2', name: 'ウォレット', price: 8800 },
+]
+
+products[0].name // 'トート'（0 番目のオブジェクトの name）
+products.length // 2
+```
+
+`products[0]` で 0 番目のオブジェクトを取り出し、続けて `.name` でその中の値を読みます。この「配列 → オブジェクト → 値」の順でたどる形が、`map` で一覧を描くときの基本になります。
+
+<Together
+  task="コンソールで、products のような配列を作り、1 番目（index 1）の商品の price を取り出して表示してみてください。"
+  hint="products[1] で 1 番目のオブジェクト、続けて .price で価格を読みます。"
+>
+
+```js
+const products = [
+  { id: 'p1', name: 'トート', price: 3200 },
+  { id: 'p2', name: 'ウォレット', price: 8800 },
+]
+
+console.log(products[1].price) // 8800
+```
+
+`products[1]` が `{ id: 'p2', name: 'ウォレット', price: 8800 }`。続けて `.price` で `8800` を読みます。
+
+</Together>
+
+## 書き方カタログ：読む・書く {#catalog}
+
+```js
+const user = { name: '佐藤', age: 30 }
+user.name // 読む → '佐藤'
+user['name'] // 同じ（ブラケット）
+user.age = 31 // 書き換える
+user.city = '東京' // キーを足す
+
+const nums = [10, 20, 30]
+nums[0] // 読む → 10
+nums.length // 個数 → 3
+nums.push(40) // 末尾に足す → [10, 20, 30, 40]
+nums[1] = 99 // 上書き → [10, 99, 30, 40]
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="配列の最初を arr[1] で取ろうとする"
+  good="配列の最初は arr[0]。番号は 0 から数える"
+  note="最初の要素は 0 番目。arr[1] は 2 番目になる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`undefined` が返る** … キー名の打ち間違い、または存在しない番号（`arr[5]` で要素が 3 つしかない等）です。
+- **`Cannot read properties of undefined`** … `products[0]` が空なのに `.name` を読もうとしています。まず取り出せているか確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="const first = products[0].name と書きます。products[0] で先頭のオブジェクトを取り出し、.name でその名前を読みます。">
+
+`products`（オブジェクトの配列）から、**先頭の商品の名前**を取り出して `first` に入れるには、どう書くでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- オブジェクトは名前で引く（`{ }`・`obj.key`）、配列は順番で引く（`[ ]`・`arr[0]`、0 始まり）
+- キーを変数で指定したいときだけブラケット記法 `obj[key]`
+- 現実のデータは「オブジェクトの配列」。`products[0].name` のようにたどる
+
+</SummaryBox>

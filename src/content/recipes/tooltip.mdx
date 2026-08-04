@@ -1,0 +1,115 @@
+---
+title: ツールチップ
+minutes: 7
+slug: tooltip
+section: recipes
+description: ホバーとフォーカスで出る吹き出し。state も JavaScript も使わず CSS の :hover と :focus-within だけで作る。
+level: beginner
+prerequisites: ['components/props']
+---
+
+import { TooltipDemo } from '@/demos/Tooltip'
+
+<LearnBox>
+
+- `state` も JavaScript も使わない、CSS だけのツールチップ
+- キーボード操作（フォーカス）でも出す `:focus-within`
+- ホバーが無いスマホでの注意点
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+ボタンにマウスを乗せる（またはキーボードで移動する）と、上に説明が出ます。
+
+<Demo title="Tooltip">
+  <TooltipDemo />
+</Demo>
+
+## まずは title 属性 {#title-attr}
+
+いちばん簡単なツールチップは、実は HTML の標準機能です。どの要素にも `title` を付けると、乗せたときに小さな吹き出しが出ます。
+
+```tsx title="いちばん簡単なツールチップ"
+<button type="button" title="カートに追加します">カート</button>
+```
+
+ただし `title` は**見た目を変えられず、出るのも少し遅く、スマホでは出ません**。デザインを合わせたいときだけ、次の CSS 版にします。
+
+## state を使わずに CSS で出す {#css-only}
+
+「ホバーで出す」だけなら、React の `state` は要りません。CSS の `:hover` で見せるのがいちばん素直です。包む要素を用意して、その中に本体と吹き出しを置きます。
+
+```tsx title="src/components/Tooltip/Tooltip.tsx（新規作成・全文）"
+import type { ReactNode } from 'react'
+
+import styles from './Tooltip.module.scss'
+
+export function Tooltip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span className={styles.wrap}>
+      {children}
+      <span role="tooltip" className={styles.tip}>
+        {label}
+      </span>
+    </span>
+  )
+}
+```
+
+出し入れは、ぜんぶ CSS 側です。ふだんは透明（`opacity: 0`）にしておき、包む要素にホバー・フォーカスが入ったら見せます。
+
+```scss title="Tooltip.module.scss（要点）"
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 8px); // 本体の少し上に置く
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.wrap:hover .tip,
+.wrap:focus-within .tip {
+  opacity: 1;
+}
+```
+
+## キーボードでも出す：focus-within {#focus-within}
+
+`:hover` だけだと、マウスの人にしか出ません。**キーボードで操作する人**のために `:focus-within` も入れます。これは「中の要素にフォーカスが入っているか」を表す CSS で、Tab キーで中のボタンに移動したときに吹き出しが出ます。`role="tooltip"` と合わせて、読み上げにも意味が伝わります。
+
+<Callout type="warn" title="スマホにはホバーが無い">
+
+タッチ端末には「マウスを乗せる」がありません。ホバー前提のツールチップは、スマホでは**出ないか、タップで一瞬だけ**になります。スマホでも必ず読ませたい情報は、ツールチップに隠さず、最初から画面に書いておきましょう。
+
+</Callout>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="onMouseEnter / onMouseLeave で開閉を state 管理する"
+  good=":hover と :focus-within の CSS だけで出す"
+  note="ホバーで出すだけなら state は不要。CSS の方が軽く、キーボード対応も :focus-within で 1 行。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **吹き出しが切れる／隠れる** … 近くに `overflow: hidden` の親があると切れます。ツールチップを出す範囲では `overflow` に注意します。
+- **キーボードで出ない** … 中身がフォーカスできる要素（`<button>` や `<a>`）か確認します。ただの `<span>` はフォーカスされません。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- まずは `title` 属性。デザインを合わせたいときだけ CSS 版にする
+- ホバーで出すだけなら `state` は不要。`:hover` の CSS で足りる
+- キーボードのために `:focus-within` も入れる。スマホには隠さず地に書く
+
+</SummaryBox>

@@ -1,0 +1,81 @@
+---
+title: ホバーとタップに反応する
+minutes: 7
+slug: interaction
+section: framer-motion
+description: whileHover と whileTap で、操作に動きで反応する。乗せると大きく、押すと小さく。spring で気持ちよく。
+level: beginner
+prerequisites: ['libraries/framer-motion/motion-basics']
+---
+
+import { HoverTapDemo } from '@/demos/HoverTap'
+
+<LearnBox>
+
+- `whileHover`：乗せている間の状態
+- `whileTap`：押している間の状態
+- 操作へのフィードバックを、少しの動きで返す
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+ボタンに乗せると少し大きく、押すと少し小さくなります。触ってみてください。
+
+<Demo title="whileHover / whileTap">
+  <HoverTapDemo />
+</Demo>
+
+## whileHover / whileTap {#while}
+
+`initial` / `animate` が「マウント時の動き」なのに対し、**`whileHover`** と **`whileTap`** は「その操作をしている**間**」の状態です。手を離す・マウスを外すと、自動で元に戻ります。
+
+```tsx
+import { motion } from 'motion/react'
+
+<motion.button
+  whileHover={{ scale: 1.06 }} // 乗せている間、少し大きく
+  whileTap={{ scale: 0.94 }} // 押している間、少し小さく
+  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+>
+  乗せる・押す
+</motion.button>
+```
+
+- **`whileHover={{ scale: 1.06 }}`** … マウスが乗っている間だけ 1.06 倍。外すと戻る。
+- **`whileTap={{ scale: 0.94 }}`** … 押している間だけ 0.94 倍。離すと戻る。
+
+「押したら少し沈む」は、**押せたことが指に伝わる**フィードバックになります。CSS の `:hover` に近いですが、`spring` で戻るので、より柔らかい質感になります。
+
+## やりすぎない {#restraint}
+
+反応は**小さく**が基本です。`scale: 1.06`（6%）くらいで十分。`1.5` のように大きく動かすと、うるさく、押しづらくなります。「言われないと気づかないくらい」がちょうどいい塩梅です。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="whileHover={{ scale: 1.5 }} のように大きく動かす"
+  good="whileHover={{ scale: 1.05 }} 前後の控えめな反応"
+  note="操作フィードバックは小さく。大きすぎると、うるさく押しづらい。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **戻らない** … `whileHover` / `whileTap` は「している間」の状態です。`animate` で固定していないか確認します。
+- **スマホで whileHover が効かない** … タッチにはホバーがありません。スマホでも要る反応は `whileTap` にします。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="whileHover={{ scale: 1.05 }} と whileTap={{ scale: 0.95 }} を <motion.button> に付けます。乗せている間・押している間だけその状態になり、離すと戻ります。反応は控えめ（数%）にします。">
+
+ボタンを「乗せると少し大きく、押すと少し小さく」するには、どんな props を付けますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `whileHover` は乗せている間、`whileTap` は押している間の状態。離すと戻る
+- 押したら少し沈む、は「押せた」フィードバックになる
+- 反応は控えめ（数%）に。大きすぎるとうるさく押しづらい
+
+</SummaryBox>

@@ -1,0 +1,77 @@
+---
+title: 直 import から fetch へ
+minutes: 6
+slug: from-json-to-fetch
+section: data
+description: ビルド時に同梱する import と、実行時にサーバーから取る fetch の違い。いつ通信に変えるべきか、このパートの題材まで。
+level: beginner
+prerequisites: ['data/goal']
+---
+
+<LearnBox>
+
+- 直 import と `fetch` の違い（同梱 vs 通信）
+- いつ import のままで、いつ `fetch` にするか
+- このパートの題材（`public/products.json` を `fetch` する）
+
+</LearnBox>
+
+## 直 import と fetch は何が違うか {#diff}
+
+いままでの `import products from './products.json'` と、これから使う `fetch` は、根本的に違います。
+
+| | 直 import | fetch |
+| --- | --- | --- |
+| いつ読む | **ビルド時**に同梱 | **実行時**にサーバーから |
+| 速さ | 一瞬（手元にある） | 時間がかかる |
+| 失敗 | しない | する（電波・サーバー） |
+| 更新 | ビルドし直すまで固定 | いつでも最新を取れる |
+
+`import` は「アプリに**焼き込んだ**データ」、`fetch` は「そのつど**取りにいく**データ」です。
+
+## いつ fetch にするか {#when}
+
+全部を `fetch` にする必要はありません。使い分けの目安です。
+
+- **import のままでよい** … 固定の小さいデータ（カテゴリ一覧、設定値など）。変わらないなら焼き込みで十分。
+- **fetch にする** … サーバーにあるデータ、更新されるデータ、大きいデータ、ログインが要るデータ。
+
+商品一覧は本来サーバーから来るものなので、このパートで `fetch` に切り替えます。
+
+## このパートの題材 {#material}
+
+いきなり本物の API を用意するのは大変なので、まず**自分の JSON ファイルを `fetch`** します。`products.json` を `public/` フォルダに置くと、`/products.json` という URL で取れます。
+
+```tsx
+fetch('/products.json') // public/products.json を取りにいく
+```
+
+やることは本物の API と同じ（URL に対して通信する）なので、**本番では URL を差し替えるだけ**です。
+
+```tsx
+fetch('https://api.example.com/products') // 本物ならこう
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="サーバーで更新される大きなデータを import で焼き込む"
+  good="更新される・大きいデータは fetch で実行時に取る"
+  note="import は固定の小さいデータ向き。変わる/大きいものは fetch にする。"
+/>
+
+## まとめと練習 {#summary}
+
+<Exercise answer="fetch です。ログイン後に最新の情報をサーバーから取る必要があり、import（ビルド時の焼き込み）では最新を反映できません。import は変わらない小さなデータ向きです。">
+
+「ログインしたユーザーの、最新の注文履歴」を表示したいとき、`import` と `fetch` のどちらで取るべきですか。理由も。
+
+</Exercise>
+
+<SummaryBox>
+
+- `import` はビルド時の焼き込み（一瞬・失敗なし・固定）、`fetch` は実行時の通信（時間・失敗あり・最新）
+- 変わる/大きい/サーバーにあるデータは `fetch`。固定の小さいデータは `import` で十分
+- 題材は `public/products.json` を `fetch('/products.json')`。本物の API は URL を差し替えるだけ
+
+</SummaryBox>

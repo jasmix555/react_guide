@@ -1,0 +1,122 @@
+// Approved Phase 1 design tokens as CSS custom properties.
+// Colour tokens flip between light/dark; type/space/layout tokens are set once.
+//
+// The pre-paint script in index.html always stamps :root[data-theme], so the
+// attribute selectors below are the real source of truth; the media query is a
+// no-JS fallback. Explicit [data-theme='light'] re-asserts light so the toggle
+// wins even when the OS prefers dark.
+
+@mixin light-tokens {
+  --c-bg: #fbfbfd;
+  --c-surface: #ffffff;
+  --c-sunk: #f3f4f8;
+  --c-line: #e4e6ee;
+  --c-text: #1b1d23;
+  --c-muted: #5a6072;
+  --c-accent: #4f46e5;
+  --c-accent-strong: #4338ca;
+  --c-on-accent: #ffffff;
+  --c-accent-tint: #f1f0fe;
+  --c-success: #067647;
+  --c-success-tint: #ecfdf3;
+  --c-danger: #d92d20;
+  --c-danger-tint: #fef3f2;
+  --c-warn: #b54708;
+  --c-warn-tint: #fffaeb;
+  --c-teal: #0e7c86;
+  --c-teal-tint: #edfafb;
+  --c-code-bg: #0f1420;
+  --c-code-tab: #1a2130;
+  --shadow-1: 0 1px 2px rgba(16, 18, 25, 0.04), 0 4px 16px rgba(16, 18, 25, 0.06);
+}
+
+@mixin dark-tokens {
+  --c-bg: #0e1017;
+  --c-surface: #161a23;
+  --c-sunk: #1d222d;
+  --c-line: #2a2f3c;
+  --c-text: #e7e9f1;
+  --c-muted: #9aa1b4;
+  --c-accent: #8e88ff;
+  --c-accent-strong: #a6a1ff;
+  --c-on-accent: #12131a;
+  --c-accent-tint: #191a2e;
+  --c-success: #46d8a0;
+  --c-success-tint: #0e2119;
+  --c-danger: #ff6b60;
+  --c-danger-tint: #241416;
+  --c-warn: #f5a524;
+  --c-warn-tint: #241b0a;
+  --c-teal: #4bd6e0;
+  --c-teal-tint: #0c2226;
+  --c-code-bg: #0a0d14;
+  --c-code-tab: #141924;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+:root {
+  @include light-tokens;
+
+  // ── Code surface ──
+  // The code block is dark in BOTH themes, so everything that sits ON it uses a
+  // fixed light-on-dark value that does NOT flip with the theme. (Using the
+  // theme-flipping --c-danger/--c-success here made light mode unreadable.)
+  // Guarded by scripts/check-contrast.mjs — keep in sync.
+  --c-code-fg: #e7ecf5;
+  --c-code-tab-fg: #aeb6c6;
+  --c-code-badge-fg: #aab3c4;
+  --c-code-copy-fg: #c3cad8;
+  --c-code-note-fg: #aab3c4;
+  --c-code-danger: #ff6b60;
+  --c-code-success: #46d8a0;
+  --c-code-danger-bg: rgba(255, 107, 96, 0.08);
+  --c-code-success-bg: rgba(70, 216, 160, 0.09);
+  --c-code-hl-border: #8e88ff;
+  --c-code-hl-bg: rgba(142, 136, 255, 0.16);
+
+  // Type
+  --font-head: 'Zen Kaku Gothic New', 'Noto Sans JP', system-ui, sans-serif;
+  --font-body: 'Noto Sans JP', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Noto Sans JP', ui-monospace, Consolas, monospace;
+  --fs-h1: 2rem;
+  --fs-h2: 1.5rem;
+  --fs-h3: 1.1875rem;
+  --fs-h4: 1rem;
+  --fs-body: 1rem;
+  --fs-small: 0.84375rem;
+  --lh-body: 1.9;
+  --lh-tight: 1.4;
+  --tracking-jp: 0.02em;
+
+  // Space / shape
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-code: 11px;
+  --radius-pill: 999px;
+
+  // Layout
+  --topbar-h: 56px;
+  --sidebar-w: 268px;
+  --toc-w: 220px;
+  --content-max: 80ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    @include dark-tokens;
+  }
+}
+:root[data-theme='dark'] {
+  @include dark-tokens;
+}
+:root[data-theme='light'] {
+  @include light-tokens;
+}

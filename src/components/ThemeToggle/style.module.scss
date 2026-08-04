@@ -1,0 +1,17 @@
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-line);
+  background: transparent;
+  color: var(--c-text);
+  font-size: 15px;
+  line-height: 1;
+
+  &:hover {
+    background: var(--c-sunk);
+  }
+}

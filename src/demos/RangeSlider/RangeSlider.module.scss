@@ -1,0 +1,35 @@
+.wrap {
+  display: block;
+}
+
+.label {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-weight: 600;
+  margin-bottom: var(--sp-2);
+}
+
+.value {
+  color: var(--c-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.range {
+  width: 100%;
+  // ネイティブのスライダーを、独自の thumb 実装なしでテーマ色に染めるだけ。
+  accent-color: var(--c-accent);
+}
+
+.demo {
+  width: 100%;
+}
+
+.demo > * + * {
+  margin-top: var(--sp-3);
+}
+
+.readout {
+  margin: 0;
+  color: var(--c-muted);
+}

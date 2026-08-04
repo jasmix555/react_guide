@@ -1,0 +1,204 @@
+---
+title: useEffect とは（副作用）
+minutes: 11
+slug: use-effect-basics
+section: state
+description: 描画のあとに動く副作用を useEffect で書く。構文を分解し、時計を全文で書いて、依存配列とクリーンアップを整理する。依存配列を忘れて無限ループになる罠と書き方カタログ。
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { ClockDemo } from '@/demos/Clock'
+
+<LearnBox>
+
+- 「副作用」とは何か、なぜ `useEffect` が要るのか
+- `useEffect` の構文（処理・依存配列・後片付け）を分解する
+- 依存配列を忘れて無限ループになる罠と、書き方カタログ
+
+</LearnBox>
+
+## 副作用とは「描画の外側の仕事」 {#why}
+
+これまでのコンポーネントは「state を受け取って JSX を返す」だけでした。でも実際のアプリには、それ以外の仕事もあります——**タイマーを動かす、サーバーからデータを取る、`document.title` を変える**など。こうした「**画面を描くこと以外の仕事**」を **副作用（side effect）** と呼びます。
+
+副作用は JSX を返す途中で書けません（描画が不安定になります）。代わりに、**描画が終わったあとに実行する**専用の置き場所が **`useEffect`** です。
+
+## useEffect の構文を分解する {#anatomy}
+
+`useEffect` は「実行したい処理」と「依存配列」を渡します。骨格に名前を付けます。
+
+```tsx
+useEffect(() => {
+  // ① 実行したい処理（描画のあとに動く）
+  return () => {
+    // ② 後片付け（クリーンアップ）：次の実行前と、消えるときに動く
+  }
+}, [running])
+//  ↑
+//  └─ ③ 依存配列：この中の値が変わったら、もう一度実行（[] なら初回だけ）
+```
+
+- **① 処理** … 描画のあとに実行したい中身（タイマー開始、データ取得など）。
+- **② 後片付け（`return () => {...}`）** … 開始したもの（タイマー・購読）を止める。**省略可**だが、タイマー系では必須。
+- **③ 依存配列 `[...]`** … 「いつ実行するか」を決める。空 `[]` なら初回だけ、`[running]` なら `running` が変わるたび。
+
+## 時計を全文で書く {#build}
+
+`src/components/Clock/Clock.tsx` を新規作成して、**この全文**を貼り付けてください。1 秒ごとに数が増える時計です。
+
+```tsx title="src/components/Clock/Clock.tsx（新規作成・全文）"
+import { useEffect, useState } from 'react'
+
+export function Clock() {
+  const [seconds, setSeconds] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000) // ① 開始
+    return () => clearInterval(id) // ② 後片付け
+  }, []) // ③ 初回だけ
+
+  return <p>{seconds} 秒</p>
+}
+```
+
+`setInterval` で 1 秒ごとに `setSeconds` を呼び、`clearInterval` で止めています。`setSeconds((s) => s + 1)` が関数形なのは、[前のページ](/guide/state/use-state/functional-updates)の理由（前の値から更新）と同じです。
+
+## 保存すると何が起きるか {#result}
+
+画面に `0 秒` が出て、1 秒ごとに `1 秒`、`2 秒`…と増えていきます。コンポーネントが表示された**あと**に `useEffect` が動いてタイマーを開始し、`setSeconds` が毎秒 state を更新するので、そのたびに再描画されて数字が進みます。
+
+## 実際の動き {#demo}
+
+下は、これに「止める／動かす」を足したものです（`running` を依存配列に入れています）。触ってみてください。
+
+<Demo title="useEffect のタイマー">
+  <ClockDemo />
+</Demo>
+
+## 依存配列で「いつ動くか」を決める {#deps}
+
+2 つ目の `[ ]` は「**この中の値が変わったら、もう一度実行する**」という指定です。3 パターンあります。
+
+- **`[]`（空）** … 最初の 1 回だけ。初回のデータ取得やタイマー開始に。
+- **`[query]`** … `query` が変わるたびに実行し直す。
+- **書かない** … **毎回の描画で実行**。ほとんど誤りで、無限ループの原因（次で見ます）。
+
+## return で後片付けする {#cleanup}
+
+`return () => {...}` は、**次に実行し直す前**と、**コンポーネントが消えるとき**に呼ばれます。開始したタイマーや購読を止めないと、二重に動いたり消えても動き続けたりします。
+
+```tsx
+useEffect(() => {
+  const id = setInterval(() => setSeconds((s) => s + 1), 1000)
+  return () => clearInterval(id) // これが無いとタイマーが増え続ける
+}, [])
+```
+
+<Callout type="analogy">
+
+部屋を出るときに電気を消すのと同じです。`setInterval`（点ける）をしたら `clearInterval`（消す）まで責任を持つ。後片付けを書く癖が、そのまま安全なコードになります。
+
+</Callout>
+
+## わざと壊す：依存配列を忘れて無限ループ {#break-loop}
+
+依存配列を書かず、中で state を更新するとどうなるか見ます。
+
+```tsx
+useEffect(() => {
+  setSeconds(seconds + 1) // 依存配列なし
+})
+```
+
+保存すると、コンソールにこう出て画面が固まります。
+
+```
+Warning: Maximum update depth exceeded.
+```
+
+「**更新が深すぎる（無限ループ）**」です。描画 → `useEffect` が `setSeconds` を実行 → state が変わって再描画 → また `useEffect` が実行 → また `setSeconds`……と永遠に繰り返すからです。依存配列を書かないと「毎回実行」になるのが原因。**「いつ動くか」を必ず `[ ]` で指定**します。
+
+## 書き方カタログ：useEffect の3パターン {#catalog}
+
+使う形はだいたいこの 3 つです。まとめて覚えておきます。
+
+```tsx
+// ① マウント時に1回だけ（初回のデータ取得など）
+useEffect(() => {
+  console.log('最初の1回だけ')
+}, [])
+
+// ② 特定の値が変わるたび
+useEffect(() => {
+  console.log('query が変わった:', query)
+}, [query])
+
+// ③ 後片付けが要るもの（タイマー・購読）
+useEffect(() => {
+  const id = setInterval(tick, 1000)
+  return () => clearInterval(id)
+}, [])
+```
+
+<Together
+  task="ページを開いたときに1回だけ document.title を「商品一覧アプリ」に変える useEffect を書いてみてください。（document.title = '...' で変えられます）"
+  hint="useEffect(() => { document.title = '商品一覧アプリ' }, []) — 依存配列は空 [] で「最初の1回だけ」。"
+>
+
+```tsx
+useEffect(() => {
+  document.title = '商品一覧アプリ'
+}, [])
+```
+
+`document.title` を変えるのは「画面を描くこと以外の仕事」＝副作用なので `useEffect` の中に書きます。依存配列 `[]` で最初の 1 回だけ実行されます。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="useEffect(() => { setX(x + 1) })（依存配列なし＋state更新）"
+  good="useEffect(() => { setX(x + 1) }, [])"
+  note="依存配列を忘れると毎回実行。state を更新していれば無限ループになる。"
+/>
+
+<Diff
+  bad="const id = setInterval(...)（後片付けなし）"
+  good="return () => clearInterval(id)"
+  note="開始したタイマー・購読は return で止める。放置すると多重に動く。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="副作用は useEffect に書き、依存配列を必ず指定し、開始したもの（タイマー・購読）は return で後片付けする"
+  alt="サーバーからのデータ取得も useEffect でできますが、規模が大きくなると取得ライブラリのほうが楽になります（データのパートで扱います）。まずは useEffect の形を掴みます。"
+>
+
+`useEffect(処理, 依存配列)`。依存配列は「いつ動くか」——初回だけなら `[]`、特定の値に反応するなら `[値]`。省略しない。開始したものは `return` で止める。この 3 点を守れば `useEffect` の事故はほぼ防げます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Maximum update depth exceeded`** … 依存配列なしの `useEffect` で state を更新しています。`[]` などの依存配列を付けます。
+- **タイマーが二重に動く／消えても動き続ける** … `return` の後片付けを書いていません。`clearInterval` などで止めます。
+- **1 回だけのつもりが何度も動く** … 依存配列が `[]` になっているか確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="依存配列を書かないと毎回の描画で実行され、中で setState すると再描画→また実行…の無限ループ（Maximum update depth exceeded）になります。[] などの依存配列を付けます。">
+
+`useEffect` の中で `setState` を呼んでいて `Maximum update depth exceeded` が出ました。原因と直し方を説明してください。
+
+</Exercise>
+
+<SummaryBox>
+
+- 副作用（タイマー・データ取得・`document.title` など）は `useEffect` に書く。実行は描画のあと
+- 構文は `useEffect(処理, 依存配列)`。`[]` は初回だけ、`[値]` はその値が変わるたび
+- 開始したものは `return` で後片付け。依存配列を忘れると無限ループの元
+
+</SummaryBox>

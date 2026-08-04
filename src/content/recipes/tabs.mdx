@@ -1,0 +1,124 @@
+---
+title: タブ
+minutes: 8
+slug: tabs
+section: recipes
+description: 選択中のタブだけを表示するタブ切り替え。active な index を 1 つ持ち、aria でタブとパネルを結ぶ。
+level: beginner
+prerequisites: ['state/use-state/basics', 'components/rendering-lists']
+---
+
+import { TabsDemo } from '@/demos/Tabs'
+
+<LearnBox>
+
+- 「いまどのタブか」を index 1 つで持つ考え方
+- 選択中のパネルだけを描く（`display:none` で隠さない）
+- タブとパネルを `aria` で結んで読み上げに対応する
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+商品ページでよく見る、説明／仕様／レビューの切り替えです。タブを押すと中身が入れ替わります。
+
+<Demo title="Tabs">
+  <TabsDemo />
+</Demo>
+
+## 状態は「選択中の番号」1 つ {#state}
+
+タブ切り替えで持つ state は、**いま選ばれているタブの番号**だけです。タブを押したら、その番号に切り替える。中身は「その番号のパネル」を 1 つ描くだけです。
+
+```tsx
+const [active, setActive] = useState(0)
+//     ↑       ↑                    ↑
+//     │       │                    └─ 初期値。最初は 0 番目のタブ
+//     │       └─ 選択タブを切り替える関数
+//     └─ いま選ばれているタブの番号
+```
+
+## Tabs 本体 {#tabs-body}
+
+`src/components/Tabs/Tabs.tsx` を新規作成して、この全文を貼り付けてください。
+
+```tsx title="src/components/Tabs/Tabs.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+interface Tab {
+  label: string
+  content: string
+}
+
+export function Tabs({ tabs }: { tabs: Tab[] }) {
+  const [active, setActive] = useState(0)
+
+  return (
+    <div>
+      <div role="tablist">
+        {tabs.map((tab, i) => (
+          <button
+            key={tab.label}
+            type="button"
+            role="tab"
+            id={`tab-${i}`}
+            aria-selected={i === active}
+            aria-controls={`panel-${i}`}
+            onClick={() => setActive(i)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
+        {tabs[active].content}
+      </div>
+    </div>
+  )
+}
+```
+
+読みどころは 2 つです。ボタンの `aria-selected={i === active}` で「このタブが選択中か」を毎回計算する。そして `{tabs[active].content}` で、**選択中のパネルだけ**を描く。押されていないタブの中身は、そもそも描きません。
+
+使う側は、タブの配列を渡すだけです。
+
+```tsx title="使う側"
+const tabs = [
+  { label: '説明', content: 'コットン 100% のトートバッグ。' },
+  { label: '仕様', content: 'サイズ：縦 35 × 横 40cm' },
+  { label: 'レビュー', content: '★4.6（128 件）' },
+]
+
+<Tabs tabs={tabs} />
+```
+
+## タブとパネルを aria で結ぶ {#a11y}
+
+見た目だけ切り替わっても、読み上げソフトには「どのタブがどの中身か」が伝わりません。次の 3 つを結びつけます。
+
+- **`role="tablist"` / `role="tab"` / `role="tabpanel"`** … これはタブ UI だと伝える。
+- **`aria-selected`** … いま選ばれているタブを示す。
+- **`aria-controls` と `aria-labelledby`** … 「このタブがこのパネルを操作している」を id で結ぶ。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="全パネルを描いて display:none で隠す"
+  good="選択中のパネルだけを描く（tabs[active] の 1 つ）"
+  note="隠すだけだと、見えないパネルの中身も読み上げ・Tab 移動の対象に残る。素直に 1 つだけ描く。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **押しても切り替わらない** … `onClick={() => setActive(i)}` になっているか、`aria-selected` が `i === active` を見ているか確認します。
+- **`key` の警告が出る** … `tabs.map` の `key` を、重複しないラベルなどにします。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 持つ state は「選択中の番号」1 つだけ
+- 選択中のパネルだけを描く。`display:none` で全部描いて隠さない
+- `role` と `aria-selected` / `aria-controls` でタブとパネルを結び、読み上げに対応する
+
+</SummaryBox>

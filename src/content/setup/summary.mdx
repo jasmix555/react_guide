@@ -1,0 +1,80 @@
+---
+title: まとめと練習問題
+minutes: 5
+slug: setup-summary
+section: setup
+description: このパートの総復習。自分でもう一度プロジェクトを作れるか、練習問題で確かめる。
+level: beginner
+prerequisites: ['setup/troubleshooting']
+---
+
+<LearnBox>
+
+- このパートでやったことを、流れとして整理する
+- 自力でできるようになったかをチェックする
+- 練習問題で、もう一度ゼロから作ってみる
+
+</LearnBox>
+
+おつかれさまでした。ここまでで、一番の難所を越えました。あなたはもう「動く React プロジェクトを自分で作れる人」です。最後に流れを整理し、練習で定着させます。
+
+## このパートの流れ {#recap}
+
+やったことを順番に振り返ります。
+
+1. **道具の確認** … Node.js が JavaScript を PC で動かす土台。`node -v` / `npm -v` で確認し、無ければ LTS を入れた。
+2. **プロジェクト作成** … `npm create vite@latest` を実行し、名前・フレームワーク（React）・バリアント（TypeScript）の 3 つに答えた。
+3. **起動** … `npm install` で材料をそろえ、`npm run dev` で `localhost:5173` に画面を出した。
+4. **理解** … 「index.html（空の箱）→ main.tsx（描く）→ App.tsx（中身）」の流れと、各設定ファイルの役割を見た。
+5. **白紙化＋設定** … サンプルを全部消して白紙にし、保存で自動整形が効くようにした。
+
+## できるようになったかチェック {#checklist}
+
+次に、詰まらず一人でできれば合格です。
+
+- ターミナルを開いて `node -v` でバージョンが出せる
+- `npm create vite@latest` で React + TypeScript のプロジェクトを作れる
+- `npm install` → `npm run dev` で `localhost` に画面を出せる
+- サンプルを消して白紙にできる
+- `Target container is not a DOM element` が出たとき、原因の見当がつく
+
+## 練習問題 {#exercises}
+
+<Exercise
+  title="ゼロからもう1つ作る"
+  answer="cd で作る場所へ移動 → npm create vite@latest practice2 → React → TypeScript → cd practice2 → npm install → npm run dev。表示できたら、App.tsx を <h1> だけにし、App.css とサンプル画像を削除、index.css を最小化。ここまで詰まらずできれば、環境構築は身に付いています。"
+>
+
+`practice2` という名前で、**もう 1 つ新しいプロジェクトを最初から作り**、`localhost` に表示したうえで、白紙まで持っていってください。ヒントは要らないはずです。手が覚えているか確かめる回です。
+
+</Exercise>
+
+<Exercise
+  title="わざとエラーを出して直す"
+  answer="index.html の root という id を別の名前に変えて保存すると Target container is not a DOM element が出る。main.tsx が探す id と一致しなくなり、描き込む箱が見つからないため。id を root に戻せば直る。"
+>
+
+`index.html` の箱の `id` をわざと変えて、`Target container is not a DOM element` を出してください。そのあと、なぜ出たかを自分の言葉で説明し、直してください。
+
+</Exercise>
+
+<Exercise
+  title="一言で説明する"
+  answer="幅（^19.2.0 など）で書かれた package.json だけだと人によって入るバージョンがズレるが、lock ファイルが正確なバージョンを固定するので、全員が同じものを再現できるから。"
+>
+
+`package-lock.json` を git に commit する理由を、同僚に説明するつもりで一言でまとめてください。
+
+</Exercise>
+
+## 次に読む {#next}
+
+土台はできました。次のパート「**[React の前に必要な JavaScript](/guide/javascript/destructuring)**」では、React のコードに最初から出てくる JavaScript の書き方（分割代入など）を、React でどう使うかまで押さえます。ここを通ると、コンポーネントのコードがぐっと読みやすくなります。
+
+<SummaryBox>
+
+- 「道具の確認 → 作成 → 起動 → 理解 → 白紙化」の流れを一人でたどれれば合格
+- 詰まったらページ 20「うまくいかないとき」に戻る
+- 次は、React コードに出てくる JavaScript の書き方を学ぶ
+
+</SummaryBox>

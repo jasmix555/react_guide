@@ -1,0 +1,144 @@
+---
+title: 繰り返し
+minutes: 8
+slug: loops
+section: javascript
+description: for...of と for の基本。そして React では、なぜ for ではなく map で一覧を作るのかを、書き比べて理解する。
+level: beginner
+prerequisites: ['javascript/array-methods']
+---
+
+<LearnBox>
+
+- `for...of` で配列を 1 つずつ処理する
+- 番号（index）が欲しいときの古典的な `for`
+- React では、なぜ `for` ではなく `map` を使うのか
+
+</LearnBox>
+
+## いちばん読みやすい繰り返し：for...of {#for-of}
+
+配列を「1 つずつ取り出して何かする」なら、`for...of` がいちばん読みやすい書き方です。
+
+```js
+const tags = ['調理器具', 'IH対応', '軽量']
+
+for (const tag of tags) {
+  console.log(tag) // 調理器具 → IH対応 → 軽量 と 3 回出る
+}
+```
+
+```js
+for (const tag of tags) {
+//        ↑       ↑
+//        │       └─ 取り出す配列
+//        └─ 1 つずつ入ってくる変数（名前は自由）
+```
+
+`tags` から要素が 1 つずつ `tag` に入り、`{ }` の中が繰り返し実行されます。
+
+## 番号が欲しいときの for {#classic-for}
+
+「何番目か」を使いたいときは、古典的な `for` を使います。少し記号が多いです。
+
+```js
+for (let i = 0; i < tags.length; i++) {
+  console.log(i, tags[i]) // 0 '調理器具' → 1 'IH対応' → 2 '軽量'
+}
+```
+
+- **`let i = 0`** … カウンターを 0 から始める。
+- **`i < tags.length`** … この条件が `true` の間くり返す。
+- **`i++`** … 1 回ごとに `i` を 1 増やす（[記号の読み方](/guide/javascript/symbols)）。
+
+<Callout type="note" title="まずは for...of で十分">
+
+番号が要らないなら `for...of` が読みやすくて安全です（`i < length` の書き間違いも起きません）。番号がどうしても要るときだけ、古典的な `for` を使います。
+
+</Callout>
+
+## React では map を使う {#why-map}
+
+ここが大事です。React で一覧を画面に出すときは、`for` ではなく **`map`**（[map / filter / find](/guide/javascript/array-methods)）を使います。理由は、**`for` は「値を返さない」のに対し、`map` は「新しい配列を返す」**からです。
+
+同じ「名前の配列を作る」を、両方で書き比べます。
+
+```js
+const products = [
+  { name: 'トート' },
+  { name: 'ウォレット' },
+]
+
+// for：空の配列を用意して、1 つずつ push する（3 手順）
+const names1 = []
+for (const p of products) {
+  names1.push(p.name)
+}
+
+// map：1 行で新しい配列が返る
+const names2 = products.map((p) => p.name)
+```
+
+どちらも `['トート', 'ウォレット']` になります。でも JSX の中には `for` 文は書けません（`for` は「文」で、値を返さないため）。`map` は**値（配列）を返す式**なので、そのまま JSX に埋め込めます。だから React では `map` を使います。
+
+<Diff
+  bad="空配列を作り for で push して一覧用の配列を組み立てる"
+  good="map で 1 行。新しい配列がそのまま返る"
+  note="JSX には文の for は書けない。値を返す map なら {items.map(...)} とそのまま埋め込める。"
+/>
+
+## 書き方カタログ：繰り返しの使い分け {#catalog}
+
+```js
+// 1 つずつ処理（番号いらない）
+for (const item of items) {
+  /* ... */
+}
+
+// 番号が欲しい
+for (let i = 0; i < items.length; i++) {
+  /* items[i] */
+}
+
+// 画面に一覧を出す／新しい配列を作る（React はこれ）
+const names = items.map((item) => item.name)
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="JSX の中に for 文を書こうとする"
+  good="配列を map で回し、返ってきた要素を並べる"
+  note="for は値を返さないので JSX に書けない。map は配列を返すので {list.map(...)} と書ける。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`for (const i = 0; ...)` でエラー** … カウンターは増やすので `let` です（`i++` で再代入するため）。
+- **一覧が表示されない** … JSX では `for` ではなく `map` を使い、`{items.map((x) => ...)}` の形にします。
+
+## まとめと練習 {#summary}
+
+<Together
+  task="コンソールで、数値の配列 [10, 20, 30] を for...of で 1 つずつ表示してみてください。"
+  hint="for (const n of nums) { console.log(n) } の形です。"
+>
+
+```js
+const nums = [10, 20, 30]
+for (const n of nums) {
+  console.log(n) // 10 → 20 → 30
+}
+```
+
+`nums` から要素が 1 つずつ `n` に入り、3 回 `console.log` が実行されます。
+
+</Together>
+
+<SummaryBox>
+
+- 1 つずつ処理するなら `for...of`（読みやすい）。番号が要るときだけ古典的な `for`
+- React の一覧表示は `for` ではなく `map`。`map` は新しい配列を**返す**から JSX に書ける
+- `for` のカウンターは `let`（`i++` で再代入する）
+
+</SummaryBox>

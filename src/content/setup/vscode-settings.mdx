@@ -1,0 +1,85 @@
+---
+title: VS Code の設定
+minutes: 7
+slug: setup-vscode-settings
+section: setup
+description: 保存で自動整形、便利な拡張機能、チームで共有できるワークスペース設定。
+level: beginner
+prerequisites: ['setup/blank-slate']
+---
+
+<LearnBox>
+
+- 保存した瞬間にコードを自動で整える設定
+- 入れておくと快適な拡張機能
+- 設定をプロジェクトに含めて、チームで揃える方法
+
+</LearnBox>
+
+コードの見た目（インデントや引用符）を毎回手で整えるのは時間の無駄で、レビューのときも「整形の差分」で埋まってしまいます。エディタに自動でやらせましょう。ここは一度設定すれば、あとはずっと効きます。
+
+## 拡張機能を入れる {#extensions}
+
+VS Code の左端の「拡張機能」アイコン（四角が 4 つ）を開き、次を検索して入れます。
+
+- **Prettier - Code formatter** … コードの整形を自動でやってくれる定番。
+- **Error Lens** … エラーや警告を、その行の右に直接表示してくれる（コンソールを見に行かなくて済む）。
+
+<Callout type="note">
+
+このプロジェクトは自動チェックに `oxlint` を使っています（`package.json` の `lint`）。`oxlint` 用の VS Code 拡張もありますが、**コード品質の道具立て（ESLint / Prettier / husky など）は後のパートでまとめて整えます**。ここでは「保存で整形」だけ先に効かせます。
+
+</Callout>
+
+## 保存で自動整形する {#format-on-save}
+
+プロジェクトの中に **`.vscode/settings.json`** というファイルを作ります。左のエクスプローラでプロジェクト直下に `.vscode` フォルダを作り、その中に `settings.json` を新規作成して、この内容を書きます。
+
+```json title=".vscode/settings.json（新規作成）"
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
+```
+
+`editor.formatOnSave` が「保存したら整形する」、`defaultFormatter` が「整形には Prettier を使う」という指定です。
+
+## 確認する {#check}
+
+効いているか試します。`App.tsx` に、わざと崩した書き方を入れて保存します。
+
+```tsx title="src/App.tsx（わざと崩す）"
+function App() {
+      return    <h1>商品一覧アプリ</h1>
+}
+export     default App
+```
+
+保存（`Ctrl` + `S`）した瞬間に、余分な空白やインデントが**自動でそろいます**。整形されれば設定は効いています。もし変わらなければ、次の「うまくいかないとき」を見てください。
+
+## なぜ .vscode をプロジェクトに入れるのか {#why-workspace}
+
+`.vscode/settings.json` は、**そのプロジェクトだけに効く設定**で、git に含められます。これを commit しておくと、**チームの全員が同じ整形ルール**でコードを書けます。「人によってインデントが違う」問題が起きなくなります。
+
+さらに、`.vscode/extensions.json` を作ると、「このプロジェクトではこの拡張を入れてね」という**おすすめ**をチームに提示できます。
+
+```json title=".vscode/extensions.json（新規作成・任意）"
+{
+  "recommendations": ["esbenp.prettier-vscode", "usernamehw.errorlens"]
+}
+```
+
+新しいメンバーがプロジェクトを開くと、「おすすめの拡張があります」と案内が出ます。
+
+## うまくいかないとき {#trouble}
+
+- **保存しても整形されない** … 画面右下に「Prettier」と出ているか確認します。出ていなければ拡張のインストールがまだか、`defaultFormatter` の綴りが違います。`esbenp.prettier-vscode` を正確に。
+- **別の整形ツールが動いてしまう** … `defaultFormatter` を Prettier に指定すれば、Prettier が優先されます。
+
+<SummaryBox>
+
+- Prettier 拡張＋`editor.formatOnSave` で、保存するたびにコードが自動でそろう
+- 設定は `.vscode/settings.json` に置いて commit すれば、チーム全員で揃えられる
+- `.vscode/extensions.json` で、おすすめ拡張をチームに提示できる
+
+</SummaryBox>

@@ -1,0 +1,134 @@
+---
+title: 文字列の操作
+minutes: 8
+slug: strings
+section: javascript
+description: 文字列の長さを調べ、含むか判定し、切り出し・置き換え・分割する。メソッドは元を変えず新しい文字列を返すことも押さえる。
+level: beginner
+prerequisites: ['javascript/template-literals']
+---
+
+<LearnBox>
+
+- 文字列の長さ・含むか（`.length` / `.includes`）
+- 切り出す・置き換える・分ける（`.slice` / `.replace` / `.split`）
+- 文字列メソッドは**元を変えず、新しい文字列を返す**こと
+
+</LearnBox>
+
+## 文字列はよく「調べて・切って・置き換える」 {#intro}
+
+商品名を検索したり、価格に「円」を付けたり、入力の前後の空白を取ったり。文字列の操作は毎日使います。よく使うものだけを、コンソールで手を動かしながら覚えます。
+
+## 長さと、含むか {#length-includes}
+
+```js
+const name = 'キャンバストート'
+
+name.length // 8（文字数）
+name.includes('トート') // true（含む？）
+name.startsWith('キャン') // true（で始まる？）
+name.endsWith('バッグ') // false（で終わる？）
+```
+
+- **`.length`** … 文字数。プロパティなので `()` は付けません。
+- **`.includes('...')`** … その文字を含むか（`true` / `false`）。検索でよく使います。
+
+## 切り出す {#slice}
+
+`.slice(start, end)` で一部を取り出します。番号は **0 始まり**、`end` の位置は**含みません**。
+
+```js
+'こんにちは'.slice(0, 2) // 'こん'
+```
+
+```js
+'こんにちは'.slice(0, 2)
+//          ↑     ↑  ↑
+//          │     │  └─ ここまで（この番号は含まない）
+//          │     └─ ここから（0 始まり）
+//          └─ 0 番目から 2 番目の手前までを切り出す
+```
+
+## 置き換える・分ける {#replace-split}
+
+```js
+'2,800円'.replace('円', '') // '2,800'（最初の 1 つを置換）
+'a,b,c'.split(',') // ['a', 'b', 'c']（区切りで配列に）
+['a', 'b', 'c'].join('・') // 'a・b・c'（配列を文字列に）
+```
+
+- **`.replace(A, B)`** … 最初の `A` を `B` に。全部替えるなら `.replaceAll(A, B)`。
+- **`.split(区切り)`** … 区切りで分けて**配列**にする。
+- **`.join(つなぎ)`** … 配列を、つなぎ文字で**文字列**にする（`split` の逆）。
+
+## 大文字小文字・前後の空白 {#trim-case}
+
+```js
+'  hello  '.trim() // 'hello'（前後の空白を取る）
+'react'.toUpperCase() // 'REACT'
+'REACT'.toLowerCase() // 'react'
+```
+
+<JsNote feature="文字列メソッドは元を変えない（新しい文字列を返す）">
+
+`name.trim()` を呼んでも、`name` 自身は変わりません。**加工後の新しい文字列が返る**だけです。使いたいときは `const trimmed = name.trim()` のように受け取ります。「呼んだのに変わらない」の多くはこれが原因です。
+
+</JsNote>
+
+## わざと確かめる：返り値を受け取らない {#break-noassign}
+
+「元が変わらない」を体感します。コンソールで次を試してください。
+
+```js
+let s = '  react  '
+s.trim() // 'react' が返るが…
+console.log(s) // '  react  '（s 自身は変わっていない！）
+
+s = s.trim() // 受け取れば変わる
+console.log(s) // 'react'
+```
+
+`s.trim()` の結果を捨てているので、`s` は元のままです。**返ってきた新しい文字列を代入し直す**必要があります。
+
+## 書き方カタログ：よく使う文字列操作 {#catalog}
+
+```js
+const t = 'キャンバストート'
+t.length // 文字数 → 8
+t.includes('トート') // 含むか → true
+t.slice(0, 4) // 切り出し → 'キャンバ'
+'2,800円'.replace('円', '') // 置換 → '2,800'
+'a,b,c'.split(',') // 分割 → ['a','b','c']
+['a', 'b'].join('・') // 結合 → 'a・b'
+'  x  '.trim() // 空白除去 → 'x'
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="name.trim() を呼ぶだけで name が変わると思う"
+  good="const trimmed = name.trim() のように返り値を受け取る"
+  note="文字列メソッドは元を変えず新しい文字列を返す。受け取らないと反映されない。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`.length()` でエラー** … `length` はプロパティです。`()` を付けません（`name.length`）。
+- **加工したのに変わらない** … 返り値を受け取っていません。`x = x.trim()` のように代入し直します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="price.replace('円', '') で '円' を消し、'3,200' が返ります。price 自身は変わらないので、必要なら const num = price.replace('円', '') のように受け取ります。">
+
+`const price = '3,200円'` から「円」を取り除いた文字列を得るには、どう書くでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- 調べる：`.length`（プロパティ）・`.includes()`。切り出す：`.slice(start, end)`（end は含まない）
+- 置き換え `.replace()`、分割 `.split()`、結合 `.join()`
+- 文字列メソッドは元を変えず**新しい文字列を返す**。返り値を受け取る
+
+</SummaryBox>

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "p01",
+    "name": "ステンレス片手鍋 18cm",
+    "price": 3200,
+    "category": "kitchen",
+    "imageUrl": "https://picsum.photos/seed/p01/400/300",
+    "tags": ["調理器具", "IH対応"],
+    "inStock": true
+  },
+  {
+    "id": "p02",
+    "name": "木製カッティングボード",
+    "price": 2480,
+    "category": "kitchen",
+    "imageUrl": "https://picsum.photos/seed/p02/400/300",
+    "tags": ["キッチン雑貨", "天然素材"],
+    "inStock": true
+  },
+  {
+    "id": "p03",
+    "name": "耐熱ガラスマグ 2個セット",
+    "price": 1800,
+    "category": "kitchen",
+    "imageUrl": "https://picsum.photos/seed/p03/400/300",
+    "tags": ["食器", "電子レンジ可"],
+    "inStock": false
+  },
+  {
+    "id": "p04",
+    "name": "ドリップケトル 1.0L",
+    "price": 4500,
+    "category": "kitchen",
+    "imageUrl": "https://picsum.photos/seed/p04/400/300",
+    "tags": ["コーヒー", "調理器具"],
+    "inStock": true
+  },
+  {
+    "id": "p05",
+    "name": "リネンクッションカバー",
+    "price": 1980,
+    "category": "living",
+    "imageUrl": "https://picsum.photos/seed/p05/400/300",
+    "tags": ["ファブリック", "天然素材"],
+    "inStock": true
+  },
+  {
+    "id": "p06",
+    "name": "アロマディフューザー",
+    "price": 5400,
+    "category": "living",
+    "imageUrl": "https://picsum.photos/seed/p06/400/300",
+    "tags": ["家電", "リラックス"],
+    "inStock": true
+  },
+  {
+    "id": "p07",
+    "name": "北欧風フロアランプ",
+    "price": 12800,
+    "category": "living",
+    "imageUrl": "https://picsum.photos/seed/p07/400/300",
+    "tags": ["照明", "インテリア"],
+    "inStock": false
+  },
+  {
+    "id": "p08",
+    "name": "ウォールシェルフ 60cm",
+    "price": 3600,
+    "category": "living",
+    "imageUrl": "https://picsum.photos/seed/p08/400/300",
+    "tags": ["収納", "インテリア"],
+    "inStock": true
+  },
+  {
+    "id": "p09",
+    "name": "折りたたみキャンプチェア",
+    "price": 6900,
+    "category": "outdoor",
+    "imageUrl": "https://picsum.photos/seed/p09/400/300",
+    "tags": ["キャンプ", "軽量"],
+    "inStock": true
+  },
+  {
+    "id": "p10",
+    "name": "ステンレス真空ボトル 500ml",
+    "price": 2900,
+    "category": "outdoor",
+    "imageUrl": "https://picsum.photos/seed/p10/400/300",
+    "tags": ["保温", "アウトドア"],
+    "inStock": true
+  },
+  {
+    "id": "p11",
+    "name": "防水ドライバッグ 20L",
+    "price": 3400,
+    "category": "outdoor",
+    "imageUrl": "https://picsum.photos/seed/p11/400/300",
+    "tags": ["アウトドア", "防水"],
+    "inStock": false
+  },
+  {
+    "id": "p12",
+    "name": "LEDランタン 充電式",
+    "price": 4200,
+    "category": "outdoor",
+    "imageUrl": "https://picsum.photos/seed/p12/400/300",
+    "tags": ["照明", "キャンプ"],
+    "inStock": true
+  }
+]

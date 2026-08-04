@@ -1,0 +1,138 @@
+---
+title: 条件付きクラス（clsx）
+minutes: 8
+slug: conditional-classes
+section: styling
+description: 状態に応じてクラスを足す。テンプレートリテラルの連結が破綻する理由と、clsx で安全・簡潔に書く方法を ProductCard で使う。
+level: beginner
+prerequisites: ['styling/responsive']
+---
+
+<LearnBox>
+
+- 状態（在庫切れ・お気に入り）でクラスを出し分ける
+- 素朴な文字列連結がなぜ破綻するか
+- `clsx` で安全・簡潔に条件付きクラスを組み立てる
+
+</LearnBox>
+
+## 状態で見た目を変えたい {#goal}
+
+`ProductCard` は、状態で見た目を変えたい場面があります。
+
+- 在庫切れ（`!inStock`）なら、カードを少し暗く（`.sold`）。
+- お気に入り（`fav`）なら、ハートを赤く（`.active`）。
+
+つまり「**常に付けるクラス＋条件で足すクラス**」を組み立てる必要があります。
+
+## 素朴な書き方は、すぐ破綻する {#naive}
+
+まずテンプレートリテラルで連結してみます。動きますが、条件が増えると苦しくなります。
+
+```tsx
+<article className={`${styles.card} ${!inStock ? styles.sold : ''}`}>
+```
+
+条件が 2 つ 3 つになると、`${A ? x : ''} ${B ? y : ''}` が並んで読みにくく、空文字 `''` の混入で**余計な空白**も入ります。`&&` で書くと、今度は `false` がそのまま文字列に混じる罠もあります（[clsx のページ](/libraries/clsx)で見たとおり）。
+
+## clsx で組み立てる {#clsx}
+
+`clsx` は、この「条件付きクラスの組み立て」専用の小さな道具です。**`false` の項目は無視**してくれるので、三項演算子も空文字も要りません。
+
+```tsx
+import clsx from 'clsx'
+
+<article className={clsx(styles.card, !inStock && styles.sold, fav && styles.active)}>
+```
+
+```tsx
+clsx(styles.card, !inStock && styles.sold, fav && styles.active)
+//   ↑            ↑                        ↑
+//   │            │                        └─ fav が true のときだけ active を足す
+//   │            └─ 在庫が無いときだけ sold を足す（false なら無視）
+//   └─ 常に付けるクラス
+```
+
+`条件 && styles.クラス` は「条件が `true` ならクラス名、`false` なら `false`」。`clsx` は `false` を捨てて、残ったクラス名だけをスペースでつないでくれます。
+
+<Callout type="note" title="clsx を入れる">
+
+`clsx` は画面に出る動作の一部なので、`-D` を付けずに入れます。`npm install clsx`。詳しくは[「clsx でクラス名を組み立てる」](/libraries/clsx)。
+
+</Callout>
+
+## ProductCard に使う {#apply}
+
+在庫とお気に入りで見た目を変える形が、これです。
+
+```tsx title="src/components/ProductCard/ProductCard.tsx（抜粋）"
+import clsx from 'clsx'
+
+import styles from './ProductCard.module.scss'
+
+// ...
+<article className={clsx(styles.card, !product.inStock && styles.sold)}>
+  {/* ... */}
+  <button
+    type="button"
+    className={clsx(styles.fav, fav && styles.active)}
+    onClick={() => setFav((f) => !f)}
+  >
+    {fav ? '♥' : '♡'}
+  </button>
+</article>
+```
+
+```scss title="ProductCard.module.scss（状態のスタイル）"
+.sold {
+  opacity: 0.55;
+}
+
+.fav.active {
+  color: var(--c-accent);
+}
+```
+
+`.fav.active` は「`fav` と `active` の両方が付いた要素」。`clsx` が `active` を足したときだけ効きます。
+
+<Together
+  task="clsx を使って、product.inStock が false のときだけ styles.sold を付ける className を書いてみてください。"
+  hint="clsx(styles.card, !product.inStock && styles.sold) です。true のときだけクラスが足されます。"
+>
+
+```tsx
+<article className={clsx(styles.card, !product.inStock && styles.sold)}>
+```
+
+`!product.inStock` が `true`（在庫なし）のときだけ `styles.sold` が足されます。在庫ありのときは `false` になり、`clsx` がそれを捨てるので `styles.card` だけになります。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="className={`${styles.card} ${cond ? styles.on : ''}`}"
+  good="className={clsx(styles.card, cond && styles.on)}"
+  note="文字列連結は空白や false 混入が起きやすい。clsx は false を捨てて安全につなぐ。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **クラスに `false` や余計な空白が入る** … 文字列連結をやめて `clsx` にします。`clsx` が不要な値を捨てます。
+- **状態のスタイルが効かない** … `.fav.active` のように、両方付いたときのセレクタになっているか、`clsx` の条件が正しいかを確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="clsx(styles.btn, isActive && styles.active) と書きます。isActive が true のときだけ styles.active が足され、false なら clsx が捨てます。文字列連結より安全で読みやすくなります。">
+
+ボタンに、`isActive` が `true` のときだけ `styles.active` を足したいとき、`clsx` でどう書きますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 「常に付けるクラス＋条件で足すクラス」は `clsx` で組み立てる
+- `条件 && styles.クラス` を並べると、`false` は `clsx` が捨ててくれる
+- 文字列連結（空白・`false` 混入の罠）より、`clsx` が安全で読みやすい
+
+</SummaryBox>

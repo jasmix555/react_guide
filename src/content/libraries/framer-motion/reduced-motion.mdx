@@ -1,0 +1,97 @@
+---
+title: 動きを減らす設定に配慮する
+minutes: 8
+slug: reduced-motion
+section: framer-motion
+description: 動きが苦手な人への配慮。useReducedMotion で OS の設定を読み、動きを消す。情報は消さず、動きだけ消すのが原則。
+level: beginner
+prerequisites: ['libraries/framer-motion/motion-basics']
+---
+
+<LearnBox>
+
+- 「動きを減らす」OS 設定（`prefers-reduced-motion`）とは
+- `useReducedMotion` で、その設定を読んで動きを消す
+- **情報は消さず、動きだけ消す**という原則
+
+</LearnBox>
+
+## なぜ配慮が要るのか {#why}
+
+アニメーションが**苦手な人・体調に響く人**がいます（動きで気分が悪くなる、集中できないなど）。そのため OS には「**動きを減らす**」という設定があり、多くの人がオンにしています。私たちのアプリも、これを尊重します。**アクセシビリティの基本で、外せません。**
+
+## useReducedMotion で設定を読む {#hook}
+
+`motion` には、その設定を読む **`useReducedMotion`** フックがあります。オンなら `true` が返るので、それを見て**動きを消します**。
+
+```tsx
+import { motion, useReducedMotion } from 'motion/react'
+
+function Card() {
+  const reduce = useReducedMotion()
+
+  return (
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      商品カード
+    </motion.div>
+  )
+}
+```
+
+- **`reduce` が `true`（減らす設定）** … `initial={false}` にすると、**アニメせず最初から `animate` の状態**で出ます。
+- **`reduce` が `false`（ふつう）** … いつもの `initial` から動いて出ます。
+
+ホバーなども同様に、`whileHover={reduce ? undefined : { scale: 1.05 }}` と切り替えます。
+
+## 原則：情報は消さない、動きだけ消す {#principle}
+
+いちばん大事な原則です。**動きを消すときも、中身（情報）は必ず見せます。**
+
+```tsx
+// ❌ 悪い例：reduce のとき opacity 0 のまま → 中身が見えない
+initial={reduce ? { opacity: 0 } : { opacity: 0, y: 16 }}
+
+// ✅ 良い例：reduce のときは最初から表示（initial を打ち消す）
+initial={reduce ? false : { opacity: 0, y: 16 }}
+```
+
+「フワッと出る」を消した結果、**要素そのものが消えてしまう**——これがいちばんやりがちな事故です。動きを消すときは「最初から見えている」状態にします。**消すのは動きだけ、情報は残す。**
+
+<Callout type="note" title="CSS でも同じ">
+
+CSS のアニメーションなら `@media (prefers-reduced-motion: reduce) { ... }` で同じことをします（レシピの[スクロールで出現](/recipes/scroll-reveal)で使いました）。`motion` では `useReducedMotion` で JavaScript 側から同じ配慮をします。
+
+</Callout>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="reduce のとき opacity: 0 のままにして、中身が見えなくなる"
+  good="reduce のとき initial={false}（最初から表示）にする"
+  note="動きを消しても情報は残す。要素ごと消えるのが最悪の事故。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **reduce 設定で中身が見えない** … `initial` を `false`（または最終状態）にして、最初から表示します。
+- **設定を変えても反映されない** … `useReducedMotion` はレンダー時に読みます。OS 設定を変えたら、再読み込みで反映されます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="initial を false（または最終状態）にします。opacity: 0 のままにすると、動きを消した結果、中身まで見えなくなります。動きだけ消して、情報（表示）は必ず残すのが原則です。">
+
+`useReducedMotion` が `true` のとき、`initial={{ opacity: 0 }}` をそのままにすると何が問題ですか。どう直しますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 「動きを減らす」設定の人に配慮するのはアクセシビリティの基本。外せない
+- `useReducedMotion` で読み、`true` なら `initial={false}` などで動きを消す
+- **原則：動きだけ消し、情報（中身）は必ず見せる**
+
+</SummaryBox>

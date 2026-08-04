@@ -1,0 +1,241 @@
+---
+title: variant で再利用する
+minutes: 12
+slug: button-variants
+section: components
+description: 同じボタンを3回書かない。variant を props で受け取り、1つの Button を段階的に組み立てる。
+level: beginner
+prerequisites: ['javascript/destructuring']
+---
+
+import { ButtonVariants } from '@/demos/ButtonVariants'
+
+<LearnBox>
+
+- 見た目違いのボタンを、1 つのコンポーネントで作る
+- `variant` を props で受け取り、型で候補を固定する
+- `onClick` などネイティブ属性をそのまま引き継ぐ書き方
+
+</LearnBox>
+
+## このページで作るもの {#goal}
+
+このページのゴールは、色も大きさも違うボタン群を、**全部同じ 1 つの `Button` コンポーネント**で作ることです。渡す `variant` を変えているだけです（動くものは、このページの最後で見ます）。
+
+これを、小さいところから 3 ステップで組み立てます。
+
+## 同じ Button を3回書くと何が起きるか {#why-repeat}
+
+案件で「青いボタン」「白いボタン」「文字だけのボタン」を、別々に作っていませんか。中身（角丸・余白・文字）は同じで、違うのは見た目だけ。**同じ構造を 3 回書いた時点で、1 つにまとめる合図**です。
+
+<Callout type="analogy">
+
+PHP の include に `$type` を渡して出し分けていた感覚と同じです。部品は 1 つ、変わるところだけ引数（props）で渡します。
+
+</Callout>
+
+## ステップ 1：一番小さい Button {#minimal}
+
+まず、ただ `<button>` を包むだけの最小の Button を作ります。`src/components/ButtonVariants/Button.tsx` を新規作成します。
+
+```tsx title="src/components/ButtonVariants/Button.tsx（新規作成）"
+export function Button({ label }: { label: string }) {
+  return <button type="button">{label}</button>
+}
+```
+
+これを使うと `<Button label="購入する" />` でボタンが 1 つ出ます。動きますが、これだと見た目を変えられません。次のステップで「見た目の種類」を受け取れるようにします。
+
+## ステップ 2：variant を props で受け取る {#variant-prop}
+
+「どの見た目か」を `variant` という props にします。候補は**型（union 型）で固定**します。ファイルをこう書き換えます。
+
+```tsx title="src/components/ButtonVariants/Button.tsx（追記・変更）"
+import styles from './Button.module.scss'
+
+type Variant = 'primary' | 'secondary' | 'ghost'
+
+export function Button({
+  label,
+  variant = 'primary',
+}: {
+  label: string
+  variant?: Variant
+}) {
+  return (
+    <button type="button" className={styles[variant]}>
+      {label}
+    </button>
+  )
+}
+```
+
+3 行目の `type Variant = 'primary' | 'secondary' | 'ghost'` が肝です。「`variant` に入れてよいのは、この 3 つの文字列だけ」と型で決めています。`variant = 'primary'` は既定値なので、渡さなければ `primary` になります。`styles[variant]` で、渡された値に応じて当てる CSS クラスを選んでいます。
+
+`type Variant = ...` の 1 行を分解します。
+
+```tsx
+type Variant = 'primary' | 'secondary' | 'ghost'
+//             ↑         ↑
+//             │         └─ | は「または」（3 つのうちどれか 1 つ）
+//             └─ 取りうる値はこの 3 つの文字列だけ
+```
+
+- **取りうる値は 3 つだけ** … `'primary'` `'secondary'` `'ghost'` 以外は入れられない
+- **`|` は「または」** … 「このうちどれか 1 つ」を表す（union 型）
+
+<JsNote feature="'primary' | 'secondary' は union 型">
+
+`|` は「または」。`'primary' | 'secondary' | 'ghost'` は「この 3 つの文字列のどれか」という型です。他の文字列を渡すと、エディタが赤い波線で止めてくれます。
+
+</JsNote>
+
+## ステップ 3：ネイティブ属性を引き継ぐ {#native-attrs}
+
+今のままだと `onClick` を渡せません。`<button>` が持つ属性（`onClick` `disabled` など）を全部引き継げるようにします。これが完成形の全文です。
+
+```tsx title="src/components/ButtonVariants/Button.tsx（全文・完成）"
+import clsx from 'clsx'
+import type { ComponentPropsWithoutRef } from 'react'
+
+import styles from './Button.module.scss'
+
+type Variant = 'primary' | 'secondary' | 'ghost'
+type Size = 'sm' | 'md'
+
+interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
+  variant?: Variant
+  size?: Size
+}
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  className,
+  type = 'button',
+  ...rest
+}: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={clsx(styles.btn, styles[variant], styles[size], className)}
+      {...rest}
+    />
+  )
+}
+```
+
+`extends ComponentPropsWithoutRef<'button'>` で、ネイティブ `<button>` の属性を全部受け取れるようにしました。`variant` `size` など自分で名前を付けた props 以外は、`...rest` にまとめて、`{...rest}` で `<button>` にそのまま渡しています。これで `onClick` も `disabled` も自動で効きます。
+
+`...rest` と `{...rest}` を分解します。
+
+```tsx
+{ variant, size, ...rest }: ButtonProps
+//               ↑
+//               └─ 名前を付けなかった残りの props 全部を ...rest にまとめる
+<button {...rest} />
+//      ↑
+//      └─ その ...rest を {...rest} でそのまま <button> に渡す
+```
+
+- **`...rest`（残りをまとめる）** … 自分で名前を付けなかった props を、まとめて受け取る
+- **`{...rest}`（そのまま button に渡す）** … まとめた props を `<button>` に展開して渡す
+
+## ステップ 4：variant を変えて呼び出す {#usage}
+
+呼び出す側は `variant` を変えるだけ。完成形デモの中身はこれです。
+
+```tsx title="使い方"
+<Button variant="primary">購入する</Button>
+<Button variant="secondary">カートに入れる</Button>
+<Button variant="ghost">あとで見る</Button>
+<Button variant="secondary" disabled>品切れ</Button>
+```
+
+`disabled` を渡した「品切れ」ボタンが押せなくなっているのは、ステップ 3 の `{...rest}` が効いているからです。
+
+<Together
+  task="完成した Button に onClick を渡して、押したら alert が出るようにしてみてください。Button 側は何も足さなくて大丈夫です。"
+  hint="onClick を、他の属性と同じように Button にそのまま渡すだけです。Button の中身は変更しません。"
+>
+
+```tsx
+<Button variant="primary" onClick={() => alert('買いました！')}>
+  買う
+</Button>
+```
+
+`Button` 側に `onClick` を書き足していないのに動きます。ステップ 3 の `...rest` → `{...rest}` が、名前を付けていない props（ここでは `onClick`）を `<button>` にそのまま渡しているからです。
+
+</Together>
+
+## 実際の動き {#demo}
+
+上のコードで作った `Button` を、`variant` を変えて並べたものです。色も大きさも違いますが、部品は 1 つだけです。
+
+<Demo title="Button variants">
+  <ButtonVariants />
+</Demo>
+
+## わざと壊す：存在しない variant を渡すと型が止める {#break-bad-variant}
+
+union 型が守ってくれる様子を見ます。存在しない variant `'primani'`（打ち間違い）を渡してみます。
+
+```tsx title="わざと壊す：存在しない variant"
+<Button variant="primani">購入する</Button>
+```
+
+`"primani"` の部分に赤い波線が付き、こう出ます。
+
+```
+Type '"primani"' is not assignable to type
+'"primary" | "secondary" | "ghost" | undefined'.
+```
+
+「`"primani"` は、`primary | secondary | ghost` のどれでもないので入れられません」という意味です。**実行する前に、打ち間違いを型が止めてくれた**わけです。もし `variant: string`（ただの文字列）にしていたら、この間違いは素通りして、画面でスタイルが当たらず「なぜか効かない」と悩むことになります。これが union 型の価値です。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad='<button className="btn-primary">購入</button>'
+  good='<Button variant="primary">購入</Button>'
+  note="生のクラスを毎回書くと表記ゆれ（btn-primary / btnPrimary…）が必ず出る。Button に集約する。"
+/>
+
+<Diff
+  bad="variant ごとに Button を丸ごとコピーして 3 つ作る"
+  good="Button は 1 つ。variant で出し分ける"
+  note="コピーは、直すとき全部直す羽目になる。変わるのが色だけなら props にする。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="見た目のバリエーションは、boolean を増やさず文字列の union 型で表す"
+  alt="バリエーションが今後ずっと 2 択だと確信できるなら boolean 1 個でも可。迷ったら union にしておくと後で楽です。"
+>
+
+`isPrimary` `isSecondary` のように boolean を増やすと、両方 `true` になる矛盾が起こり得ます。`variant: 'primary' | 'secondary'` なら常にどれか 1 つに決まり、エディタ補完も効きます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **スタイルが当たらない** … `styles[variant]` のクラス名と、`.module.scss` のクラス名が一致しているか確認します（`primary` `secondary` `ghost`）。
+- **`onClick` が効かない** … `...rest` を `<button>` に渡し忘れていないか、`extends ComponentPropsWithoutRef<'button'>` が付いているかを確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="Variant 型に 'danger' を足し（'primary' | 'secondary' | 'ghost' | 'danger'）、.module.scss に .danger のスタイルを追加します。型に足さないと、エディタが赤い波線で「その variant は無い」と教えてくれます。">
+
+このボタンに「削除」用の赤い見た目（`danger`）を足すには、どこを変えればよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- 同じマークアップの繰り返しは、変わる部分を props にして 1 つにまとめる
+- 見た目の候補は union 型で固定すると、打ち間違いを実行前に型が止める
+- `ComponentPropsWithoutRef<'button'>` を継承して `...rest` を渡すと、`onClick` 等が効く
+
+</SummaryBox>

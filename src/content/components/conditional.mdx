@@ -1,0 +1,195 @@
+---
+title: 条件で表示を出し分ける
+minutes: 9
+slug: conditional
+section: components
+description: 'JSX の中で条件によって表示を変える。&& で「あるときだけ出す」、? : で「二択」。0 && が画面に 0 を漏らす罠を、!! や > 0 で防ぐ。'
+level: beginner
+prerequisites: ['components/rendering-lists', 'javascript/ternary-short-circuit']
+---
+
+import { StockBadgeDemo } from '@/demos/StockBadge'
+
+<LearnBox>
+
+- `? :`（三項演算子）で二択の表示を出し分ける
+- `&&` で「条件が真のときだけ出す」
+- `0 &&` が画面に `0` を漏らす罠と、その防ぎ方
+
+</LearnBox>
+
+## このページで作るもの {#goal}
+
+在庫の有無で、「在庫あり」か「売り切れ」かを出し分けます。同じ部品が、`inStock` の値によって違う表示を出します（動くものは、このページの最後で見ます）。
+
+Part 2 でやった三項演算子 `? :` と短絡評価 `&&` が、そのまま JSX の中で使えます。JSX の中に `if` 文は書けないので、**値を返す形**で分岐するのがポイントです。
+
+## ? : で二択を出し分ける {#ternary}
+
+「A か B か、必ずどちらか」を出すときは、三項演算子 `条件 ? A : B` を波かっこの中に書きます。
+
+```tsx
+<p>{product.inStock ? '在庫あり' : '売り切れ'}</p>
+```
+
+`product.inStock` が `true` なら「在庫あり」、`false` なら「売り切れ」。このページ末のデモも、これと同じ考え方です。JSX ではなく文字列を出し分けても、`<span>` などの要素を出し分けても構いません。
+
+`? :` の 1 行を分解します。
+
+```tsx
+<p>{product.inStock ? '在庫あり' : '売り切れ'}</p>
+//  ↑               ↑            ↑
+//  │               │            └─ 偽のとき（: の後ろ）に出すもの
+//  │               └─ 真のとき（? の後ろ）に出すもの
+//  └─ 条件（true か false になる式）
+```
+
+- **条件** … `true` か `false` になる式（ここでは `product.inStock`）
+- **真のとき** … 条件が `true` のときに出すもの（`?` の右）
+- **偽のとき** … 条件が `false` のときに出すもの（`:` の右）
+
+```tsx
+{product.inStock ? (
+  <span className={styles.in}>在庫あり</span>
+) : (
+  <span className={styles.out}>売り切れ</span>
+)}
+```
+
+この `? :` を使った小さな部品を、全文にするとこうです。
+
+```tsx title="src/components/StockBadge/StockBadge.tsx（全文）"
+interface StockBadgeProps {
+  inStock: boolean
+}
+
+export function StockBadge({ inStock }: StockBadgeProps) {
+  return <span>{inStock ? '在庫あり' : '売り切れ'}</span>
+}
+```
+
+## && で「あるときだけ」出す {#and}
+
+「条件が真のときだけ出す。偽のときは何も出さない」は、`条件 && 出すもの` です。
+
+```tsx
+{product.inStock && <span className={styles.badge}>発送できます</span>}
+```
+
+`inStock` が `true` なら右のバッジが出て、`false` なら**何も出ません**（`false` は画面に表示されないため）。「セール中のときだけ SALE ラベル」「ログイン中のときだけメニュー」など、片方だけ出したいときの定番です。
+
+`&&` の 1 行も分解します。
+
+```tsx
+<div>{product.inStock && <span>発送できます</span>}</div>
+//    ↑                   ↑
+//    │                   └─ 真のときだけ出すもの（<span> ... </span>）
+//    └─ 条件（true か false になる式）
+```
+
+- **条件** … `true` か `false` になる式（ここでは `product.inStock`）
+- **真のときだけ出すもの** … 条件が `true` のときだけ出す。`false` のときは何も出ない
+
+## 実際の動き {#demo}
+
+在庫の有無で「在庫あり」「売り切れ」を出し分けている様子です。上の `? :` と `&&` の考え方が、そのまま動いています。
+
+<Demo title="在庫で表示を出し分ける">
+  <StockBadgeDemo />
+</Demo>
+
+## わざと壊す：数を && の左に置くと 0 が漏れる {#break-zero}
+
+`&&` には、Part 2 の[三項演算子と短絡評価](/guide/javascript/ternary-short-circuit)や[記号の読み方](/guide/javascript/symbols)でやった有名な罠があります。JSX で改めて見ておきます。「タグがあるときだけ件数を出す」つもりで、こう書いたとします。
+
+```tsx
+{product.tags.length && <span>タグ {product.tags.length} 件</span>}
+```
+
+タグがある商品は正しく出ます。ところが、**タグが 0 件の商品**では、画面に数字の **`0`** がぽつんと表示されてしまいます。`tags.length` が `0`（falsy）なので、`&&` は右を見ずに**左の `0` をそのまま返し**、その `0` が画面に出るのです。
+
+防ぎ方は、**左を必ず真偽値にする**こと。`> 0` で比べるか、`!!` で真偽値に変換します。
+
+```tsx
+{product.tags.length > 0 && <span>タグ {product.tags.length} 件</span>}
+```
+
+`tags.length > 0` は `false`（真偽値）になるので、`&&` は `false` を返し、React は何も表示しません。**JSX で `{数値 && ...}` を書いて `0` が漏れたら、左を `> 0` か `!!` に直す**——この対処を覚えておいてください。
+
+<Callout type="warn">
+
+`{something && <JSX/>}` で意図せず `0` が出るときは、`&&` の左が `length` や個数などの**数値**になっています。左を `> 0` や `!!` で真偽値にすれば消えます。
+
+</Callout>
+
+<Together
+  task="product.inStock が false のときだけ「入荷待ち」という <span> を出す JSX を、&& を使って書いてみてください。"
+  hint="!product.inStock（在庫が無い、を ! で表す）が真のときだけ出します。"
+>
+
+```tsx
+{!product.inStock && <span className={styles.wait}>入荷待ち</span>}
+```
+
+`!product.inStock` は「在庫が無い」を表します（`!` は[記号の読み方](/guide/javascript/symbols)でやった「反対にする」記号）。これが `true`——つまり在庫切れ——のときだけ「入荷待ち」が出ます。`inStock` は真偽値なので、`&&` の左に置いても `0` 漏れの心配はありません。
+
+</Together>
+
+## 書き方カタログ：条件で出し分ける {#catalog}
+
+```tsx
+{product.inStock ? '在庫あり' : '売り切れ'}                      // ? : で文字列を出し分ける
+{product.inStock ? <span>在庫あり</span> : <span>売り切れ</span>} // ? : で要素を出し分ける
+{product.inStock && <span>発送できます</span>}                   // && で片方だけ出す
+{!product.inStock && <span>入荷待ち</span>}                      // !cond で「〜でないとき」だけ出す
+{product.tags.length > 0 && <span>タグあり</span>}               // > 0 で 0 漏れを防ぐ
+```
+
+「A か B か」は `? :`、「あるときだけ」は `&&`。`&&` の左が `length` などの数値になるときは、`> 0` か `!!` で真偽値にします。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="{items.length && <List />}（0 件のとき 0 が出る）"
+  good="{items.length > 0 && <List />}"
+  note="&& の左が数値だと、0 のとき 0 が画面に漏れる。> 0 か !! で真偽値にする。"
+/>
+
+<Diff
+  bad="JSX の中に if (inStock) { … } を書こうとする"
+  good="{inStock ? <A /> : <B />} または {inStock && <A />}"
+  note="JSX の中に if 文は書けない。値を返す ? : や && で分岐する。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="二択は ? :、片方だけ出すなら &&。&& の左は必ず真偽値にする（数値なら > 0 か !!）"
+  alt="分岐が複雑になったら、JSX の外で変数に組み立ててから差し込みます。三項演算子の入れ子は読めなくなるので避けます。"
+>
+
+「A か B か」は `? :`、「あるときだけ」は `&&`。`&&` の左が `length` や個数になるときは `> 0` で真偽値に直す——これだけで、条件表示のバグの大半は防げます。複雑になったら無理に JSX に詰め込まず、手前で変数に分けます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **画面に `0` が出る** … `&&` の左が数値（`length` など）です。`> 0` か `!!` で真偽値にします。
+- **どちらも表示されない／両方出る** … `? :` の条件と、`:` の前後（真のとき・偽のとき）が入れ替わっていないか確認します。
+- **`if` を書いてエラー** … JSX の中に `if` 文は書けません。`? :` か `&&`、または手前で変数に分けます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="{count > 0 && <Cart />} のように、&& の左を count > 0（真偽値）にします。count のまま置くと、0 のとき画面に 0 が漏れます。">
+
+`{count && <Cart />}` と書いたら、`count` が `0` のとき画面に `0` が出てしまいました。どう直せばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- 二択は `{条件 ? A : B}`、片方だけ出すなら `{条件 && 出すもの}`
+- JSX の中に `if` 文は書けない。値を返す `? :` と `&&` で分岐する
+- `&&` の左が数値だと `0` が画面に漏れる。`> 0` か `!!` で真偽値にする
+
+</SummaryBox>

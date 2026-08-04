@@ -1,0 +1,30 @@
+.demo {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.code {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-sunk);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, monospace;
+}
+
+.button {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--c-accent-strong);
+  }
+}

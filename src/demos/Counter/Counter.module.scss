@@ -1,0 +1,26 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+}
+
+.num {
+  min-width: 3ch;
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.wrap button {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.5rem;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  cursor: pointer;
+}

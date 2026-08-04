@@ -1,0 +1,38 @@
+// Shared breakpoints + helpers. Components pull these in with
+// `@use 'styles/mixins' as *;` (resolved via Vite's Sass loadPaths = src/).
+
+// Breakpoints match the design brief: TOC hides < 1200px, sidebar becomes a
+// drawer < 900px.
+$bp-toc: 1200px;
+$bp-sidebar: 900px;
+
+@mixin up($px) {
+  @media (min-width: $px) {
+    @content;
+  }
+}
+
+@mixin down($px) {
+  @media (max-width: #{$px - 0.02px}) {
+    @content;
+  }
+}
+
+// One accent focus ring, used everywhere interactive (a11y baseline).
+@mixin focus-ring {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

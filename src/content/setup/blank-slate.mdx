@@ -1,0 +1,124 @@
+---
+title: デフォルトを全部消して白紙にする
+minutes: 9
+slug: setup-blank-slate
+section: setup
+description: サンプルの飾りを全部消して、自分のコードを書き始められる白紙の状態にする。手順を全部。
+level: beginner
+prerequisites: ['setup/first-edit']
+---
+
+<LearnBox>
+
+- Vite が置いていくサンプルを、全部きれいに消す
+- どのファイルを消し、どのファイルを最小にするか
+- 白紙になった状態を確認する
+
+</LearnBox>
+
+前のページで App.tsx は小さくしました。でも、使われなくなったサンプルの CSS や画像がまだ残っています。**実務では、新しいプロジェクトを作ったらまず最初にこの掃除をします**。ここで一緒にやって、次のパートから自分のコードを書き始められる白紙にします。
+
+## 何が残っているか {#leftover}
+
+App.tsx は小さくしましたが、次のものが「使われないまま」残っています。
+
+- `src/App.css` … App.tsx がもう読み込んでいない飾りの CSS
+- `src/assets/`（`react.svg` `vite.svg` `hero.png`）… サンプルで使っていたロゴ・画像
+- `public/icons.svg` … サンプルのアイコン集
+- `src/index.css` … サンプル用の凝ったスタイルが入ったまま
+
+順に片付けます。
+
+## ステップ 1：App.tsx を確認する {#step-app}
+
+App.tsx は、前のページでこの状態になっているはずです。念のため全文を確認します。
+
+```tsx title="src/App.tsx（この状態）"
+function App() {
+  return <h1>商品一覧アプリ</h1>
+}
+
+export default App
+```
+
+`import './App.css'` の行が無いことを確認してください（前のページで消しました）。
+
+## ステップ 2：不要なファイルを削除する {#step-delete}
+
+VS Code の左のエクスプローラで、次のファイルを右クリック →「削除」します。
+
+- `src/App.css`
+- `src/assets/react.svg`
+- `src/assets/vite.svg`
+- `src/assets/hero.png`
+- `public/icons.svg`
+
+<Callout type="warn">
+
+`public/favicon.svg` は**消さない**でください（ブラウザのタブに出るアイコンです）。また、`src/main.tsx` `index.html` `package.json` などの土台ファイルは絶対に消しません。消してよいのは「サンプルの飾り」だけです。
+
+</Callout>
+
+## ステップ 3：index.css を最小にする {#step-css}
+
+`src/index.css` を開き、中身を**丸ごと消して**、この最小限に置き換えます。
+
+```css title="src/index.css（丸ごと置き換え）"
+:root {
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+}
+```
+
+これで、余白と基本のフォントだけの、まっさらな土台になります。`main.tsx` が `import './index.css'` でこれを読み込んでいるので、消さずに中身だけ入れ替えます。
+
+## ステップ 4：確認する {#step-check}
+
+`npm run dev` が動いていればそのまま、止めていたら起動して、ブラウザを見ます。**「商品一覧アプリ」という見出しだけ**が、白い背景に出ていれば成功です。これが白紙のキャンバスです。次のパートから、ここに自分のコードを足していきます。
+
+最終的なファイル構成はこうなります。
+
+```
+my-shop/src/
+├─ main.tsx      ← 触っていない（起動の起点）
+├─ App.tsx       ← <h1> だけの白紙
+├─ index.css     ← 最小限
+└─ assets/       ← 空になった
+```
+
+## わざと壊す：root の id を変えると起動しない {#break-root-id}
+
+React で一番有名なエラーの 1 つを、あえて出しておきます。`index.html` の `<div id="root">` を、`<div id="app">` に書き換えて保存します。
+
+```html title="index.html（わざと壊す：id を変える）"
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+```
+
+画面が真っ白になり、コンソール（`F12`）にこう出ます。
+
+```
+Uncaught Error: Target container is not a DOM element.
+```
+
+意味はこうです。`main.tsx` は `document.getElementById('root')` で「`root` という箱」を探しますが、`id` を `app` に変えたので**箱が見つからず**、「描き込む相手（Target container）が DOM に無い」と言っています。`id` を `root` に戻して保存すれば直ります。**この `Target container is not a DOM element` は、`index.html` の箱と `main.tsx` の指名がズレたときの合図**だと覚えておくと、いつか必ず役に立ちます。
+
+## うまくいかないとき {#trouble}
+
+- **削除後にエラー `Failed to resolve import "./assets/react.svg"`** … まだどこかのファイルがその画像を `import` しています。エラーに出ているファイルを開き、その `import` 行を消してください。
+- **画面が真っ白で、コンソールに何も出ていない** … `npm run dev` が止まっていないか、ターミナルに別のエラーが出ていないかを確認します。
+
+<SummaryBox>
+
+- 新規プロジェクトはまず掃除。App.css・サンプル画像・icons.svg を削除し、index.css は最小に
+- `favicon.svg` と土台ファイル（main.tsx / index.html など）は消さない
+- `Target container is not a DOM element` は、`index.html` の箱の id と main.tsx の指名がズレた合図
+
+</SummaryBox>

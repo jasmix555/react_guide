@@ -1,0 +1,101 @@
+---
+title: モジュールで機能を足す（矢印・ドット・自動再生）
+minutes: 9
+slug: swiper-modules
+section: swiper
+description: "Swiper のモジュール。Navigation で矢印、Pagination でドット、Autoplay で自動再生、A11y で配慮。modules に渡し CSS も足す。reduced-motion では自動再生を止める。"
+level: beginner
+prerequisites: ['libraries/swiper/basics']
+---
+
+import { SwiperCarousel } from '@/demos/SwiperCarousel'
+
+<LearnBox>
+
+- 機能は**モジュール**で足す（`modules` に渡す＋ CSS も足す）
+- Navigation（矢印）・Pagination（ドット）・Autoplay（自動再生）・A11y（配慮）
+- 自動再生は「動きを減らす」設定のとき止める
+
+</LearnBox>
+
+## モジュールの足し方 {#how}
+
+Swiper は、基本の操作だけ最初から入っていて、**矢印・ドット・自動再生などは「モジュール」を足して有効化**します。手順は 2 つです。
+
+1. `swiper/modules` から使うモジュールを読み込み、`Swiper` の `modules` に配列で渡す。
+2. モジュールによっては**専用の CSS** も読み込む（矢印・ドットは見た目があるため）。
+
+```tsx
+import { Navigation, Pagination, Autoplay, A11y } from 'swiper/modules'
+
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
+```
+
+```tsx
+<Swiper modules={[Navigation, Pagination, Autoplay, A11y]}>
+  {/* SwiperSlide を並べる */}
+</Swiper>
+```
+
+<Callout type="mistake" title="モジュールの CSS 忘れ">
+
+`modules` に渡しても、**その CSS を読み込まないと見た目が出ません**。矢印が出ない・ドットが変、というときは `swiper/css/navigation` や `swiper/css/pagination` の読み込みを確認します。Autoplay と A11y には専用 CSS はありません。
+
+</Callout>
+
+## 矢印・ドット・自動再生 {#options}
+
+モジュールを渡したら、対応する props で細かく設定します。
+
+- **Navigation（矢印）** … `navigation` を付けるだけで、左右の矢印が出ます。
+- **Pagination（ドット）** … `pagination={{ clickable: true }}` で下にドット。`clickable` でドットを押して移動できます。
+- **Autoplay（自動再生）** … `autoplay={{ delay: 2600 }}` で 2.6 秒ごとに進みます。`disableOnInteraction: false` を足すと、触った後も自動再生を続けます。
+- **A11y（配慮）** … `modules` に渡しておくだけで、スクリーンリーダー向けのラベルなどが付きます。
+
+```tsx
+<Swiper
+  modules={[Navigation, Pagination, Autoplay, A11y]}
+  navigation
+  pagination={{ clickable: true }}
+  autoplay={{ delay: 2600, disableOnInteraction: false }}
+>
+  {/* SwiperSlide を並べる */}
+</Swiper>
+```
+
+## 自動再生は reduced-motion に配慮 {#reduce}
+
+自動再生は「勝手に動く」動きなので、**「動きを減らす」設定の人には止める**のが配慮です。[Framer Motion で使った `useReducedMotion`](/libraries/framer-motion/reduced-motion) をそのまま使えます。減らす設定なら `autoplay` を `false` にします。
+
+```tsx
+import { useReducedMotion } from 'motion/react'
+
+const reduce = useReducedMotion()
+
+// ↓ Swiper の props で切り替える
+// autoplay={reduce ? false : { delay: 2600, disableOnInteraction: false }}
+```
+
+<Callout type="note" title="動きだけ消し、操作は残す">
+
+自動再生を止めても、矢印やスワイプでの操作は残ります。**情報や操作は残したまま、余計な動きだけ消す**——GSAP や Framer Motion と同じ原則です。
+
+</Callout>
+
+## モジュール込みの動き {#demo}
+
+矢印・ドット・自動再生・レスポンシブを全部入れると、こうなります（[次のページ](/libraries/swiper/project)で全文を読みます）。
+
+<Demo title="モジュール込みの商品カルーセル">
+  <SwiperCarousel />
+</Demo>
+
+<SummaryBox>
+
+- 機能は `swiper/modules` から読み込み、`modules={[...]}` に渡す＋必要な CSS も足す
+- `navigation`（矢印）/ `pagination={{ clickable: true }}`（ドット）/ `autoplay`（自動再生）/ A11y（配慮）
+- 自動再生は `useReducedMotion` で、減らす設定のとき `false` にする
+
+</SummaryBox>

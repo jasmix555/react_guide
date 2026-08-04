@@ -1,0 +1,81 @@
+---
+title: create-next-app の選択肢との違い
+minutes: 6
+slug: setup-vite-vs-next
+section: setup
+description: 「Tailwind は？」「App Router は？」は Next.js の質問。Vite では聞かれない。混同を表で解く。
+level: beginner
+prerequisites: ['setup/variants']
+---
+
+<LearnBox>
+
+- なぜ「Tailwind は使う？」と聞かれると思い込んでしまうのか
+- create-next-app と create-vite で、聞かれることがどう違うか
+- 記事の手順が自分の画面と合わないときの見分け方
+
+</LearnBox>
+
+ネットの React 記事の多くは、実は **Next.js** の記事です。そして Next.js のプロジェクト作成（`create-next-app`）は、Vite とは**まったく別の質問**をしてきます。ここを知らないと、「記事には Tailwind を聞かれると書いてあるのに、自分の画面には出ない」と固まります。それは正常です。
+
+## Next.js の作成はたくさん聞いてくる {#next-prompts}
+
+`npx create-next-app` を実行すると、こんなに質問されます（参考。Next.js 側の話です）。
+
+```
+✔ What is your project named? … my-app
+✔ Would you like to use TypeScript? … Yes
+✔ Would you like to use ESLint? … Yes
+✔ Would you like to use Tailwind CSS? … Yes
+✔ Would you like your code inside a `src/` directory? … Yes
+✔ Would you like to use App Router? (recommended) … Yes
+✔ Would you like to customize the import alias (`@/*` by default)? … No
+```
+
+Tailwind も、`src/` ディレクトリも、App Router も、**Next.js の質問**です。
+
+## Vite の作成は 3 つしか聞かない {#vite-prompts}
+
+一方、私たちがやった `npm create vite@latest` が聞くのは、**たった 3 つ**でした。
+
+```
+◇  Project name:        … my-shop
+◇  Select a framework:  … React
+◇  Select a variant:    … TypeScript
+```
+
+Vite は Tailwind も App Router も聞きません。**それらは後から自分で足す**からです（このガイドでは後のパートで足します）。
+
+## 並べて見る {#table}
+
+| 質問される項目 | create-vite（Vite） | create-next-app（Next.js） |
+| --- | --- | --- |
+| プロジェクト名 | 聞かれる | 聞かれる |
+| フレームワーク選択 | 聞かれる（React 等） | 聞かれない（Next.js 固定） |
+| TypeScript | 聞かれる（バリアントで） | 聞かれる |
+| ESLint | 聞かれない | 聞かれる |
+| Tailwind CSS | **聞かれない** | 聞かれる |
+| `src/` ディレクトリ | **聞かれない** | 聞かれる |
+| App Router | **聞かれない**（Next の概念） | 聞かれる |
+| import エイリアス | **聞かれない** | 聞かれる |
+
+<Callout type="note">
+
+**App Router は Next.js だけの概念**です。Vite のプロジェクトに App Router はありません。ネット記事で `app/` フォルダや `page.tsx` が出てきたら、それは Next.js の記事です。混ざらないよう、頭の隅に置いておいてください。
+
+</Callout>
+
+## 記事と画面が合わないときの見分け方 {#tell}
+
+手順が自分の画面と食い違ったら、まず「**これは Vite の記事か、Next.js の記事か**」を疑ってください。見分けの目印は次のとおりです。
+
+- `npm create vite` で始まる → Vite（このガイドと同じ）
+- `create-next-app` / `next dev` / `app/` フォルダ / `page.tsx` が出てくる → Next.js
+
+<SummaryBox>
+
+- Vite が聞くのは「名前・フレームワーク・バリアント」の 3 つだけ
+- Tailwind・`src/`・App Router は Next.js の質問。Vite では聞かれない
+- 記事と画面が合わないときは、まず Vite の記事か Next.js の記事かを疑う
+
+</SummaryBox>

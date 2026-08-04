@@ -1,0 +1,87 @@
+---
+title: 通し課題：一覧に動きを付ける
+minutes: 9
+slug: animation-project
+section: framer-motion
+description: ProductCard の一覧に stagger の出現とホバーを付ける。useProducts の取得と組み合わせ、reduced-motion に配慮して仕上げる。
+level: intermediate
+prerequisites: ['libraries/framer-motion/scroll-and-stagger']
+---
+
+<LearnBox>
+
+- `ProductCard` の一覧を、stagger で少しずつ出す
+- 前パートの `useProducts`（取得）と組み合わせる
+- `useReducedMotion` に配慮して仕上げる
+
+</LearnBox>
+
+## 作るもの {#goal}
+
+Part 8 で作った「取得して一覧表示」に、Framer Motion の**動き**を足します。データが届いたら、カードが**少しずつフワッと**並ぶ——これが仕上げです。
+
+## 一覧を stagger にする {#stagger}
+
+`ProductListPage` の一覧を、`motion` で包みます。ポイントは、**取得（`useProducts`）はそのまま**で、表示の入れ物を `motion.div` にして stagger を足すことです。
+
+```tsx title="src/pages/ProductListPage.tsx（アニメ付き・全文）"
+import { motion, useReducedMotion } from 'motion/react'
+
+import { ProductCard } from '@/components/ProductCard/ProductCard'
+import { useProducts } from '@/hooks/useProducts'
+import styles from './ProductListPage.module.scss'
+
+export function ProductListPage() {
+  const { products, status } = useProducts()
+  const reduce = useReducedMotion()
+
+  if (status === 'loading') {
+    return <p className={styles.msg}>読み込み中…</p>
+  }
+  if (status === 'error') {
+    return <p className={styles.error}>読み込みに失敗しました。</p>
+  }
+
+  return (
+    <motion.div
+      className={styles.list}
+      initial="hidden"
+      animate="show"
+      variants={{
+        hidden: {},
+        show: { transition: { staggerChildren: reduce ? 0 : 0.06 } },
+      }}
+    >
+      {products.map((product) => (
+        <motion.div
+          key={product.id}
+          variants={{
+            hidden: reduce ? { opacity: 1 } : { opacity: 0, y: 16 },
+            show: { opacity: 1, y: 0 },
+          }}
+        >
+          <ProductCard product={product} />
+        </motion.div>
+      ))}
+    </motion.div>
+  )
+}
+```
+
+読みどころは 3 つです。`useProducts()` の取得と 3 状態は**そのまま**（Part 8）。一覧の入れ物を `motion.div` にして `staggerChildren`。各カードを `motion.div` で包み、`variants` で「下からフワッと」。**`reduce` のときは stagger を 0、`initial` を出さない**（[reduced-motion](/libraries/framer-motion/reduced-motion) の配慮）。
+
+## ProductCard 自身のホバーは？ {#hover}
+
+カードのホバーで持ち上げたいときは、`ProductCard` の中の一番外側を `<motion.article>` にして `whileHover={reduce ? undefined : { y: -4 }}` を足します。ただし、Part 5 で **CSS の `:hover` でも持ち上げ**を付けていました。**どちらか一方**にすれば十分です（二重にしない）。動きの質感を `spring` にしたいなら motion 側、シンプルでよければ CSS 側、と選びます。
+
+## 動かす {#run}
+
+`npm run dev` で開くと、「読み込み中…」のあと、カードが**上から順に少しずつ**現れます。OS の「動きを減らす」をオンにすると、動かず最初から並びます（中身は消えません）。**取得→表示→気持ちよく出現**まで、これでつながりました。
+
+<SummaryBox>
+
+- 取得（`useProducts`）はそのまま。一覧の入れ物を `motion.div` にして stagger を足す
+- 各カードを `motion.div` で包み、`variants` で「下からフワッと」
+- `useReducedMotion` で、reduce のときは stagger 0・最初から表示。ホバーは CSS か motion のどちらか一方
+
+</SummaryBox>

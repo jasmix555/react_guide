@@ -1,0 +1,132 @@
+---
+title: Product 型とデータ
+minutes: 9
+slug: product-type
+section: typescript
+description: 商品データの形を Product interface で定義し、category はリテラル union に。products.json を型付きで読み、プロパティの打ち間違いを止める。
+level: beginner
+prerequisites: ['typescript/union-literal']
+---
+
+<LearnBox>
+
+- 商品データの形を `Product` interface で定義する
+- `category` をリテラル union にして、決まった値だけ許す
+- `products.json` を型付きで読み、プロパティの打ち間違いを止める
+
+</LearnBox>
+
+## データの形を型にする {#product}
+
+`products.json` の 1 件は、決まった形をしています。この形を `Product` 型にします。`category` は決まった 3 つのどれかなので、[リテラル union](/guide/typescript/union-literal) にします。
+
+```ts title="src/types/product.ts"
+export interface Product {
+  id: string
+  name: string
+  price: number
+  category: 'kitchen' | 'living' | 'outdoor'
+  imageUrl: string
+  tags: string[]
+  inStock: boolean
+}
+```
+
+`category: 'kitchen' | 'living' | 'outdoor'` としておくと、`'kitchin'` のような打ち間違いを型が止めてくれます。`tags: string[]` は「文字列の配列」です。
+
+## products.json を型付きで読む {#typed-json}
+
+`products.json` を読み込み、「これは `Product` の配列だ」と型を付けます。`as Product[]` を使います。
+
+```ts title="src/data/products.ts"
+import productsData from './products.json'
+
+import type { Product } from '@/types/product'
+
+export const products = productsData as Product[]
+```
+
+これで、`products` は `Product[]`（Product の配列）として扱われます。`products[0].name` は補完が効き、`products[0].prise`（打ち間違い）は赤い波線で止まります。
+
+<Callout type="warn" title="as は「私が保証します」の約束">
+
+`as Product[]` は、TypeScript に「この JSON は `Product` の形だと、私が保証する」と伝える書き方（型アサーション）です。TypeScript は **JSON の中身までは検証しません**。だから、`Product` 型と `products.json` の実際の中身は、自分で一致させ続ける必要があります（片方だけ変えるとズレます）。
+
+</Callout>
+
+## わざと壊す：union にない category {#break}
+
+`category` の union が、データのミスを止める様子を見ます。`Product` 型のオブジェクトを、無いカテゴリで書いてみます。
+
+```ts title="無いカテゴリ"
+const p: Product = {
+  id: 'x',
+  name: 'テスト',
+  price: 100,
+  category: 'kitchin', // ← 打ち間違い（正しくは kitchen）
+  imageUrl: '',
+  tags: [],
+  inStock: true,
+}
+```
+
+`'kitchin'` に赤い波線が付き、こう出ます。
+
+```
+Type '"kitchin"' is not assignable to type
+'"kitchen" | "living" | "outdoor"'.
+```
+
+「`'kitchin'` は、決められた 3 つのカテゴリのどれでもありません」。もし `category: string` にしていたら、この打ち間違いは素通りして、後で「なぜかこの商品だけ絞り込みに出てこない」と悩むことになります。
+
+<Together
+  task="Product 型を使って、キッチン用品の商品 1 件を、型注釈付き（const p: Product = ...）で書いてみてください。エディタの補完で、必要なプロパティが分かります。"
+  hint="const p: Product = { id, name, price, category: 'kitchen', imageUrl, tags, inStock } を全部埋めます。category は 3 つのうちどれか。"
+>
+
+```ts
+import type { Product } from '@/types/product'
+
+const p: Product = {
+  id: 'p99',
+  name: 'ステンレスボトル',
+  price: 2800,
+  category: 'kitchen',
+  imageUrl: 'https://picsum.photos/seed/p99/400/300',
+  tags: ['水筒'],
+  inStock: true,
+}
+```
+
+必須プロパティを 1 つでも忘れると赤くなり、`category` に `'kitchen' | 'living' | 'outdoor'` 以外を書いても止まります。型が「正しい形」をガイドしてくれます。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="category: string にする"
+  good="category: 'kitchen' | 'living' | 'outdoor' にする"
+  note="string だとカテゴリの打ち間違いが素通り。union なら決まった値だけに固定できる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`products[0].name` が `any` になる／補完が効かない** … `as Product[]` で型を付けているか確認します。
+- **`Type 'X' is not assignable`（category）** … `products.json` の値と、`Product` 型の union がズレています。どちらかを合わせます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="category を 'kitchen' | 'living' | 'outdoor' のリテラル union にします。string だと打ち間違いが通ってしまいますが、union なら決められた 3 つ以外は型エラーになり、実行前に気づけます。">
+
+`Product` 型で、`category` を「決まった 3 つのカテゴリだけ」に限るには、どう書きますか。`string` にするのと比べて何が良いですか。
+
+</Exercise>
+
+<SummaryBox>
+
+- データの形は `interface Product` にまとめ、`category` はリテラル union で固定する
+- `products.json` は `as Product[]` で型を付ける（`as` は「形を保証する」約束）
+- 型があると、プロパティの打ち間違いや無いカテゴリを、実行前に止められる
+
+</SummaryBox>

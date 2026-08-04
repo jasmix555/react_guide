@@ -1,0 +1,131 @@
+---
+title: useProducts カスタムフックに切り出す
+minutes: 9
+slug: custom-hook
+section: data
+description: 取得ロジックを useProducts カスタムフックに切り出す。use で始まる関数の中で hooks を使い、型付きで返して使い回す。
+level: beginner
+prerequisites: ['data/three-states']
+---
+
+<LearnBox>
+
+- 取得ロジック（3 状態＋fetch）を `useProducts` にまとめる
+- カスタムフック（`use` で始まる関数）とは何か
+- 型付きで返して、使う側をスッキリさせる
+
+</LearnBox>
+
+## 同じ取得を毎回書きたくない {#why}
+
+前ページの「`useState` ×2 ＋ `useEffect` で取得」は、商品を使うページごとに書くと長くて重複します。この**まとまりに名前を付けて 1 つの関数にする**——それが**カスタムフック**です。
+
+カスタムフックは、**`use` で始まる普通の関数**です。中で `useState` や `useEffect` を使えるのが特徴です。
+
+```tsx
+export function useProducts() {
+//              ↑
+//              └─ use で始まる関数＝カスタムフック。中で useState / useEffect が使える
+```
+
+## useProducts を作る {#hook}
+
+前ページの中身を、そのまま `useProducts` に移し、最後に `{ products, status }` を返します。`src/hooks/useProducts.ts` を新規作成してください。
+
+```tsx title="src/hooks/useProducts.ts（全文）"
+import { useEffect, useState } from 'react'
+
+import type { Product } from '@/types/product'
+
+type Status = 'loading' | 'error' | 'success'
+
+export function useProducts() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [status, setStatus] = useState<Status>('loading')
+
+  useEffect(() => {
+    let ignore = false
+
+    async function load() {
+      try {
+        const res = await fetch('/products.json')
+        if (!res.ok) throw new Error()
+        const data: Product[] = await res.json()
+        if (!ignore) {
+          setProducts(data)
+          setStatus('success')
+        }
+      } catch {
+        if (!ignore) setStatus('error')
+      }
+    }
+
+    load()
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  return { products, status }
+}
+```
+
+`import` に `@/types/product` を使えるのは、[Part 1 で `@/` を設定](/guide/setup/path-alias)したからです。返しているのは「商品」と「状態」の 2 つ。これで、取得の全部がこの 1 ファイルに収まりました。
+
+## 使う側はスッキリ {#use}
+
+使うページは、`useProducts()` を呼んで、返ってきた `products` と `status` を使うだけです。
+
+```tsx title="使う側"
+function ProductListPage() {
+  const { products, status } = useProducts()
+
+  if (status === 'loading') return <p>読み込み中…</p>
+  if (status === 'error') return <p>読み込みに失敗しました</p>
+
+  return (
+    <ul>
+      {products.map((p) => (
+        <li key={p.id}>{p.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+取得の詳しい中身（`fetch`・`try/catch`・`ignore`）は `useProducts` に隠れ、ページ側は「商品と状態をもらって表示する」だけになりました。別のページでも `useProducts()` を呼べば、同じ取得が使い回せます。
+
+<JsNote feature="返り値の型は推論される">
+
+`return { products, status }` の型は、`products: Product[]`・`status: Status` と**自動で推論**されます。使う側の `const { products, status } = useProducts()` も、ちゃんと型が付きます。返り値にわざわざ型注釈を書かなくて大丈夫です。
+
+</JsNote>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="関数名を getProducts など use で始めない名前にする"
+  good="use で始める（useProducts）。中で hooks を使うから"
+  note="中で useState/useEffect を使う関数は use で始める約束。守らないと hooks のルール違反を検知できない。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`React Hook ... is called in function "xxx"` の警告** … 関数名が `use` で始まっていません。`useProducts` のようにします。
+- **使う側で型が付かない** … `useProducts` の中の state に型（`useState<Product[]>` など）が付いているか確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="use で始めます（useProducts）。中で useState や useEffect を使う関数はカスタムフックで、use で始める約束です。こうすると React が hooks のルール違反を検知でき、使う側も { products, status } を受け取るだけで済みます。">
+
+取得ロジックをまとめた関数は、なぜ `use` で始めるのですか。まとめると使う側はどう楽になりますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 取得の `useState`＋`useEffect` を、`use` で始まる関数（カスタムフック）にまとめる
+- `useProducts` は `{ products, status }` を返す。詳しい取得はこの中に隠れる
+- 使う側は `const { products, status } = useProducts()` だけ。使い回せる
+
+</SummaryBox>

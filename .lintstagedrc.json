@@ -1,0 +1,5 @@
+{
+  "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+  "*.{scss,css,json,md}": ["prettier --write"],
+  "src/content/**/*.mdx": ["prettier --write", "node scripts/lint-content.mjs"]
+}

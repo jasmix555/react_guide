@@ -1,0 +1,83 @@
+---
+title: 選択肢②：バリアントを全部説明する
+minutes: 7
+slug: setup-variants
+section: setup
+description: React の8つのバリアントを1つずつ。何か・いつ選ぶか・今回選ばない理由。結論は TypeScript。
+level: beginner
+prerequisites: ['setup/project-name']
+---
+
+<LearnBox>
+
+- 「Select a variant」に並ぶ 8 つが、それぞれ何なのか
+- なぜ今回は一番上の **TypeScript** を選ぶのか
+- `↗` が付いた選択肢は何が違うのか
+
+</LearnBox>
+
+React を選ぶと、最後に「バリアント（variant）」を聞かれます。ここが一番迷うところです。**結論は一番上の「TypeScript」**ですが、他が何なのかを知らずに選ぶと不安なので、全部説明します。
+
+## 画面に出る 8 つ {#list}
+
+`Select a variant:` の一覧はこうなっています（矢印キーで選んで `Enter`）。
+
+```
+◇  Select a variant:
+│  ● TypeScript                        ← これを選ぶ
+│  ○ TypeScript + React Compiler
+│  ○ JavaScript
+│  ○ JavaScript + React Compiler
+│  ○ RSC ↗
+│  ○ React Router v7 ↗
+│  ○ TanStack Router ↗
+│  ○ Vike ↗
+```
+
+一番上の **TypeScript** が最初から選ばれています。私たちはこれを選ぶので、実は**そのまま `Enter` を押すだけ**です。でも、残りが何かを見ておきましょう。
+
+## 1 つずつ {#each}
+
+**TypeScript** — 型付きの React プロジェクト。このガイドが最初から最後まで使う構成です。**これを選びます。**
+
+**TypeScript + React Compiler** — 上に「React Compiler」という自動最適化の仕組みを最初から足したもの。便利ですが、裏で自動的にコードを書き換えるため、**学習中は「なぜ速くなるのか」が見えにくくなります**。最適化は後から足せるので、今は付けません（次のページでもう少し説明します）。
+
+**JavaScript** — 型なしの React。このガイドは「最初から型を書けるようになる」ことが目的なので選びません。理由は「TypeScript とは」のページで扱います。
+
+**JavaScript + React Compiler** — 型なし版に React Compiler を足したもの。上の 2 つの理由から選びません。
+
+**RSC ↗** — React Server Components という、サーバー側で動く高度な構成の実験的スターター。今の私たちには早すぎます。
+
+**React Router v7 ↗** — ルーティング（ページ切り替え）が最初から入った構成。ルーティングは後で自分で足せるので、まずは素の状態から学びます。
+
+**TanStack Router ↗** — 別のルーティングライブラリの構成。同じ理由で今は選びません。
+
+**Vike ↗** — Vike という別フレームワークのスターター。今は不要です。
+
+## `↗` が付いた選択肢の意味 {#arrow}
+
+`↗` が付いた 4 つ（RSC / React Router / TanStack Router / Vike）は、**Vite の React テンプレートではなく、別の道具のスターターを呼び出します**。選ぶと create-vite が「その道具の作成コマンド」にバトンを渡すイメージです。素の Vite + React を学びたい今は、`↗` の付かない上 4 つ（TypeScript 系・JavaScript 系）から選ぶ、と覚えておけば十分です。
+
+<Std
+  decision="バリアントは一番上の TypeScript（＝素の Vite + React + TypeScript）を選ぶ"
+  alt="チーム全員が React Compiler の挙動を理解済みで、最適化を最初から効かせたいなら『TypeScript + React Compiler』。ルーティング前提の大きめの案件が確定しているなら React Router の構成。学習段階では、いずれも後から足せるので不要。"
+>
+
+余計なものが乗っていない素の構成が、React の考え方を一番素直に学べます。必要になった機能は、このガイドで 1 つずつ足していきます。とくに **React Compiler は付けません**。最適化を自動化してしまうので、Part 9「state と hooks」で `useMemo` / `useCallback` / `React.memo` を手で確かめる練習が、読者の手元で成り立たなくなるからです。仕組みを理解したあとで足すのが健全です（あとで詳しくやります）。
+
+</Std>
+
+<Deeper title="昔あった「TypeScript + SWC」は？">
+
+少し前の create-vite には「**TypeScript + SWC**」という選択肢があり、多くの記事がそれを勧めています。create-vite 9 ではこの選択肢は**無くなり**、代わりに「React Compiler」版が入りました。SWC という高速変換の道具自体は今も裏で使えますが、**作成ウィザードの選択肢としては消えています**。だから「SWC を選べ」と書いた記事を見ても、今の画面には出てこなくて正常です。
+
+</Deeper>
+
+<SummaryBox>
+
+- 8 つのうち、私たちが選ぶのは一番上の **TypeScript**（最初から選択済みなので `Enter` だけ）
+- React Compiler・ルーティング・RSC などは、後から足せるので今は付けない
+- `↗` 付きは別の道具のスターター。今は `↗` の無い上 4 つから選ぶ
+- 古い記事の「TypeScript + SWC」は create-vite 9 では消えている
+
+</SummaryBox>

@@ -1,0 +1,53 @@
+.grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+}
+
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+
+.shown {
+  opacity: 1;
+  transform: none;
+}
+
+// 動きを減らす設定の人には、アニメーションなしで最初から見せる（隠さない）。
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+.card {
+  height: 100%;
+  padding: var(--sp-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+}
+
+.cardTitle {
+  margin: 0 0 var(--sp-1);
+  font-weight: 700;
+}
+
+.cardBody {
+  margin: 0;
+  color: var(--c-muted);
+  font-size: var(--fs-small);
+}

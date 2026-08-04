@@ -1,0 +1,98 @@
+---
+title: コピーボタン
+minutes: 7
+slug: copy-button
+section: recipes
+description: navigator.clipboard でテキストをコピーし、押したあと一時的に「コピーしました」に変えるボタン。
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { CopyButtonDemo } from '@/demos/CopyButton'
+
+<LearnBox>
+
+- `navigator.clipboard.writeText` でコピーする
+- 押したあと、一時的に表示を変える（`boolean` の state 1 つ）
+- コピーが動く条件（`https` か `localhost`）
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+コード例やクーポンコードの横に置く、あのボタンです。押すとコピーされ、少しの間だけ表示が変わります。
+
+<Demo title="CopyButton">
+  <CopyButtonDemo />
+</Demo>
+
+## コピー自体は 1 行 {#clipboard}
+
+コピーはブラウザの機能で、書くのは実質 1 行です。
+
+```ts title="コピーする"
+await navigator.clipboard.writeText('コピーしたい文字列')
+```
+
+`writeText` は**非同期**（すぐには終わらないかもしれない処理）なので、`await` を付けます。そのため、呼ぶ関数には `async` を付けます。
+
+## 押したことを見せる {#feedback}
+
+コピーは一瞬で終わるので、そのままだと「押せたのか？」が分かりません。**押した直後だけ表示を変える**ために、`copied` という `boolean` を state に持ちます。
+
+```tsx
+const [copied, setCopied] = useState(false)
+//     ↑        ↑                    ↑
+//     │        │                    └─ 初期値。まだコピーしていない
+//     │        └─ 表示を切り替える関数
+//     └─ 「いまコピー直後か」を表す true / false
+```
+
+`copied` が `true` の間だけラベルを「コピーしました ✓」にし、少し経ったら `false` に戻します。
+
+## CopyButton 本体 {#copy-body}
+
+`src/components/CopyButton/CopyButton.tsx` を新規作成して、この全文を貼り付けてください。
+
+```tsx title="src/components/CopyButton/CopyButton.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+export function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button type="button" onClick={copy}>
+      {copied ? 'コピーしました ✓' : 'コピー'}
+    </button>
+  )
+}
+```
+
+`copy` の中は 3 ステップです。①`writeText` でコピー、②`setCopied(true)` で表示を変える、③`setTimeout` で 1.5 秒後に `false` へ戻す。ラベルは `copied ? … : …` の三項演算子で出し分けます。
+
+<Callout type="warn" title="動く条件：https か localhost">
+
+`navigator.clipboard` は、**安全な文脈（`https` または `localhost`）でしか動きません**。開発中の `localhost:5173` では動きます。ファイルを直接開いた `file://` や、`http://` の本番では動かないことがあるので注意してください。
+
+</Callout>
+
+## 実務での注意点 {#notes}
+
+- **短くしすぎない／長すぎない**：`1500`（1.5 秒）くらいが目安。短いと見えず、長いと戻らないように見えます。
+- **失敗も一応考える**：権限で拒否されると `writeText` は失敗します。本格的に作るなら `try / catch` で「コピーできませんでした」を出すと親切です（デモでは省略）。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- コピーは `await navigator.clipboard.writeText(text)` の 1 行（関数は `async`）
+- 押した直後だけ `copied` を `true` にして表示を変え、`setTimeout` で戻す
+- 動くのは `https` か `localhost` の安全な文脈だけ
+
+</SummaryBox>

@@ -1,0 +1,171 @@
+---
+title: npm install が書き換えるもの
+minutes: 10
+slug: npm-install-writes
+section: libraries
+description: 'npm install ○○ を打つと package.json / package-lock.json / node_modules の 3 つが変わる。dependencies と devDependencies の違い、^1.2.3 の意味、lock ファイルを触らない理由。'
+level: beginner
+prerequisites: ['libraries/goal']
+---
+
+<LearnBox>
+
+- `npm install ○○` が書き換える 3 つの場所
+- `dependencies` と `devDependencies` の違い
+- `^1.2.3` のようなバージョン表記の読み方と、`package-lock.json` の役割
+
+</LearnBox>
+
+## install したとき、手元で何が起きるのか {#why}
+
+`npm install ○○` は、ネット（npm レジストリ）から部品をダウンロードするコマンド、というのは何となく分かると思います。でも、**その結果として自分のプロジェクトの中で何が書き換わるのか**を知らないと、後でファイルの差分を見たときに「これ何？」と怖くなります。
+
+打つと変わるのは、次の **3 か所** です。
+
+1. **`node_modules/`** … 部品の本体（実際のコード）がここにダウンロードされます。巨大なフォルダです。
+2. **`package.json`** … 「何を入れたか」の一覧に 1 行追記されます。**これが台帳**です。
+3. **`package-lock.json`** … 「その部品が、さらにどの部品に依存しているか」まで含めた正確な記録が更新されます。
+
+大事なのは、**本体（`node_modules`）は使い捨てで、台帳（`package.json` と `package-lock.json`）が本物**だということです。この関係を、このページで押さえます。
+
+## package.json の dependencies に 1 行増える {#dependencies}
+
+`my-shop` で、試しにクラス名を組み立てる小さな部品 `clsx` を入れてみます（`clsx` 自体は後のページで使います。ここでは「入れると何が変わるか」を見るだけです）。
+
+```bash
+npm install clsx
+```
+
+終わったら `package.json` を開いてください。`dependencies` の中に、こんな行が増えているはずです。
+
+```json title="package.json（抜粋）"
+"dependencies": {
+  "clsx": "^2.1.1",
+  "react": "^19.2.6",
+  "react-dom": "^19.2.6"
+}
+```
+
+`"clsx": "^2.1.1"` が、いま追記された 1 行です。**「clsx というライブラリの、バージョン 2.1.1 系を使っています」**という記録です。`npm install` は、ダウンロードするだけでなく、この台帳に書き足すところまでやってくれます。
+
+<JsNote feature="package.json はプロジェクトの台帳">
+
+`package.json` は「このプロジェクトが何に依存しているか」を人間が読める形で書いた台帳です。逆にいえば、**この台帳さえあれば、`node_modules` を消しても `npm install` で全部戻せます**（この後で試します）。だから `node_modules` は Git に含めず、`package.json` は必ず含めます。
+
+</JsNote>
+
+## dependencies と devDependencies の違い {#dev}
+
+`package.json` には、部品の置き場所が **2 つ** あります。`dependencies` と `devDependencies` です。
+
+- **`dependencies`** … **アプリの動作そのもの**に必要なもの。`react`、`clsx` など、ブラウザで動く画面の一部になる部品。
+- **`devDependencies`** … **開発中・ビルド時だけ**必要なもの。`vite`、`sass`、`typescript`、`eslint` など。完成した画面には直接は含まれません。
+
+`devDependencies` に入れたいときは、`-D`（または `--save-dev`）を付けます。
+
+```bash
+npm install -D sass     # 開発・ビルド時だけ使う → devDependencies へ
+npm install clsx        # 画面の動作に必要 → dependencies へ
+```
+
+<Callout type="note">
+
+分け方に迷ったら、「**完成したアプリがブラウザで動くのに、その部品のコードが必要か？**」で考えます。必要なら `dependencies`、ビルドや開発を助けるだけなら `devDependencies`。迷って間違えても致命傷ではありませんが、正しく分けておくと後で読む人に親切です。
+
+</Callout>
+
+## ^1.2.3 の読み方（セマンティックバージョニング） {#semver}
+
+`"clsx": "^2.1.1"` の **`^`（ハット）** には意味があります。バージョン番号は `メジャー.マイナー.パッチ`（例：`2.1.1`）の 3 つの数字でできていて、記号によって「どこまで自動で上げてよいか」が変わります。
+
+| 書き方 | 上げてよい範囲 | 意味 |
+|---|---|---|
+| `^2.1.1` | `2.x.x` の範囲 | メジャー（先頭の 2）は固定。マイナー・パッチは上げてよい |
+| `~2.1.1` | `2.1.x` の範囲 | パッチ（末尾）だけ上げてよい |
+| `2.1.1` | 上げない | この 1 点で固定 |
+
+なぜ範囲で書くかというと、**メジャーが同じうちは「壊れない修正」だけが入る**という世界共通の約束（セマンティックバージョニング）があるからです。`^` は「安全な範囲で最新に追従する」という一番よく使う指定です。`create vite` が最初から `^` を付けてくれているので、**基本は自分で書き換えなくて大丈夫**です。
+
+## わざと壊す：node_modules を消しても戻る {#break-delete-modules}
+
+「本体は使い捨て、台帳が本物」を体感します。`my-shop` で、部品の本体が入った `node_modules` フォルダを**まるごと削除**してみてください（エクスプローラーで消して構いません）。
+
+削除した直後に `npm run dev` を実行すると、こう出て起動できません。
+
+```
+failed to load config from ... Error: Cannot find module 'vite'
+```
+
+`vite` の本体を消したので「見つからない」と言われています。ここで慌てず、`package.json`（台帳）を頼りに一発で戻します。
+
+```bash
+npm install
+```
+
+`npm install`（部品名なし）は、「**台帳に書いてあるものを全部そろえ直す**」コマンドです。少し待つと `node_modules` が復活し、`npm run dev` がまた動きます。**壊れたら消して入れ直せばよい**——`node_modules` を怖がらなくてよくなります。
+
+<Together
+  task="package.json の dependencies を開いて、react の指定（^19.2.6 のような行）を探してください。この ^ が付いていると、19.2.6 → 19.3.0 のような更新は自動で許され、20.0.0 は許されません。それはなぜか、自分の言葉で説明してみましょう。"
+  hint="^ はメジャー（先頭の数字）を固定します。19 → 20 はメジャーが変わる＝壊れる変更が入りうる、という約束だからです。"
+>
+
+`^19.2.6` は「`19.x.x` の範囲でなら上げてよい」という意味です。`19.3.0` はマイナーが上がっただけなのでこの範囲内、`20.0.0` はメジャーが `19 → 20` に変わるので範囲外です。**メジャーが変わるときは、これまで動いていたコードが動かなくなる可能性がある**——という世界共通の約束があるので、`^` はそこだけ自動では上げない、という安全設計になっています。
+
+</Together>
+
+## package-lock.json は触らない・消さない・コミットする {#lock}
+
+`package-lock.json` は、`package.json` よりもっと細かい記録です。あなたが入れた `clsx` が、さらに裏でどの部品のどのバージョンに依存しているか——**プロジェクト全体の部品を、寸分たがわず固定した記録**です。
+
+これがあるおかげで、**あなたの PC と同僚の PC で、まったく同じ部品構成が再現**されます。「自分の環境では動くのに、他の人の環境では動かない」を防ぐ、いわば設計図の確定版です。
+
+- **手で編集しない** … `npm` が自動で管理します。人が書き換えるファイルではありません。
+- **消さない** … 消すと再現性が崩れます。
+- **Git にコミットする** … チームで共有すべきファイルです（`node_modules` は逆にコミットしません）。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="node_modules を Git にコミットする"
+  good="node_modules は .gitignore で除外し、package.json / package-lock.json をコミットする"
+  note="本体は使い捨て。台帳と lock があれば npm install で誰でも復元できる。"
+/>
+
+<Diff
+  bad="sass や eslint を dependencies に入れる"
+  good="ビルド・開発だけで使うものは devDependencies（-D）に入れる"
+  note="完成した画面の動作に要るかどうかで置き場所を分ける。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="依存は最小限に。dependencies と devDependencies を正しく分け、package-lock.json は必ずコミットする"
+  alt="バージョンは基本 ^ のまま（create vite の既定）で問題ありません。特定バージョンに固定したい事情があるときだけ、数字を直接指定します。"
+>
+
+入れる部品はできるだけ少なく。`node_modules` は使い捨てなので Git に含めず、台帳（`package.json`）と確定版（`package-lock.json`）を共有します。この 2 つがそろっていれば、誰の PC でも `npm install` 一発で同じ環境が復元できます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Cannot find module '○○'`** … `node_modules` が無い／壊れています。`npm install` でそろえ直します。
+- **同僚と動きが違う** … `package-lock.json` が共有されていない可能性があります。コミットされているか確認します。
+- **`package.json` に入れたのに反映されない** … 手で書いた場合は `npm install` を実行して初めてダウンロードされます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="sass はビルド時に SCSS を CSS へ変換するためだけに使い、完成した画面の動作には含まれないので devDependencies（npm install -D sass）が適切です。">
+
+`sass` は `dependencies` と `devDependencies` のどちらに入れるべきでしょう。理由も考えてみてください。
+
+</Exercise>
+
+<SummaryBox>
+
+- `npm install ○○` は `node_modules`（本体）・`package.json`（台帳）・`package-lock.json`（確定版）を書き換える
+- 動作に必要なものは `dependencies`、開発・ビルドだけのものは `devDependencies`（`-D`）
+- `^1.2.3` はメジャー固定で範囲更新。`package-lock.json` は触らず・消さず・コミットする
+
+</SummaryBox>

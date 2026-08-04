@@ -1,0 +1,139 @@
+---
+title: プログラムで移動する（useNavigate）
+minutes: 9
+slug: routing-navigate
+section: routing
+description: クリック以外で画面を移す useNavigate。処理のあとの移動、戻る、どの URL にも一致しない 404 ページまで。
+level: beginner
+prerequisites: ['routing/layout-outlet']
+---
+
+<LearnBox>
+
+- クリックのリンク以外で移動したいときの `useNavigate`
+- 「処理のあとで移動」「一つ戻る」の書き方
+- どのルートにも一致しない URL のための 404 ページ
+
+</LearnBox>
+
+## リンク以外で移動したいとき {#why}
+
+`<Link>` は「押したら移動」です。でも、「**何か処理をしたあとで**移動したい」ことがあります。たとえば「カートに入れる → 完了したらカート画面へ」。このクリック＝即移動ではない移動には、**`useNavigate`** を使います。
+
+```tsx
+import { useNavigate } from 'react-router-dom'
+
+function AddButton() {
+  const navigate = useNavigate()
+
+  function handleClick() {
+    // ...カートに入れる処理...
+    navigate('/cart') // 処理のあとで移動
+  }
+
+  return <button onClick={handleClick}>カートに入れて進む</button>
+}
+```
+
+```tsx
+const navigate = useNavigate()
+navigate('/cart')
+//       ↑
+//       └─ 移動先の URL。<Link> の to と同じ考え方
+```
+
+`useNavigate()` で `navigate` 関数を受け取り、好きなタイミングで `navigate('/行き先')` を呼びます。
+
+## 一つ戻る {#back}
+
+数値を渡すと履歴を移動できます。`navigate(-1)` は「ブラウザの戻る」と同じです。
+
+```tsx
+navigate(-1) // 一つ前のページへ戻る
+```
+
+「詳細ページの『戻る』ボタン」などに使えます。
+
+## 404：どの URL にも一致しないとき {#notfound}
+
+存在しない URL（`/prodcut/p01` のような打ち間違い）を開かれたとき、真っ白ではなく「見つかりません」を出したい。**`path: '*'`** は「他のどれにも一致しなかった全部」に一致する特別なルートです。一番最後に置きます。
+
+```tsx
+children: [
+  { index: true, element: <ProductListPage /> },
+  { path: 'product/:id', element: <ProductDetailPage /> },
+  { path: 'favorites', element: <FavoritesPage /> },
+  { path: '*', element: <NotFoundPage /> }, // 上のどれにも一致しない URL
+]
+```
+
+`NotFoundPage` には、一覧へ戻るリンクを置くと親切です。
+
+```tsx title="src/pages/NotFoundPage.tsx"
+import { Link } from 'react-router-dom'
+
+export function NotFoundPage() {
+  return (
+    <div>
+      <h1>ページが見つかりません</h1>
+      <Link to="/">一覧へ戻る</Link>
+    </div>
+  )
+}
+```
+
+## わざと壊す：navigate を呼ぶのを忘れる {#break}
+
+`useNavigate` は「関数を受け取るだけ」です。受け取っただけで**呼ばなければ、何も起きません**。
+
+```tsx
+const navigate = useNavigate()
+
+function handleClick() {
+  // ...処理...
+  navigate // ← 呼んでいない（() が無い）
+}
+```
+
+`navigate` と書くだけでは関数を指しているだけで、移動しません。`navigate('/cart')` のように **`()` を付けて呼ぶ**必要があります（[関数を値として渡す](/guide/javascript/functions-as-values)と同じ話です）。
+
+## 書き方カタログ：Link と useNavigate {#catalog}
+
+```tsx
+// クリックで即移動 → Link
+<Link to="/favorites">お気に入り</Link>
+
+// 処理のあとで移動 → useNavigate
+const navigate = useNavigate()
+navigate('/cart') // 指定した URL へ
+navigate(-1) // 一つ戻る
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="ただのリンク移動なのに useNavigate + onClick で書く"
+  good="クリックで即移動は <Link>。処理のあとの移動だけ useNavigate"
+  note="単純な移動は Link が素直。useNavigate は『処理の後で移動』が必要なときに使う。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`navigate` を呼んでも移動しない** … `navigate('/x')` と `()` を付けて呼んでいるか確認します。
+- **404 が出ない** … `{ path: '*' }` のルートを登録しているか、一番最後に置いているかを確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="useNavigate を使います。const navigate = useNavigate() で受け取り、保存処理が終わったあとに navigate('/favorites') を呼びます。クリックで即移動ではないので Link ではなく useNavigate が適切です。">
+
+「保存ボタンを押して、保存できたらお気に入り一覧へ移動」したいとき、`<Link>` と `useNavigate` のどちらを使いますか。書き方も。
+
+</Exercise>
+
+<SummaryBox>
+
+- 処理のあとで移動するなら `const navigate = useNavigate()` → `navigate('/行き先')`
+- `navigate(-1)` は「一つ戻る」。`navigate` は呼ばないと動かない（`()` が要る）
+- どの URL にも一致しない受け皿は `{ path: '*', element: <NotFoundPage /> }`
+
+</SummaryBox>

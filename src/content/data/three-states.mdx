@@ -1,0 +1,140 @@
+---
+title: 読み込み中・失敗・成功の3状態
+minutes: 10
+slug: three-states
+section: data
+description: loading / error / success の3状態を state で持つ。union 型の status と、try/catch でまとめる定番の形。画面での出し分けまで。
+level: beginner
+prerequisites: ['data/useeffect-fetch']
+---
+
+<LearnBox>
+
+- 通信の「読み込み中・失敗・成功」を state で表す
+- `status` を union 型（`'loading' | 'error' | 'success'`）で持つ
+- `try` / `catch` で 1 つにまとめ、画面で出し分ける
+
+</LearnBox>
+
+## なぜ 3 つの状態が要るのか {#why}
+
+通信は「時間がかかる」「失敗する」ので、画面はそのつど違うものを見せます。
+
+- **読み込み中（loading）** … 取得の返事を待っている間。
+- **失敗（error）** … 通信やサーバーがダメだったとき。
+- **成功（success）** … データが届いたとき。
+
+この 3 つを `status` という 1 つの値で表します。「どれか 1 つ」なので、[union 型](/guide/typescript/union-literal)がぴったりです。
+
+```tsx
+const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading')
+const [products, setProducts] = useState<Product[]>([])
+```
+
+`status` は最初 `'loading'`。取れたら `'success'`、ダメなら `'error'` にします。データ本体は別の state（`products`）に持ちます。
+
+## try / catch で 1 つにまとめる {#try-catch}
+
+取得は `async` 関数にして、`try` / `catch` で「成功したら success、失敗したら error」に振り分けます。`useEffect` の中に置きます。
+
+```tsx title="取得の全体像"
+useEffect(() => {
+  let ignore = false
+
+  async function load() {
+    try {
+      const res = await fetch('/products.json')
+      if (!res.ok) throw new Error() // 404/500 も失敗にする
+      const data = await res.json()
+      if (!ignore) {
+        setProducts(data)
+        setStatus('success')
+      }
+    } catch {
+      if (!ignore) setStatus('error') // 通信・res.ok・.json() どれで転んでもここ
+    }
+  }
+
+  load()
+  return () => {
+    ignore = true
+  }
+}, [])
+```
+
+`try` の中で 1 つでも失敗（`throw`）すると、`catch` に飛んで `'error'` になります。`fetch` の失敗も、`res.ok` の `throw` も、`.json()` の失敗も、**全部まとめて 1 か所**で受けられます。
+
+## 画面で出し分ける {#render}
+
+`status` を見て、出すものを切り替えます。`loading` と `error` を先に返し、最後に成功の中身を描くのが読みやすい形です。
+
+```tsx title="表示"
+if (status === 'loading') {
+  return <p>読み込み中…</p>
+}
+if (status === 'error') {
+  return <p>読み込みに失敗しました</p>
+}
+// ここまで来たら success
+return (
+  <ul>
+    {products.map((p) => (
+      <li key={p.id}>{p.name}</li>
+    ))}
+  </ul>
+)
+```
+
+<JsNote feature="status を union にすると打ち間違いが止まる">
+
+`status` を `'loading' | 'error' | 'success'` の union にしておくと、`setStatus('sucess')`（打ち間違い）が型エラーで止まります。ただの `string` だと素通りして、「なぜか成功画面が出ない」と悩むことになります。
+
+</JsNote>
+
+## わざと壊す：loading を出さない {#break}
+
+`status === 'loading'` の分岐を消してみます。
+
+```tsx title="わざと壊す：loading を出さない"
+// if (status === 'loading') return <p>読み込み中…</p>  ← 消す
+if (status === 'error') return <p>失敗しました</p>
+return <ul>{products.map(/* ... */)}</ul>
+```
+
+取得中は `products` がまだ空配列なので、一瞬**何も無い（空の一覧）**が表示され、データが届くとパッと出ます。ユーザーには「一瞬空っぽ→急に出る」というちらつきに見えます。`loading` の分岐を戻すと、「読み込み中…」が出て、待っていることが伝わります。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="status を string 型にする"
+  good="status を 'loading' | 'error' | 'success' の union にする"
+  note="string だと 'sucess' の打ち間違いが素通り。union なら実行前に止まる。"
+/>
+
+<Diff
+  bad="成功したときだけ表示を書き、loading と error を忘れる"
+  good="loading → error → success の 3 つを必ず出し分ける"
+  note="通信は待つ・失敗する。3 状態を書かないと、空白やちらつきになる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **一瞬空っぽが出てからデータが出る** … `loading` の分岐を書き忘れています。
+- **失敗しても何も出ない** … `catch` で `setStatus('error')` し、`error` の分岐を書きます。
+- **成功画面が出ない** … `setStatus('success')` の綴り、`status` の union 型を確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="status を 'loading' | 'error' | 'success' の union で持ち、useEffect + try/catch で成功なら success・失敗なら error にします。画面は if (status === 'loading') → if (status === 'error') → 成功の中身、の順で出し分けます。">
+
+通信の 3 状態を扱うには、`status` をどう持ち、どう画面を出し分けますか。流れを説明してください。
+
+</Exercise>
+
+<SummaryBox>
+
+- 通信は 3 状態（読み込み中・失敗・成功）。`status` を union 型で 1 つ持つ
+- `useEffect` の中で `try` / `catch`。成功で `'success'`、どこで転んでも `catch` で `'error'`
+- 画面は `loading` → `error` → 成功の中身、の順で出し分ける
+
+</SummaryBox>

@@ -1,0 +1,107 @@
+---
+title: なぜ SCSS Modules か
+minutes: 7
+slug: why-scss-modules
+section: styling
+description: グローバル CSS はクラス名が衝突する。同じ .card が別ファイルで上書きし合う問題を見て、SCSS Modules がどう解決するかを理解する。
+level: beginner
+prerequisites: ['styling/goal']
+---
+
+<LearnBox>
+
+- グローバル CSS で起きる「クラス名の衝突」問題
+- SCSS Modules が、スタイルを部品ごとに閉じ込める仕組み
+- SCSS の `S`（入れ子・変数・まとめ）で CSS が書きやすくなること
+
+</LearnBox>
+
+## LP の CSS と、何が違うのか {#global-problem}
+
+LP を作るとき、CSS はこう書いていました。
+
+```css title="style.css（グローバル CSS）"
+.card {
+  border: 1px solid #ccc;
+}
+```
+
+この `.card` は、**ページ全体のどこにでも効きます**。1 枚の LP なら問題ありません。でも React で部品が増えていくと、これが事故のもとになります。
+
+## 同じ名前が、別ファイルでぶつかる {#collision}
+
+たとえば、商品カードとお知らせカードを別々の人が作ったとします。両方 `.card` という名前を使いました。
+
+```css title="ProductCard.css"
+.card {
+  border: 1px solid #ccc;
+}
+```
+
+```css title="NoticeCard.css"
+.card {
+  background: #fff3cd; /* 黄色い警告色 */
+}
+```
+
+どちらもグローバルなので、**2 つの `.card` は混ざります**。商品カードにまで黄色い背景が付いたり、後から読み込まれた方が勝ったり。「なぜかスタイルが効かない／余計なものが付く」——この原因の多くが、この**クラス名の衝突**です。名前を全部ユニークに（`.product-card` `.notice-card`…）すれば避けられますが、部品が増えるほど命名が苦しくなります。
+
+<Callout type="mistake" title="グローバル CSS は「最後に勝つ」">
+
+同じ詳細度のクラスが 2 つあると、**後から読み込まれた方**が勝ちます。どちらが後かはビルドの都合で変わることもあり、「昨日まで効いていたのに」が起きます。名前で頑張るのは限界があります。
+
+</Callout>
+
+## SCSS Modules は名前を閉じ込める {#modules}
+
+**SCSS Modules** は、この問題を根本から消します。ファイル名を `ProductCard.module.scss` のように **`.module.scss`** にすると、その中のクラス名は**そのファイル専用**になります。
+
+仕組みはこうです。ビルド時に、`.card` は `ProductCard_card_a1b2c` のような**世界に 1 つだけの名前**へ自動変換されます。あなたは `.card` と書くのに、実際に出力されるのは衝突しない固有名です。だから、別ファイルの `.card` と**絶対にぶつかりません**。
+
+```scss title="ProductCard.module.scss"
+.card {
+  border: 1px solid #ccc;
+}
+```
+
+```tsx title="ProductCard.tsx"
+import styles from './ProductCard.module.scss'
+
+// styles.card は 'ProductCard_card_a1b2c' のような固有名に変換される
+;<article className={styles.card}>...</article>
+```
+
+`.card` という**短い名前のまま**書けて、衝突は起きない。命名で消耗しなくて済む——これが SCSS Modules を使う一番の理由です。
+
+## SCSS の「S」＝書きやすさ {#scss}
+
+もう 1 つ、なぜ「CSS」ではなく「SCSS」なのか。SCSS は、いつもの CSS に**入れ子・変数・まとめ（mixin）**を足したものです。CSS として正しいものは、そのまま SCSS でも書けます（CSS は SCSS の一部）。だから**今書ける CSS の知識はそのまま活き**、そこに便利機能が乗るだけです。具体的な機能は、この後のページで 1 つずつ見ます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="グローバル CSS に .card を書き、名前で衝突を避けようとする"
+  good=".module.scss に .card を書く（名前は自動で固有化され衝突しない）"
+  note="部品が増えるほどグローバルの命名は破綻する。Modules ならスコープが閉じる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **他の部品のスタイルが混ざる** … グローバル CSS を使っていないか確認します。部品ごとのスタイルは `.module.scss` に閉じ込めます。
+- **どこで効いているか分からない** … `.module.scss` なら「その部品のファイルだけ」を見れば済みます。これが Modules の利点です。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="ファイル名を .module.scss にすると、その中のクラス名がビルド時に固有名へ自動変換され、他ファイルの同名クラスと衝突しなくなります。短い名前（.card 等）のまま安全に書けます。">
+
+2 つのコンポーネントがどちらも `.card` というクラスを使っても衝突しないようにするには、CSS ファイルをどうすればよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- グローバル CSS はクラス名が衝突し、「後から読み込んだ方が勝つ」事故が起きる
+- `.module.scss` にすると、クラス名がビルド時に固有名へ変換され、部品ごとに閉じる
+- SCSS は CSS ＋（入れ子・変数・まとめ）。今の CSS 知識はそのまま活きる
+
+</SummaryBox>

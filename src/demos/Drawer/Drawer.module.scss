@@ -1,0 +1,151 @@
+.hamburger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+// CSS だけで描くハンバーガー（3 本線）。アイコン画像も SVG も要らない。
+.bars {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+}
+.bars::before,
+.bars::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+}
+.bars::before {
+  top: -6px;
+}
+.bars::after {
+  top: 6px;
+}
+
+.drawer {
+  position: fixed;
+  inset: 0 0 0 auto; // 右端いっぱい・上下フル
+  height: 100dvh;
+  width: min(320px, 85vw);
+  max-width: 85vw;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--c-line);
+  background: var(--c-surface);
+  color: var(--c-text);
+
+  transform: translateX(100%);
+  transition:
+    transform 0.25s ease,
+    overlay 0.25s ease allow-discrete,
+    display 0.25s ease allow-discrete;
+}
+
+.drawer[open] {
+  transform: translateX(0);
+}
+
+// 開くときの「開始位置」。これが無いと開いた瞬間にパッと出る。
+@starting-style {
+  .drawer[open] {
+    transform: translateX(100%);
+  }
+}
+
+.drawer::backdrop {
+  background: rgba(9, 10, 15, 0.5);
+  opacity: 0;
+  transition:
+    opacity 0.25s ease,
+    overlay 0.25s ease allow-discrete,
+    display 0.25s ease allow-discrete;
+}
+.drawer[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  .drawer[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.title {
+  font-weight: 700;
+}
+
+.close {
+  background: transparent;
+  border: none;
+  color: var(--c-muted);
+  font-size: 15px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--c-text);
+    background: var(--c-sunk);
+  }
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-2);
+}
+
+.link {
+  padding: var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--c-text);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--c-sunk);
+  }
+}
+
+// 開いている間は背後のページをスクロールさせない（:has で CSS だけで）。
+:global(html:has(dialog[open])) {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer::backdrop {
+    transition: none;
+  }
+  @starting-style {
+    .drawer[open] {
+      transform: translateX(0);
+    }
+    .drawer[open]::backdrop {
+      opacity: 1;
+    }
+  }
+}

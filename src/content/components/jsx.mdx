@@ -1,0 +1,183 @@
+---
+title: JSX：HTML に見える JavaScript
+minutes: 8
+slug: jsx
+section: components
+description: React の中で HTML のように書ける JSX の基本。波かっこで JS を埋め込む、className など HTML との違い、返す要素は 1 つという原則。
+level: beginner
+prerequisites: ['components/goal']
+---
+
+<LearnBox>
+
+- JSX とは何か（HTML に見えるが JavaScript）
+- 波かっこ `{ }` で変数や式を埋め込む
+- `className` など HTML との違いと、「返す要素は 1 つ」の原則
+
+</LearnBox>
+
+## JSX とは何か {#what}
+
+React のコンポーネントは、**関数が「画面の見た目」を返す**という形で書きます。そのとき返す、HTML のような書き方を **JSX** と呼びます。
+
+```tsx
+function Hello() {
+  return <h1>こんにちは</h1>
+}
+```
+
+`return <h1>こんにちは</h1>` の部分が JSX です。一見ふつうの HTML ですが、これは **JavaScript の中に書かれた特別な記法**で、最終的にブラウザが表示できる形へ変換されます（Part 1 の「ビルド」がこれをやっています）。HTML の知識がほぼそのまま使えるので、LP 制作の経験が直接活きます。
+
+## 波かっこで JavaScript を埋め込む {#braces}
+
+JSX の中では、**波かっこ `{ }` を書くと、その中は JavaScript に戻ります**。変数や計算結果を画面に差し込めます。
+
+```tsx
+function Price() {
+  const price = 3200
+  return <p>{price.toLocaleString()}円</p> // → 3,200円
+}
+```
+
+波かっこの部分を分解します。
+
+```tsx
+return <p>{price.toLocaleString()}円</p>
+//        ↑                       ↑
+//        │                       └─ 円 は普通の文字（波かっこの外）
+//        └─ { } の中は JavaScript。式の結果が差し込まれる
+```
+
+`{price.toLocaleString()}` の波かっこの中は、ただの JavaScript です。Part 2 でやった `toLocaleString()` も三項演算子も、そのまま `{ }` の中で使えます。**「文字列を表示したいときは波かっこは不要、値や式を差し込みたいときは波かっこ」**と覚えてください。
+
+<JsNote feature="波かっこ { } は「ここから JavaScript」の窓">
+
+JSX の中の `{ }` は、「ここだけ JavaScript として評価してください」という窓です。中に書けるのは **値を返す式**（変数、計算、`関数呼び出し`、三項演算子など）。`if` 文のような「文」は書けません。分岐したいときは三項演算子 `? :` を使います（条件表示のページで詳しくやります）。
+
+</JsNote>
+
+## HTML と少し違うところ {#differences}
+
+JSX は HTML そっくりですが、**JavaScript なので少しだけ違い**があります。よく使うものだけ挙げます。
+
+- **`class` → `className`** … `class` は JavaScript の別の予約語なので、CSS クラスは `className` と書きます。
+- **`for` → `htmlFor`** … `<label>` の `for` も同じ理由で `htmlFor`。
+- **属性はキャメルケース** … `onclick` → `onClick`、`tabindex` → `tabIndex`。
+- **タグは必ず閉じる** … `<img>` や `<br>` も、`<img />` `<br />` のように末尾を閉じます。
+
+```tsx
+<img src={product.imageUrl} alt={product.name} className={styles.image} />
+```
+
+`className` になっている以外は、見慣れた `<img>` です。属性の値に変数を入れるときは、ここでも波かっこ `{ }` を使います。
+
+## わざと壊す：要素を2つ並べて返す {#break-two-roots}
+
+JSX には **「return で返せる要素は 1 つだけ」** という大事な原則があります。試しに、見出しと段落を並べて返してみます。
+
+```tsx
+function Card() {
+  return (
+    <h3>トマト</h3>
+    <p>150円</p>
+  )
+}
+```
+
+すると、こう出てビルドできません。
+
+```
+Adjacent JSX elements must be wrapped in an enclosing tag.
+```
+
+「**隣り合う JSX 要素は、1 つのタグで囲まないといけない**」という意味です。`<h3>` と `<p>` が並んでいて、どちらが「返すもの」か決まらないので怒られています。解決は、全体を 1 つの要素で囲むこと。余計な `<div>` を増やしたくないときは、**中身のない囲みタグ `<>...</>`（フラグメント）** を使います。
+
+```tsx title="src/components/Card/Card.tsx（新規作成・全文）"
+export function Card() {
+  return (
+    <>
+      <h3>トマト</h3>
+      <p>150円</p>
+    </>
+  )
+}
+```
+
+`<>` で開いて `</>` で閉じます。`<>...</>` は画面に何のタグも出さず、「複数の要素を 1 つにまとめる」ためだけの囲みです。**`Adjacent JSX elements must be wrapped` を見たら、`<>...</>` で囲む**——これで直ります。
+
+<Together
+  task="name という変数に商品名を入れて、<h3>その商品名</h3> を返す Card 関数を書いてみてください。商品名は波かっこで差し込みます。"
+  hint="const name = 'トマト' として、return <h3>{name}</h3> のように波かっこで埋め込みます。"
+>
+
+```tsx
+function Card() {
+  const name = 'トマト'
+  return <h3>{name}</h3> // → <h3>トマト</h3>
+}
+```
+
+`{name}` の波かっこで、変数 `name` の中身が差し込まれます。もし波かっこを付けずに `<h3>name</h3>` と書くと、変数ではなく **「name」という文字がそのまま**表示されてしまいます。「値を差し込みたいときは波かっこ」を、ここで体に入れておきましょう。
+
+</Together>
+
+## 書き方カタログ：波かっこに書けるもの {#catalog}
+
+`{ }` の中には「**値を返す式**」なら何でも書けます。よく使う形をまとめます。
+
+```tsx
+<p>{name}</p>                          // 変数
+<p>{price * count}</p>                 // 計算
+<p>{price.toLocaleString()}円</p>      // 関数呼び出しの結果
+<p>{inStock ? '在庫あり' : '売り切れ'}</p> // 三項演算子
+<img src={product.imageUrl} alt={product.name} /> // 属性に変数を渡す
+```
+
+逆に `if` 文のような「文」は書けません。分岐したいときは三項演算子や `&&` を使います（[条件で表示を出し分ける](/guide/components/conditional)）。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="<div class='card'>（HTML のクセで class と書く）"
+  good="<div className='card'>"
+  note="JSX では class ではなく className。for も htmlFor になる。"
+/>
+
+<Diff
+  bad="<h3>{name}</h3> のつもりで <h3>name</h3> と書く"
+  good="<h3>{name}</h3>"
+  note="変数を差し込むには波かっこ。付けないと文字列 name がそのまま出る。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="複数要素を返すときは、意味のある囲みが無ければ <>...</>（フラグメント）を使い、無駄な <div> を増やさない"
+  alt="その囲みに実際のスタイルや役割（カード全体など）があるなら、<div className={styles.card}> のように意味のあるタグで囲みます。ただの「まとめ」なら <>...</>。"
+>
+
+「返す要素は 1 つ」を守るために、意味のない `<div>` で囲むと、画面に余計な箱が増えます。まとめるだけなら `<>...</>`。囲みに役割があるときだけ実タグにする、と使い分けます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Adjacent JSX elements must be wrapped in an enclosing tag`** … 要素を複数並べて返しています。`<>...</>` で囲みます。
+- **`class` が効かない／警告が出る** … JSX では `className` を使います。
+- **変数名がそのまま文字で出る** … 波かっこ `{ }` を付け忘れています。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="return を <>...</>（または意味のある1つのタグ）で囲みます。JSX は要素を1つしか返せないので、2つ以上を並べるときは必ず1つにまとめます。">
+
+`<h3>` と `<p>` の 2 つを返そうとして `Adjacent JSX elements must be wrapped` が出ました。どう直せばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- JSX は「HTML に見える JavaScript」。関数が返す見た目の記法
+- 波かっこ `{ }` の中は JavaScript。変数や式（`toLocaleString()`、三項演算子など）を差し込める
+- `class` は `className`、属性はキャメルケース、返す要素は 1 つ（複数は `<>...</>` で囲む）
+
+</SummaryBox>

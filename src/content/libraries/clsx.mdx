@@ -1,0 +1,147 @@
+---
+title: clsx でクラス名を組み立てる
+minutes: 8
+slug: clsx
+section: libraries
+description: 条件によって付けたり外したりするクラス名を、文字列連結せず clsx で安全に組み立てる。&& が false を返してクラス名に漏れる罠を、clsx で防ぐ。
+level: beginner
+prerequisites: ['libraries/sass', 'javascript/symbols']
+---
+
+<LearnBox>
+
+- 条件付きのクラス名を「文字列の足し算」で作るとなぜ壊れるか
+- `clsx` を入れて、条件付きクラスを安全に組み立てる
+- `false` や `undefined` がクラス名に漏れないのはなぜか
+
+</LearnBox>
+
+## 条件でクラスを付け外ししたい {#why}
+
+画面では「在庫があれば `in-stock`、無ければ `sold-out`」のように、**状態によってクラスを付け替え**たい場面が頻繁にあります。素の JavaScript でこれを文字列の足し算で書くと、すぐに読みにくく・壊れやすくなります。
+
+まず、その「壊れやすさ」を見てから、`clsx` で直します。
+
+## わざと壊す：文字列連結でクラスを作る {#break-concat}
+
+「`card` は常に付けて、`inStock` が真なら `on` も付けたい」を、素朴に文字列の足し算で書いてみます。ここで Part 2・記号のページでやった **`&&` の落とし穴**が牙をむきます。
+
+```js
+const inStock = false
+const className = 'card ' + (inStock && 'on')
+
+console.log(className) // 'card false'  ← false が文字に化けて紛れ込む
+```
+
+`inStock` が `false` のとき、`inStock && 'on'` は `false` を返します（[記号の読み方](/guide/javascript/symbols) でやったとおり）。それを文字列と足すと、`'card false'` という**存在しないクラス名 `false`** ができてしまいます。逆に `inStock` が真なら `'card on'` になりますが、条件が増えるたびに空白やこの `false` 混入の管理が地獄になります。
+
+<Callout type="warn">
+
+`'文字列' + (条件 && 'クラス')` は、条件が偽のとき `false` や `undefined` が文字列に紛れ込みます。クラス名の足し算を手で書くのは、この手のバグの温床です。
+
+</Callout>
+
+## clsx を入れる {#install}
+
+この面倒を引き受けてくれる小さな部品が `clsx` です。画面の動作に必要なので `dependencies`（`-D` を付けない）で入れます。
+
+```bash
+npm install clsx
+```
+
+`clsx` はとても小さく、型も本体に同梱されています。`create vite` のプロジェクトにもよく足される定番です。
+
+## clsx で組み立てる {#use}
+
+`clsx(...)` は、渡したものを**いい感じにつなげてクラス名の文字列を返す**関数です。`false` / `undefined` / `null` は**自動で無視**してくれます。
+
+```ts
+import clsx from 'clsx'
+
+const inStock = false
+const className = clsx('card', inStock && 'on')
+
+console.log(className) // 'card'  ← false は無視され、余計な空白も入らない
+```
+
+`inStock` が偽なら `inStock && 'on'` は `false` ですが、`clsx` がそれを**無視**するので、結果は `'card'` だけ。`inStock` が真なら `'card on'`。手で空白や `false` を気にする必要がなくなりました。
+
+オブジェクトの形も使えます。「キーがクラス名、値が真のときだけ付ける」という書き方です。
+
+```ts
+const className = clsx('card', {
+  on: inStock,      // inStock が真なら 'on' を付ける
+  'sold-out': !inStock, // 偽なら 'sold-out' を付ける
+})
+```
+
+<JsNote feature="clsx が false / undefined を捨ててくれる">
+
+`clsx` は、受け取った引数のうち **truthy な文字列だけ**を空白でつないで返します。`false`・`undefined`・`null`・`0`・`''` は捨てます。だから `条件 && 'クラス'` をそのまま渡してよく、偽のときは何も付きません。[truthy と falsy](/guide/javascript/truthy-falsy) の知識がそのまま効きます。
+
+</JsNote>
+
+<Together
+  task="商品カードに、常に 'badge' を付けつつ、在庫切れ（inStock が false）のときだけ 'badge--sold' を足したクラス名を、clsx で組み立ててみてください。"
+  hint="clsx('badge', !inStock && 'badge--sold') の形です。在庫切れ＝!inStock が真。"
+>
+
+```ts
+import clsx from 'clsx'
+
+const inStock = false
+const className = clsx('badge', !inStock && 'badge--sold')
+
+console.log(className) // 'badge badge--sold'（在庫切れなので付いた）
+```
+
+`!inStock`（在庫が無い、を `!` で表現）が真のときだけ `'badge--sold'` が足されます。在庫がある（`inStock` が真）なら `!inStock` は偽になり、`clsx` がそれを無視して `'badge'` だけを返します。`!` は [記号の読み方](/guide/javascript/symbols) でやった「反対にする」記号です。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="'card ' + (active && 'on')（active が偽だと 'card false' になる）"
+  good="clsx('card', active && 'on')"
+  note="&& は偽のとき false を返す。文字列連結だと false が紛れ込む。clsx は無視する。"
+/>
+
+<Diff
+  bad="className={'card' + (big ? ' big' : '')}（空白を手で管理する）"
+  good="className={clsx('card', big && 'big')}"
+  note="空白や条件を手で足すとミスが出る。clsx に任せれば空白も詰めてくれる。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="条件付きのクラス名は文字列連結せず、clsx で組み立てる"
+  alt="クラスが 1 つで条件も無いなら、素直に className='card' と書けば十分で、clsx は要りません。条件が絡むときだけ clsx を使います。"
+>
+
+`className` に条件が絡んだら `clsx`。`false` や `undefined` を勝手に捨ててくれるので、`&&` の罠にはまらず、空白の管理からも解放されます。小さくて速い部品なので、入れるコストもほとんどありません。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **クラス名に `false` や `undefined` が混ざる** … 文字列連結で組み立てています。`clsx` に置き換えます。
+- **`clsx is not a function`** … `import clsx from 'clsx'`（default import、波かっこ無し）になっているか確認します。
+- **条件付きクラスが常に付く／付かない** … 渡している条件式が本当に真偽値になっているか（`0` などが紛れていないか）を確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="clsx('row', isSelected && 'row--selected') と書きます。isSelected が偽なら false を clsx が無視し、'row' だけになります。文字列連結だと 'row false' になり得ます。">
+
+行 `row` に、選択中（`isSelected`）のときだけ `row--selected` を足したクラス名を、`clsx` でどう書くでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- 条件付きクラスを文字列連結で作ると、`&&` が返す `false` が紛れ込んで壊れる
+- `clsx(...)` は `false` / `undefined` / `null` を無視して、クラス名を安全につなぐ
+- `dependencies` で入れる小さな定番部品。条件が絡むクラス名は `clsx` に任せる
+
+</SummaryBox>

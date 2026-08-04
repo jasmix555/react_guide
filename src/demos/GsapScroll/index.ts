@@ -1,0 +1,1 @@
+export { GsapScroll } from './GsapScroll'

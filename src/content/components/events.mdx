@@ -1,0 +1,186 @@
+---
+title: クリックに反応する（イベント）
+minutes: 8
+slug: events
+section: components
+description: onClick などのイベントで、クリックに反応する。関数は「渡す」であって「呼ばない」——onClick={fn} と onClick={fn()} の違い。画面を変えるのは次の state で。
+level: beginner
+prerequisites: ['components/conditional', 'javascript/functions-as-values']
+---
+
+<LearnBox>
+
+- `onClick` でクリックに反応する
+- 関数は「渡す」であって「呼ばない」（`onClick={fn}`）
+- `onClick={fn()}` と書くと、クリック前に実行される罠
+
+</LearnBox>
+
+## クリックに反応する {#what}
+
+ボタンを押したら何かする——これを **イベント** で書きます。よく使うのはクリックの `onClick` です。`<button>` に `onClick` を付け、**実行したい関数を渡します**。
+
+```tsx
+function BuyButton() {
+  function handleClick() {
+    console.log('購入ボタンが押されました')
+  }
+
+  return <button onClick={handleClick}>購入する</button>
+}
+```
+
+ボタンを押すたびに、`handleClick` が実行され、コンソール（`F12`）にメッセージが出ます。HTML の `onclick` に似ていますが、JSX ではキャメルケースの `onClick`、そして**渡すのは文字列ではなく関数そのもの**です。
+
+`onClick={handleClick}` を分解します。
+
+```tsx
+<button onClick={handleClick}>購入する</button>
+//      ↑        ↑
+//      │        └─ 渡すのは関数の名前だけ（handleClick、() は付けない）
+//      └─ イベント名（クリックで実行する）
+```
+
+- **イベント名** … `onClick` はクリックされたときに動く
+- **渡すのは関数の名前だけ** … `handleClick` と書く。`handleClick()` と `()` を付けない
+
+`BuyButton` を全文にすると、こうです。
+
+```tsx title="src/components/BuyButton/BuyButton.tsx（全文）"
+export function BuyButton() {
+  function handleClick() {
+    console.log('購入ボタンが押されました')
+  }
+
+  return (
+    <button type="button" onClick={handleClick}>
+      購入する
+    </button>
+  )
+}
+```
+
+<JsNote feature="onClick に渡すのは「関数の名前」だけ">
+
+`onClick={handleClick}` は、Part 2 の[関数を値として渡す](/guide/javascript/functions-as-values)そのものです。`handleClick` という**関数を、名前だけ**渡しています。React は「クリックされたら、この関数を実行してね」と受け取り、実際に押された瞬間に呼び出します。
+
+</JsNote>
+
+## わざと壊す：`onClick={fn()}` でクリック前に動く {#break-call}
+
+一番ありがちな間違いが、渡すときに `()` を付けてしまうことです。Part 2 でやった罠が、ここで実際の症状になって現れます。
+
+```tsx
+return <button onClick={handleClick()}>購入する</button>
+```
+
+こう書くと、**ボタンを押していないのに、画面が表示された瞬間に `handleClick` が実行**されてしまいます。しかもクリックしても、もう何も起きません。
+
+理由は Part 2 のとおりです。`handleClick()` は「関数を**今すぐ呼び出した結果**」です。だから `onClick` には、関数ではなく「実行し終わった後の値」が渡ってしまいます。`onClick` に渡すのは、あくまで **`handleClick`（名前だけ・`()` なし）**。「クリックしていないのに動く」「クリックしても動かない」ときは、まず `()` を付けていないかを疑ってください。
+
+## 引数を渡したいときは、アロー関数で包む {#arrow}
+
+「クリック時に、引数付きで関数を呼びたい」こともあります。でも `onClick={buy(product)}` と書くと、さっきの罠——即実行——になります。そこで、**アロー関数で包んで**渡します。
+
+```tsx
+<button onClick={() => buy(product)}>これを買う</button>
+```
+
+`() => buy(product)` は「呼ばれたら `buy(product)` を実行する関数」です。渡しているのは**関数そのもの**なので即実行されず、クリックされたときに初めて `buy(product)` が動きます。「引数を渡したいときはアロー関数で包む」——定型として覚えてください。
+
+`onClick={() => buy(product)}` を分解します。
+
+```tsx
+<button onClick={() => buy(product)}>これを買う</button>
+//               ↑     ↑
+//               │     └─ 引数付きで呼ぶ（buy に product を渡す）
+//               └─ アロー関数で包む（クリックされたら実行）
+```
+
+- **アロー関数で包む** … `() => …` で「呼ばれたら実行する関数」にする
+- **引数付きで呼ぶ** … 包んだ中でなら `buy(product)` と引数を渡して呼べる
+
+<Together
+  task="押すと alert('カートに入れました') を出すボタンを作ってみてください。onClick の渡し方（() を付けない or アロー関数で包む）に注意しましょう。"
+  hint="onClick={() => alert('カートに入れました')} のように、アロー関数で包みます。"
+>
+
+```tsx
+function AddButton() {
+  return (
+    <button onClick={() => alert('カートに入れました')}>
+      カートに入れる
+    </button>
+  )
+}
+```
+
+`onClick={() => alert('カートに入れました')}` は、クリックされたときに `alert(...)` を実行する関数を渡しています。もし `onClick={alert('カートに入れました')}` と書くと、表示された瞬間にアラートが出てしまいます。**引数付きで呼びたいときはアロー関数で包む**、が効いています。
+
+</Together>
+
+## 画面を変えるのは「state」から {#next}
+
+ここまでのイベントは、`console.log` や `alert` を出すだけでした。「押したら**画面の表示そのものを変えたい**」——たとえばカートの個数を増やす、モーダルを開く——には、**state（状態）** という仕組みが必要です。
+
+なぜなら、React では**普通の変数を書き換えても画面は更新されない**からです。画面と連動する値は state で持ちます。これは次のパートで詳しくやります（あとで詳しくやります）。ここでは「クリックに反応する形（`onClick={関数}`）」を押さえておけば十分です。
+
+## 書き方カタログ：イベントハンドラ {#catalog}
+
+```tsx
+<button onClick={handleClick}>送信</button>          // 関数を渡す（() は付けない）
+<button onClick={() => buy(product)}>買う</button>    // 引数付きはアロー関数で包む
+<input onChange={(e) => setName(e.target.value)} />  // イベントから値を取り出す
+
+// 取り出した handler … 数行の処理は関数に切り出し、名前だけを渡す
+// その場アロー      … 1 行なら onClick={() => setOpen(true)} と直接書く
+```
+
+基本は `onClick={fn}`。引数が要るときだけ `onClick={() => fn(x)}` で包みます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="<button onClick={handleClick()}>（() を付ける）"
+  good="<button onClick={handleClick}>"
+  note="() を付けると表示時に即実行される。渡すのは関数の名前だけ。"
+/>
+
+<Diff
+  bad="<button onClick={buy(product)}>（引数を渡そうとして即実行）"
+  good="<button onClick={() => buy(product)}>"
+  note="引数付きで呼びたいときはアロー関数で包む。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="イベントには関数を「渡す」（onClick={fn}）。引数が要るときだけアロー関数で包む（onClick={() => fn(x)}）"
+  alt="ハンドラが 1 行で単純なら、その場でアロー関数を書いても構いません。数行になるなら handleClick として切り出すと読みやすくなります。"
+>
+
+`onClick={fn}` が基本形。`()` を付けない。引数を渡したいときだけ `onClick={() => fn(x)}` で包む。この 2 つを守れば、「クリック前に動く／クリックしても動かない」という初歩のつまずきは起きません。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **クリックしていないのに動く／一度だけ動く** … `onClick={fn()}` と `()` を付けています。`onClick={fn}` に直します。
+- **クリックしても何も起きない** … 同じく `()` の付け忘れ・付けすぎ、または関数名の綴り違いを確認します。
+- **押しても画面が変わらない** … 普通の変数を書き換えても画面は更新されません。次のパートの state を使います。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="onClick={() => buy(item)} と、アロー関数で包みます。onClick={buy(item)} は表示時に即実行されてしまうためです。">
+
+クリックしたときに `buy(item)` を呼びたいとき、`onClick` にどう書けばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- クリックは `onClick` に**関数を渡す**（`onClick={handleClick}`、`()` は付けない）
+- 引数付きで呼びたいときは、アロー関数で包む（`onClick={() => buy(x)}`）
+- 押して画面の表示を変えるには state が要る（次のパート）
+
+</SummaryBox>

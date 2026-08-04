@@ -1,0 +1,108 @@
+---
+title: うまくいかないとき
+minutes: 8
+slug: setup-troubleshooting
+section: setup
+description: 最初の5分で詰まる定番エラーを、エラー文そのままで。特に Windows の実行ポリシーは要注意。
+level: beginner
+prerequisites: ['setup/npm-run-dev']
+---
+
+<LearnBox>
+
+- Windows で必ず出る「スクリプトの実行が無効」の直し方
+- `認識されません` / ポート使用中 / `ERESOLVE` / 権限エラーの対処
+- エラー文をそのまま検索に使うコツ
+
+</LearnBox>
+
+環境構築は、詰まるポイントがだいたい決まっています。ここに、**私たちの環境（Windows＋XAMPP）で特に出やすいもの**を、エラー文そのままで並べます。同じ文が出たら、その節を見てください。文をコピーして検索するのも有効です。
+
+## PowerShell で「スクリプトの実行が無効」 {#execution-policy}
+
+Windows で一番よく出て、一番心が折れるやつです。`npm` を打った瞬間に、こう出ます。
+
+```
+npm : このシステムではスクリプトの実行が無効になっているため、ファイル
+C:\Program Files\nodejs\npm.ps1 を読み込むことができません。
+```
+
+（英語だと `cannot be loaded because running scripts is disabled on this system` です。）
+
+**原因**：Windows は初期状態で、安全のため PowerShell のスクリプト実行を止めています。`npm` はスクリプト（`npm.ps1`）なので、この制限に引っかかります。
+
+**直し方**：PowerShell を開き、次を 1 回だけ実行します。
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+`Y`（はい）を聞かれたら `Y` で答えます。これで、`npm` などの実行が許可されます。ターミナルを開き直してから、もう一度 `npm run dev` を試してください。
+
+<Callout type="warn">
+
+`-Scope CurrentUser` を必ず付けます。これは「**今の自分のユーザーだけ**」に適用する、という意味で、PC 全体の設定は変えません。`RemoteSigned` は「自分で書いたスクリプトは実行を許すが、ネットから落ちてきた無署名のものは止める」という、安全寄りの設定です。管理者権限も要りません。
+
+</Callout>
+
+## node / npm が「認識されません」 {#not-recognized}
+
+```
+node : 用語 'node' は、コマンドレット、関数、スクリプト ファイル、または
+操作可能なプログラムの名前として認識されません。
+```
+
+**原因**：Node.js が入っていないか、入れた直後でターミナルに反映されていません。
+
+**直し方**：ページ 4〜5 で Node.js を入れます。すでに入れたのに出る場合は、**すべてのターミナルと VS Code を閉じて開き直し**ます。それでも駄目なら PC を再起動すると反映されます。
+
+## ポートが使用中 {#port-in-use}
+
+```
+Port 5173 is in use, trying another one...
+```
+
+**原因**：これは実はエラーではありません。前に起動したサーバがまだ動いていて、Vite が隣のポート（5174 など）に切り替えただけです。
+
+**直し方**：新しく表示された URL（`http://localhost:5174/`）を開けば動きます。余分なサーバは、そのターミナルで `Ctrl` + `C` を押して止めておきます。
+
+## npm ERR! ERESOLVE {#eresolve}
+
+```
+npm error code ERESOLVE
+npm error ERESOLVE unable to resolve dependency tree
+```
+
+**原因**：ライブラリ同士が要求するバージョンが噛み合っていません（「A は React 18 を要求、B は React 19 を要求」のような衝突）。エラー本文の下のほうに、`Found:` と `Could not resolve:` という形で**どのパッケージが衝突したか**が書いてあります。まずそこを読みます。
+
+**直し方**：多くは、片方のライブラリがまだ最新の React に対応していないのが原因です。対応版を待つか、そのライブラリを外すのが本筋です。急ぐときの応急処置として `npm install <パッケージ> --legacy-peer-deps` で入れられますが、**相性の問題を握りつぶしているだけ**なので、常用は避けます。
+
+## 権限エラー（EPERM / EACCES） {#permission}
+
+```
+npm error code EPERM
+npm error Error: EPERM: operation not permitted
+```
+
+**原因**：ファイルが別のプログラムに使われていて書き換えられない、というのが Windows では最多です。開発サーバやエディタがそのファイルを掴んでいることがよくあります。ウイルス対策ソフトが `node_modules` を監視していて邪魔をする場合もあります。
+
+**直し方**：`npm run dev` を `Ctrl` + `C` で止め、他に開いているターミナルも閉じてから、もう一度実行します。それでも駄目なら、一度 PC を再起動してから試します。
+
+## エラー文の検索のコツ {#search}
+
+知らないエラーが出たら、**エラーの 1 行目（英語の部分）をそのままコピーして検索**します。日本語で「React エラー 出た」と探すより、`Target container is not a DOM element` のように**原文で検索**するほうが、的確な答えに一発でたどり着けます。だからこのガイドは、エラーを日本語訳ではなく原文のまま載せています。
+
+<Callout type="note">
+
+エラーは敵ではなく地図です。赤い文字を反射的に閉じず、**1 行目に何のファイルの何行目で何が起きたか**が書いてあるので、そこを落ち着いて読む。これが一番の近道です。
+
+</Callout>
+
+<SummaryBox>
+
+- Windows の「スクリプトの実行が無効」は `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` で解決
+- `認識されません` は Node 未インストールか未反映（ターミナル開き直し）
+- `ERESOLVE` はバージョン衝突。本文の `Found:` / `Could not resolve:` を読む
+- 知らないエラーは 1 行目の原文をそのまま検索する
+
+</SummaryBox>

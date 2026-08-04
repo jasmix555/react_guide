@@ -1,0 +1,206 @@
+---
+title: useState の基本
+minutes: 11
+slug: use-state-basics
+section: state
+description: const [count, setCount] = useState(0) を1つずつ分解し、カウンターを全文で書く。初期値・読み取り・更新関数の3点と、count に直接代入する罠。書き方カタログ付き。
+level: beginner
+prerequisites: ['state/use-state/what-is-state', 'javascript/destructuring']
+---
+
+import { CounterDemo } from '@/demos/Counter'
+
+<LearnBox>
+
+- `const [count, setCount] = useState(0)` の 3 つの部品を分解する
+- カウンターを **1 ファイル全文**で書く
+- 値の「読み取り」と「更新関数」の使い分け、直接代入の罠
+
+</LearnBox>
+
+## useState の 1 行を分解する {#anatomy}
+
+state を持つには、`useState` という **hook（フック）** を使います。まず、この 1 行の**部品ひとつひとつに名前**を付けます。
+
+```tsx
+const [count, setCount] = useState(0)
+//     ↑      ↑                    ↑
+//     │      │                    └─ 初期値。最初に入っている値
+//     │      └─ 更新する関数。これを呼ぶと再描画される
+//     └─ いまの値。読み取り専用だと思ってよい
+```
+
+- **`useState(0)`** … state を作る。かっこの中が **初期値**（ここでは `0`）。
+- **`count`** … 今の値。表示に使う。**自分では書き換えない**。
+- **`setCount`** … 更新用の関数。`setCount(新しい値)` を呼ぶと、値が変わり**再描画**される。
+
+なぜ `{ }` のオブジェクトではなく `[ ]` の配列で受け取るのか——`useState` は「\[今の値, 更新関数\]」という **2 つ組の配列**を返すからです。配列の分割代入（[Part 2](/guide/javascript/destructuring)）なので、**名前は自分で決められます**。`count` / `setCount` のように「値」と「set + 値」の組で書くのが慣習です。
+
+<JsNote feature="[count, setCount] は配列の分割代入">
+
+`const [a, b] = 配列` で 1 番目・2 番目を取り出すのが分割代入です。`useState` の戻り値は配列なので、この形で「今の値」と「更新関数」の 2 つを一度に受け取っています。
+
+</JsNote>
+
+## カウンターを全文で書く {#build}
+
+分解できたら、実際に書きます。`src/components/Counter/Counter.tsx` を新規作成して、**この全文**を貼り付けてください（断片ではなく、これで動きます）。
+
+```tsx title="src/components/Counter/Counter.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+export function Counter() {
+  const [count, setCount] = useState(0)
+
+  return (
+    <div>
+      <button type="button" onClick={() => setCount(count - 1)}>
+        −
+      </button>
+      <span>{count}</span>
+      <button type="button" onClick={() => setCount(count + 1)}>
+        ＋
+      </button>
+    </div>
+  )
+}
+```
+
+呼び出す側（`App.tsx`）ではこう使います。
+
+```tsx title="src/App.tsx（使う側）"
+import { Counter } from './components/Counter/Counter'
+
+function App() {
+  return <Counter />
+}
+
+export default App
+```
+
+## 保存すると何が起きるか {#result}
+
+保存すると、`0` を挟んで `−` と `＋` のボタンが出ます。**＋を押すと `setCount(count + 1)` が呼ばれ**、`count` が 1 増えます。すると React は `Counter` を**もう一度呼び出して**（再描画）、新しい `count` で `<span>{count}</span>` を描き直します。だから画面の数字が増えます。前のページの「state を更新 → 再描画」が、ここで実際に動いています。
+
+## 実際の動き {#demo}
+
+上のコードがそのまま動いているのが、これです。押してみてください。
+
+<Demo title="カウンター">
+  <CounterDemo />
+</Demo>
+
+## わざと壊す：count に直接代入する {#break-assign}
+
+「更新は必ず `setCount` を通す」のがなぜ大事か、破って確かめます。`setCount` を使わず、`count` に直接代入してみます。
+
+```tsx
+<button type="button" onClick={() => (count = count + 1)}>＋</button>
+```
+
+すると、その場で赤い波線が出ます。
+
+```
+Cannot assign to 'count' because it is a constant.
+```
+
+`count` は `const` で受け取っているので、そもそも代入できません。仮にできたとしても、[前のページ](/guide/state/use-state/what-is-state)のとおり**再描画は起きません**。**state を変えるときは、必ず更新関数（`setCount`）を通す**——これが鉄則です。React は「更新関数が呼ばれた」ことを合図に描き直すからです。
+
+<Together
+  task="初期値を 0 ではなく 10 から始めるカウンターにするには、どこを変えればよいでしょう。実際に書き換えて、最初の表示が 10 になるか確かめてください。"
+  hint="useState のかっこの中が初期値です。"
+>
+
+```tsx
+const [count, setCount] = useState(10) // 初期値を 10 に
+```
+
+`useState(10)` にすると、最初の表示が `10` になります。`useState` のかっこの中が「一番最初の値」です。
+
+</Together>
+
+<Together
+  task="＋を押すと 1 ずつではなく 5 ずつ増えるカウンターにしてみてください。"
+  hint="setCount に渡す式を count + 5 にします。"
+>
+
+```tsx
+<button type="button" onClick={() => setCount(count + 5)}>＋5</button>
+```
+
+`setCount(count + 5)` にすれば、押すたびに 5 増えます。「今の値 `count` に 5 を足したものを、新しい state にする」という意味です。読み取りは `count`、更新は `setCount(...)`——この 2 つの役割を、しっかり分けて使います。
+
+</Together>
+
+## 書き方カタログ：useState はいろいろな型で使える {#catalog}
+
+`useState` の初期値は数値だけではありません。**画面と連動する値なら何でも** state にできます。よく使う形を並べます。丸ごと自分のコードのひな形にしてください。
+
+```tsx
+// 数値
+const [count, setCount] = useState(0)
+
+// 文字列（入力欄など）
+const [name, setName] = useState('')
+
+// 真偽値（開閉・ON/OFF）
+const [isOpen, setIsOpen] = useState(false)
+
+// 配列（一覧）
+const [items, setItems] = useState<string[]>([])
+
+// オブジェクト（フォームなど複数の値）
+const [form, setForm] = useState({ name: '', email: '' })
+
+// 最初は「まだ無い」（データ取得前など）— 型は Part 6 で詳しく
+const [product, setProduct] = useState<Product | null>(null)
+```
+
+真偽値は開閉やお気に入り、配列は一覧、オブジェクトはフォーム——このあとのページで、それぞれ実際に使います。「どんな値でも state にできる」と分かれば、応用がききます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="count = count + 1（直接代入。エラー＆再描画されない）"
+  good="setCount(count + 1)"
+  note="state は更新関数で変える。直接代入は const エラー＋再描画も起きない。"
+/>
+
+<Diff
+  bad="const count = useState(0)（配列のまま受け取る）"
+  good="const [count, setCount] = useState(0)"
+  note="useState は [値, 更新関数] の配列を返す。分割代入で 2 つに分けて受け取る。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="state は const [値, set値] = useState(初期値) の形で受け取り、更新は必ず set 関数を使う"
+  alt="1 つのコンポーネントに state が増えてきたら、関連するものをオブジェクトや配列にまとめることもあります（次のページ以降）。まずは 1 値 1 useState で十分です。"
+>
+
+`const [count, setCount] = useState(0)` の形を、そのまま型として覚えます。読むのは `count`、変えるのは `setCount`。この 2 つを混同しないだけで、state の 8 割は書けます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Cannot assign to 'count' because it is a constant`** … `count` に直接代入しています。`setCount(...)` を使います。
+- **`Rendered more hooks than during the previous render` など hook のエラー** … `useState` を `if` の中やループの中で呼んでいませんか。hook は関数の**一番上**で呼びます。
+- **更新しても変わらない** … `setCount` を呼んでいるか、呼ぶ値が本当に新しくなっているかを確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="useState は [今の値, 更新関数] の配列を返します。count は表示に使い、値を変えるときは setCount(新しい値) を呼びます。count への直接代入はできません（再描画も起きません）。">
+
+`const [count, setCount] = useState(0)` の `count` と `setCount` は、それぞれ何に使うものでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- `useState(初期値)` は `[今の値, 更新関数]` を返す。分割代入で受け取る
+- 読むのは `count`、変えるのは `setCount(新しい値)`。更新関数を呼ぶと再描画される
+- 初期値は数値・文字列・真偽値・配列・オブジェクト・null と何でもよい
+
+</SummaryBox>

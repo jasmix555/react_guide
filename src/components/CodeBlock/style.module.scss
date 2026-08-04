@@ -1,0 +1,32 @@
+// The figure itself is styled globally (.prose figure[data-rehype-pretty-code-figure])
+// because rehype-pretty-code owns its inner markup. Here we only place the copy
+// button on top of it.
+.figure {
+  // inherits the global code-figure styles; nothing extra needed.
+}
+
+.copy {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--c-code-copy-fg);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  padding: 2px 9px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+  }
+}
+
+.figure:hover .copy,
+.copy:focus-visible {
+  opacity: 1;
+}

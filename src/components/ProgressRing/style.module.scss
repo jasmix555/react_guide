@@ -1,0 +1,17 @@
+.ring {
+  flex: 0 0 auto;
+  display: block;
+}
+
+.track {
+  stroke: var(--c-line);
+}
+
+.fill {
+  stroke: var(--c-accent);
+  transition: stroke-dashoffset 0.35s ease;
+}
+
+.complete {
+  stroke: var(--c-success);
+}

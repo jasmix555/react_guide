@@ -1,0 +1,184 @@
+---
+title: ?. と ??
+minutes: 7
+slug: optional-chaining
+section: javascript
+description: 無いかもしれない値を安全にたどる ?. と、null / undefined のときだけ既定値を出す ??。0 や空文字を巻き込まない。
+level: beginner
+prerequisites: ['javascript/truthy-falsy']
+---
+
+<LearnBox>
+
+- `?.`：途中が無くてもエラーにせず、安全にプロパティをたどる
+- `??`：`null` / `undefined` のときだけ既定値を出す
+- `??` と `||` の違い（`0` や空文字を巻き込むかどうか）
+
+</LearnBox>
+
+## なぜ必要なのか {#why}
+
+React では「サーバーからデータがまだ届いていない（`undefined`）」状態がよくあります。その `undefined` の中身をうっかり読もうとすると、アプリごと落ちます。それを安全に防ぐのが **`?.`（オプショナルチェーン）** と **`??`（Null 合体）** です。とても短い記号ですが、毎日使います。
+
+## わざと壊す：無い値の中をのぞくと落ちる {#break-undefined}
+
+まず、無い値の中を読もうとすると何が起きるかを見ます。
+
+```js
+const product = { name: 'トマト' } // detail は無い
+
+console.log(product.detail.stock)
+// Uncaught TypeError: Cannot read properties of undefined (reading 'stock')
+```
+
+`product.detail` は `undefined`。その中の `stock` を読もうとしたので、「`undefined` の `stock` は読めない」と落ちました。**この `Cannot read properties of undefined` は、React で最も多く見るエラーの 1 つ**です。
+
+## ?. で安全にたどる {#optional}
+
+`.` の代わりに `?.` を使うと、「**途中が `null` / `undefined` なら、そこで止めて `undefined` を返す**」動きになります。落ちません。
+
+```js
+const product = { name: 'トマト' }
+
+console.log(product.detail?.stock)
+// → undefined（落ちない）
+
+console.log(product?.detail?.stock)
+// → undefined（product 自体が無くても安全）
+```
+
+`product.detail?.stock` は「`detail` があれば `stock` を読む、無ければ `undefined`」という意味です。データが届く前でもエラーにならないので、React でとても重宝します。
+
+<JsNote feature="?. は「あれば進む、無ければ止める」">
+
+`a?.b` は「`a` が `null` / `undefined` でなければ `b` を読む。そうでなければ、そこで `undefined` を返して止まる」という意味です。落ちてほしくない「かもしれない」経路に `?.` を置きます。
+
+</JsNote>
+
+## ?? で既定値を出す {#nullish}
+
+`値 ?? 既定値` は、「値が **`null` か `undefined` のときだけ**、既定値を返す」動きです。`?.` と組み合わせて「無ければこれ」を作れます。
+
+```js
+const stock = product.detail?.stock ?? 0
+
+console.log(stock) // 0（detail が無いので既定値の 0）
+```
+
+`product.detail?.stock` が `undefined` なので、`?? 0` によって `0` が入りました。「データがまだ無いときは 0 として扱う」といった安全網に使えます。
+
+`?.` と `??` を組み合わせた形を、部品に分けて名前を付けます。
+
+```ts
+   a?.b ?? 0
+//  ↑   ↑  ↑
+//  │   │  └─ 既定値。左が null/undefined のとき使われる
+//  │   └─ ?? ：null / undefined のときだけ右の既定値を返す
+//  └─ ?. ：a が無ければそこで止めて undefined（落ちない）
+```
+
+- **`?.`** … 左が `null` / `undefined` なら、そこで**止めて `undefined`**。落ちない
+- **`??`** … 左が `null` / `undefined` の**ときだけ**、右の既定値を返す
+- **`0`** … 既定値。`?.` で `undefined` になっても、これで `0` にできる
+- `||` と違い、`0` や `''` は既定値に置き換えない（守れる）
+
+## ?? と || の違い（ここが肝） {#vs-or}
+
+「既定値なら `||` でもいいのでは？」と思うかもしれません。違います。**`||` は falsy すべて**（`0` や `''` も）を巻き込みますが、**`??` は `null` / `undefined` だけ**です。truthy / falsy のページでやった `0` の罠が、ここで効きます。
+
+```js
+const count = 0
+
+console.log(count || 10) // 10  ← 0 は falsy なので既定値に化ける（多くは意図と違う）
+console.log(count ?? 10) // 0   ← 0 はちゃんと 0 のまま
+```
+
+在庫数や価格のように「**`0` も正当な値**」なものに既定値を付けるときは、`||` だと `0` が消えてしまいます。`??` なら `0` を守れます。「値が本当に無い（`null` / `undefined`）ときだけ既定値」なら `??` を選びます。
+
+<Callout type="warn">
+
+`0` や空文字も正しい値になりうる場面で `||` を使うと、それらが既定値に置き換わってしまいます。「無いときだけ既定値」の意図なら `??` を使ってください。
+
+</Callout>
+
+<Together
+  task="user オブジェクト（nickname が空文字 '' のことがある）から、表示名を作ってください。nickname が本当に無い（null/undefined）ときだけ '名無し' にし、空文字 '' はそのまま尊重する…のではなく、ここでは「空でも無くても '名無し' にしたい」場合、?? と || のどちらが適切か考えて書いてみましょう。"
+  hint="「空文字も既定値に置き換えたい」なら || の出番。「null/undefined だけ」なら ??。目的で選びます。"
+>
+
+```js
+const user = { nickname: '' }
+
+// 空文字も「名無し」にしたい → || が適切
+const display = user.nickname || '名無し'
+console.log(display) // 名無し（'' は falsy なので置き換わる）
+
+// null/undefined のときだけ既定値 → ?? が適切
+const display2 = user.nickname ?? '名無し'
+console.log(display2) // '' （空文字はそのまま）
+```
+
+「空も無扱いにしたい」なら `||`、「本当に無いときだけ」なら `??`。**どちらが正しいかは目的次第**で、`0` や `''` を既定値に含めたいかで選び分けます。ここを意識できると、既定値まわりのバグが激減します。
+
+</Together>
+
+## 書き方カタログ：安全にたどる・既定値のいろいろ {#catalog}
+
+「無いかもしれない経路」は `?.`、「無いときだけの既定値」は `??`。よく使う形を並べます。
+
+```ts
+product?.name              // ?. ：無ければ undefined（落ちない）
+product?.detail?.stock     // つなげて深くたどる
+product.tags?.[0]          // 配列の要素も安全に
+product.getPrice?.()       // メソッドも安全に呼ぶ
+product.detail?.stock ?? 0 // 無ければ既定値（0 は守られる）
+user.nickname ?? '名無し'  // null/undefined のときだけ既定値
+```
+
+`?.` は「落ちない保険」、`??` は「`null` / `undefined` 専用の既定値」です。`0` や `''` が正当な値なら、`||` ではなく `??` を使います。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="const stock = data.detail.stock（data.detail が無いと落ちる）"
+  good="const stock = data.detail?.stock ?? 0"
+  note="届く前は undefined。?. で安全にたどり、?? で既定値を与える。"
+/>
+
+<Diff
+  bad="const price = product.price || 0（0 円が消える）"
+  good="const price = product.price ?? 0"
+  note="0 が正当な値なら ??。|| は 0 も falsy として既定値に置き換える。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="「無いかもしれない経路」は ?. でたどり、「無いときだけの既定値」は ?? を使う"
+  alt="「空文字や 0 も無扱いにして既定値にしたい」ことが確実なら、その箇所に限り || で構いません。意図をコメントで一言添えると親切です。"
+>
+
+`?.` は落ちない保険、`??` は `null` / `undefined` 専用の既定値。数量や価格など `0` が意味を持つ値には、`||` ではなく `??` を使います。この 2 つは「データが揃う前」の React で毎日使います。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Cannot read properties of undefined (reading '○○')`** … 無い値の中を `.` で読んでいます。その経路を `?.` に変えます。
+- **`0` や空文字が既定値に化ける** … `||` を使っています。`null` / `undefined` だけを対象にしたいなら `??` に変えます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="product?.tags?.length ?? 0 と書きます。tags が無くても ?. で落ちず、length が取れなければ ?? 0 で 0 にします。">
+
+`product` の `tags`（配列、無いこともある）の要素数を、`product` や `tags` が無くても落ちずに取り出し、無ければ `0` にするには、どう書けばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- `?.` は「あれば進む、無ければ `undefined` で止まる」。`Cannot read properties of undefined` を防ぐ
+- `??` は `null` / `undefined` のときだけ既定値を返す
+- `??` と `||` は別物。`0` や `''` を守りたいなら `??`、それらも既定値にしたいなら `||`
+
+</SummaryBox>

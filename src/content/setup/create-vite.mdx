@@ -1,0 +1,115 @@
+---
+title: npm create vite を実行する
+minutes: 8
+slug: setup-create-vite
+section: setup
+description: 実際のターミナル出力を丸ごと。create-vite を起動し、3つの質問が始まるところまで。
+level: beginner
+prerequisites: ['setup/why-vite']
+---
+
+<LearnBox>
+
+- プロジェクトを作るコマンドを実行する
+- 実行すると画面に何が出るか（実物のとおりに）
+- 3 つの質問が始まる場所
+
+</LearnBox>
+
+<Callout type="note">
+
+この手順は **create-vite 9.1.2 / Vite 8（2026 年時点）** で確認しています。バージョンが上がると質問の文言や選択肢が少し変わることがあります。画面と少し違っても、考え方は同じです。
+
+</Callout>
+
+いよいよプロジェクトを作ります。ゴールは、この手順のあとに**プロジェクト名のフォルダが 1 つできている**ことです。
+
+## ステップ 1：作る場所へ移動する {#step-cd}
+
+プロジェクトフォルダは「今いる場所」の中に作られます。まず作りたい場所へ移動します。ここではデスクトップの例です。
+
+```bash
+cd Desktop
+```
+
+<Callout type="warn">
+
+XAMPP を使っている人でも、**練習用プロジェクトを `htdocs` の中に作る必要はありません**。Vite は自前の開発サーバを持っているので、置き場所はデスクトップでも書類フォルダでも構いません。パスに日本語や空白が入らない場所を選ぶと、後でトラブりにくいです。
+
+</Callout>
+
+## ステップ 2：作成コマンドを実行する {#step-run}
+
+次のコマンドを打って `Enter` します。`@latest` は「最新版の create-vite を使う」という意味です。
+
+```bash
+npm create vite@latest
+```
+
+初めて実行すると、まず「この道具をダウンロードしていい？」と聞かれます。`y` を打って `Enter` してください。
+
+```
+Need to install the following packages:
+create-vite@9.1.2
+Ok to proceed? (y)
+```
+
+すると、作成ウィザードが始まり、**最初の質問**が出ます。
+
+```
+│
+◇  Project name:
+│  vite-project
+│
+```
+
+ここから **3 つの質問**（プロジェクト名 → フレームワーク → バリアント）に答えていきます。1 つずつは次の 2 ページで詳しく見るので、ここでは「こういう画面が出る」ことだけ掴んでください。
+
+## 全部答え終わるとこうなる {#done}
+
+3 つの質問に答えると、フォルダが作られ、最後にこう表示されます（`my-shop` は自分で付けた名前）。
+
+```
+◇  Scaffolding project in C:\Users\you\Desktop\my-shop...
+│
+└  Done. Now run:
+
+  cd my-shop
+  npm install
+  npm run dev
+```
+
+この「**Now run:**」の 3 行が、次にやることの案内です。まだ打たなくて大丈夫です。ページ 13 以降で 1 行ずつ実行します。
+
+## わざと壊す：コマンド名を打ち間違えるとどうなるか {#break-typo}
+
+コマンド名を間違えるとどうなるか、体験しておきましょう。`create` を `creat` と打ってみます。
+
+```bash
+npm creat vite@latest
+```
+
+保存ではなく実行すると、こう返ってきます。
+
+```
+Unknown command: "creat"
+
+To see a list of supported npm commands, run:
+  npm help
+```
+
+「`creat` なんてコマンドは知らない」と言われています。npm は打ち間違いを勝手に直してはくれません。**赤い文字が出たら、まずコマンドの綴りを疑う**——これが基本の一手です。正しく `npm create vite@latest` と打ち直せば動きます。
+
+## うまくいかないとき {#trouble}
+
+- **`Ok to proceed?` で止まって進まない** … `y` を打って `Enter` を押していないだけ、というのが大半です。
+- **`npm : 用語 'npm' は…認識されません`** … Node.js が入っていません。ページ 4〜5 に戻ってください。
+- **ずっとダウンロードが終わらない** … 社内ネットワークのプロキシや、オフラインが原因のことがあります。別のネットワークで試すと切り分けられます。
+
+<SummaryBox>
+
+- 作りたい場所へ `cd` してから `npm create vite@latest` を実行する
+- 初回は `Ok to proceed? (y)` に `y` で答える
+- そのあと 3 つの質問（名前・フレームワーク・バリアント）が始まる。次の 2 ページで答える
+
+</SummaryBox>

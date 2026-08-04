@@ -1,0 +1,155 @@
+---
+title: 最初の .module.scss
+minutes: 9
+slug: first-module
+section: styling
+description: ProductCard に最初のスタイルを付ける。sass を入れ、.module.scss を作り、import styles して className={styles.card} で当てる基本の形。
+level: beginner
+prerequisites: ['styling/why-scss-modules']
+---
+
+<LearnBox>
+
+- `sass` を入れて、部品用の `.module.scss` を作る
+- `import styles` して `className={styles.card}` で当てる基本の形
+- `ProductCard` に、最初の見た目（枠・余白）を付ける
+
+</LearnBox>
+
+## まず sass を入れる {#install}
+
+SCSS はブラウザがそのまま読めないので、CSS へ変換する `sass` が要ります。まだ入れていなければ、`my-shop` で次を実行します（詳しくは[「sass を入れる」](/libraries/sass)）。
+
+```bash
+npm install -D sass
+```
+
+Vite は `sass` が入っていれば `.scss` を自動で認識します。設定ファイルは要りません。
+
+## 部品用の .module.scss を作る {#create}
+
+`ProductCard` 専用のスタイルファイルを作ります。ファイル名は **`.module.scss`** で終わらせるのが約束です。`src/components/ProductCard/ProductCard.module.scss` を新規作成してください。
+
+```scss title="src/components/ProductCard/ProductCard.module.scss（新規作成）"
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.body {
+  padding: 12px;
+}
+
+.name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.price {
+  font-weight: 700;
+}
+```
+
+（色は後のページで**デザイントークン**にまとめます。まずは直値で進めます。）
+
+## import して当てる {#apply}
+
+このスタイルを `ProductCard.tsx` から読み込み、`className` に割り当てます。読み込みの 1 行を分解します。
+
+```tsx
+import styles from './ProductCard.module.scss'
+//     ↑                ↑
+//     │                └─ 同じフォルダの .module.scss を読む
+//     └─ クラス名の入った「オブジェクト」を受け取る（styles.card など）
+```
+
+`styles` は、`.module.scss` の中のクラス名を持つオブジェクトです。`styles.card` と書くと、ビルド時に固有化されたクラス名（`ProductCard_card_a1b2c` のような）に変換されます。当てるときは**波かっこ**です。
+
+```tsx
+<article className={styles.card}>
+//                  ↑
+//                  └─ styles.card は固有名。文字列 "card" ではなく波かっこで渡す
+```
+
+## ProductCard 全体に付ける {#full}
+
+`ProductCard.tsx` の各要素に `className` を付けた全文がこれです。
+
+```tsx title="src/components/ProductCard/ProductCard.tsx（全文）"
+import styles from './ProductCard.module.scss'
+
+interface ProductCardProps {
+  name: string
+  price: number
+  imageUrl: string
+}
+
+export function ProductCard({ name, price, imageUrl }: ProductCardProps) {
+  return (
+    <article className={styles.card}>
+      <img src={imageUrl} alt={name} width="100%" />
+      <div className={styles.body}>
+        <h3 className={styles.name}>{name}</h3>
+        <p className={styles.price}>{price.toLocaleString()}円</p>
+      </div>
+    </article>
+  )
+}
+```
+
+保存すると、素の並びが「枠と余白のあるカード」になります。まだ地味ですが、**スタイルを当てる仕組み**はこれで完成です。あとはこの `.module.scss` に書き足していくだけです。
+
+<Together
+  task="ProductCard.module.scss に .name の文字サイズを大きくする指定（font-size: 1.05rem）を足して、商品名が少し大きくなるのを確かめてください。"
+  hint=".name { ... } の中に font-size: 1.05rem; を 1 行足すだけです。styles.name はもう当たっています。"
+>
+
+```scss title="ProductCard.module.scss"
+.name {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+```
+
+すでに `className={styles.name}` が当たっているので、`.name` に 1 行足すだけで反映されます。「SCSS に書き足す → その場で画面に出る」のが Modules の基本サイクルです。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad='className="card"（文字列で書く）'
+  good="className={styles.card}（import した styles から）"
+  note="文字列 'card' はどこにも定義が無いので当たらない。styles.card で固有名を渡す。"
+/>
+
+<Diff
+  bad="ファイル名を ProductCard.scss にする"
+  good="ファイル名を ProductCard.module.scss にする"
+  note=".module が無いとグローバル CSS 扱いになり、衝突しないスコープ化が働かない。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`styles.card` が `undefined`** … ファイル名が `.module.scss` で終わっているか、クラス名の綴りが合っているか確認します。
+- **スタイルが当たらない** … `className={styles.card}`（波かっこ）になっているか、`className="styles.card"`（文字列）でないか確認します。
+- **`Preprocessor dependency "sass" not found`** … `sass` の入れ忘れです。`npm install -D sass` を実行します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="import styles from './ProductCard.module.scss' で読み込み、className={styles.クラス名} で当てます。ファイル名は .module.scss で終わらせ、クラス名は styles 経由で参照します。">
+
+新しく作った `.module.scss` のクラスを、コンポーネントに当てる手順を説明してみてください。
+
+</Exercise>
+
+<SummaryBox>
+
+- `sass` を入れ、部品ごとに `Xxx.module.scss` を作る
+- `import styles from './Xxx.module.scss'` し、`className={styles.クラス名}` で当てる（波かっこ）
+- ファイル名の `.module` が、衝突しないスコープ化のスイッチ
+
+</SummaryBox>

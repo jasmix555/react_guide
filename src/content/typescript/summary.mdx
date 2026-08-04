@@ -1,0 +1,64 @@
+---
+title: まとめと練習
+minutes: 6
+slug: typescript-summary
+section: typescript
+description: React 用 TypeScript のまとめ。基本の型・interface・props・union・Product 型・state とイベントの型を振り返り、理解度チェックで自己確認する。次はルーティングへ。
+level: beginner
+prerequisites: ['typescript/goal']
+---
+
+<LearnBox>
+
+- このパートで身についた「型で守る」書き方の総復習
+- 理解度チェック（つまずきやすい所を自己確認）
+- 次のパート（ルーティング）への橋渡し
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+`ProductCard` の props を、バラバラの 5 つから `Product` 型 1 つにまとめました。要点を並べます。
+
+- **基本の型と推論** … 型は `名前: 型`。初期値がある変数は推論に任せ、型は**関数の引数と props** に書く。
+- **interface** … オブジェクトの「形」に名前を付ける。必須はそのまま、任意は `?`。
+- **props の型** … `interface Props` を作り、`{ ... }: Props` で受け取る。中身は `children: ReactNode`。
+- **union とリテラル** … `'primary' | 'secondary'` で候補を固定。`X | null` は `if` で絞る（narrowing）。
+- **Product 型** … データの形を `interface` にし、`category` はリテラル union。`products.json` は `as Product[]`。
+- **state とイベント** … `useState` は推論に任せ、空配列・`null` のときだけ `useState<型>()`。切り出したハンドラは `ChangeEvent` など。
+
+「props とデータの形を型で固める」——この 2 つが、壊れにくいコードの土台です。
+
+## 理解度チェック {#quiz}
+
+<Exercise answer="関数の引数と props に書きます。初期値がある変数（const price = 3200 など）は推論が効くので書きません。推論できない所（引数・props）に型を集中させます。">
+
+型注釈は、どこに書くべきで、どこは書かなくてよいですか。理由も説明してください。
+
+</Exercise>
+
+<Exercise answer="category を 'kitchen' | 'living' | 'outdoor' のリテラル union にします。string だと 'kitchin' のような打ち間違いが素通りしますが、union なら決められた値以外は実行前に型エラーになります。">
+
+`Product` 型で、`category` の打ち間違いを実行前に止めるには、`string` ではなく何を使いますか。
+
+</Exercise>
+
+<Exercise answer="useState<Product | null>(null) と書きます。useState(null) のままだと型が null に固定され、あとで setSelected(product) が型エラーになるためです。<> で Product も入ると明示します。">
+
+「初期値は無し（`null`）で、あとから `Product` が入る」state を書くと、`useState(null)` では何が問題で、どう直しますか。
+
+</Exercise>
+
+## 次のパートへ {#next}
+
+型で守られた `ProductCard` の一覧ができました。でも今のアプリは、**1 画面だけ**です。商品を押しても詳細は開かないし、「お気に入り一覧」のような別ページもありません。
+
+次のパートは **ルーティング**。`react-router` で、一覧ページ・商品詳細ページ・お気に入りページのように、**URL で画面を切り替える**仕組みを作ります。ここまで作ってきたアプリが、複数ページのアプリになります。
+
+<SummaryBox>
+
+- 型は推論に任せられる所は任せ、**引数と props** に集中して書く
+- オブジェクトの形は `interface`、候補の固定は `'a' | 'b'` の union
+- `useState` は推論、空・`null` のときだけ `<型>` を明示。データは `Product` 型で固める
+
+</SummaryBox>

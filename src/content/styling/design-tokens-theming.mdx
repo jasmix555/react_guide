@@ -1,0 +1,138 @@
+---
+title: デザイントークンとテーマ
+minutes: 10
+slug: design-tokens-theming
+section: styling
+description: 色を CSS 変数（--x）にまとめ、var() で参照する。$ 変数との違いと、ライト/ダークの切り替えに強い理由まで。
+level: beginner
+prerequisites: ['styling/scss-features']
+---
+
+<LearnBox>
+
+- SCSS の `$` 変数と、CSS の `--変数`（カスタムプロパティ）の違い
+- 色を **デザイントークン**として `:root` にまとめ、`var()` で参照する
+- ライト／ダークの切り替えに、なぜ CSS 変数が強いのか
+
+</LearnBox>
+
+## `$` 変数だけでは足りない場面 {#why-css-var}
+
+前のページの `$` 変数は、**ビルド時に値が焼き込まれ**ます。便利ですが、弱点があります。**実行中に値を変えられない**のです。
+
+たとえば「ライトテーマとダークテーマを、ボタンで切り替える」。このとき色は**実行中に変わる**必要があります。`$` は焼き込み済みなので対応できません。ここで使うのが、CSS の **`--変数`（カスタムプロパティ）** です。
+
+| | SCSS `$変数` | CSS `--変数` |
+| --- | --- | --- |
+| 決まる時 | ビルド時（焼き込み） | 実行時（生きている） |
+| 実行中に変更 | できない | できる（テーマ切替など） |
+| 参照 | `$name` | `var(--name)` |
+
+## トークンを `:root` にまとめる {#tokens}
+
+色や角丸を、意味のある名前で 1 か所に定義します。これを**デザイントークン**と呼びます。ページ全体で使えるよう `:root` に置きます。
+
+```scss title="src/styles/tokens.scss"
+:root {
+  --c-bg: #ffffff;
+  --c-surface: #f8fafc;
+  --c-text: #0f172a;
+  --c-muted: #64748b;
+  --c-line: #e5e7eb;
+  --c-accent: #4f46e5;
+}
+```
+
+定義と参照を分解します。
+
+```scss
+:root {
+  --c-surface: #f8fafc;
+}
+/*  ↑          ↑
+    │          └─ 値
+    └─ 名前は -- で始める。:root は「ページ全体」の定義場所 */
+
+.card {
+  background: var(--c-surface);
+}
+/*           ↑
+             └─ var(--名前) で、定義した値を呼び出す */
+```
+
+## 部品はトークンを参照する {#use}
+
+`ProductCard` の色を、直値ではなくトークンに置き換えます。これで「色を決める場所」が 1 か所に集まります。
+
+```scss title="ProductCard.module.scss（色をトークンに）"
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  color: var(--c-text);
+}
+
+.price {
+  color: var(--c-accent);
+}
+```
+
+どの部品も `var(--c-*)` を見るので、**色を変えたいときは `:root` の 1 か所を直すだけ**で、サイト全体に反映されます。
+
+## ライト／ダークに対応する {#theme}
+
+CSS 変数の本領はここです。**同じトークン名のまま、値だけをダーク用に上書き**します。OS の設定（`prefers-color-scheme`）で自動切り替えできます。
+
+```scss title="tokens.scss（ダークを足す）"
+:root {
+  --c-bg: #ffffff;
+  --c-surface: #f8fafc;
+  --c-text: #0f172a;
+  --c-line: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #0b1120;
+    --c-surface: #111827;
+    --c-text: #e5e7eb;
+    --c-line: #1f2937;
+  }
+}
+```
+
+`ProductCard` 側は `var(--c-surface)` と書いてあるだけで**一切変えていない**のに、ダークでは自動的に暗い色になります。部品はトークンを見るだけ、色の中身はトークン側が持つ——この分担が、テーマ対応をラクにします。
+
+<Callout type="note" title="ボタンで切り替えるには">
+
+OS 設定だけでなく手動トグルにしたいときは、`<html data-theme="dark">` のような属性を JavaScript で付け替え、CSS 側で `:root[data-theme='dark'] { ... }` を用意します。このサイト自身がこの方式です。仕組みは同じ「トークンの値を差し替える」だけです。
+
+</Callout>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="各部品の .module.scss に #0f172a などの色を直書きする"
+  good="トークン（--c-text 等）を :root に定義し、var(--c-text) で参照する"
+  note="直書きだと色を変えるとき全ファイルを探すことに。トークンなら 1 か所。ダーク対応も値の差し替えだけ。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`var(--c-text)` が効かない** … トークン名の綴り、`--` で始まっているか、`:root` に定義があるかを確認します。
+- **ダークにならない** … `@media (prefers-color-scheme: dark)` の中で、同じトークン名を上書きしているか確認します。部品側は変えません。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="CSS の --変数（カスタムプロパティ）です。$ 変数はビルド時に焼き込まれて実行中に変えられませんが、--変数は実行時に生きているので、テーマ切り替えのように値を差し替えられます。">
+
+「ライト／ダークをボタンで切り替える」には、`$` 変数と CSS の `--変数` のどちらが向いていますか。理由も答えてください。
+
+</Exercise>
+
+<SummaryBox>
+
+- `$` 変数はビルド時に焼き込み、`--変数` は実行時に生きている（テーマ切替に強い）
+- 色は `:root` にデザイントークンとしてまとめ、部品は `var(--名前)` で参照する
+- ダーク対応は、同じトークン名を `@media (prefers-color-scheme: dark)` で上書きするだけ
+
+</SummaryBox>

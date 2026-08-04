@@ -1,0 +1,141 @@
+---
+title: 基本の型
+minutes: 8
+slug: basic-types
+section: typescript
+description: string・number・boolean と配列の型注釈。型推論に任せてよい所と、明示すべき所。関数の引数と戻り値の型まで。
+level: beginner
+prerequisites: ['typescript/goal']
+---
+
+<LearnBox>
+
+- 型注釈の書き方（`: string` `: number` `: boolean`）と配列の型
+- 型推論に任せてよい所（毎回書かなくてよい）
+- 関数の引数・戻り値の型
+
+</LearnBox>
+
+## 型注釈：値の種類を書く {#annotation}
+
+変数名のうしろに `: 型名` を書くと、「この値はこの型」と決められます。[Part 2 の値と型](/guide/javascript/values-and-types)で見た種類が、そのまま型名になります。
+
+```ts
+const name: string = '佐藤'
+const price: number = 3200
+const inStock: boolean = true
+```
+
+1 行を分解します。
+
+```ts
+const price: number = 3200
+//    ↑      ↑        ↑
+//    │      │        └─ 入れる値
+//    │      └─ 型注釈：: のあとに型名（string / number / boolean …）
+//    └─ 変数名
+```
+
+## 配列の型 {#array}
+
+配列は「中身の型」のうしろに `[]` を付けます。「文字列の配列」なら `string[]`。
+
+```ts
+const tags: string[] = ['調理器具', 'IH対応']
+const prices: number[] = [3200, 2480, 1800]
+```
+
+## 型推論：書かなくても分かる {#inference}
+
+実は、上の例で `: 型` は**書かなくても大丈夫**です。TypeScript は、入れた値から型を**自動で推論**します。
+
+```ts
+const price = 3200 // TypeScript は「これは number」と分かる
+```
+
+`3200` を入れた時点で `price` は `number` と決まり、あとで `price = '安い'` と文字列を入れようとすれば止まります。**だから、初期値がある変数にはふつう型注釈を書きません**。冗長になるだけです。
+
+<Callout type="note" title="どこで型を書くのか">
+
+型推論が効くので、`const` の変数にいちいち型を書く必要はありません。型を**明示するのが大事なのは、推論が効かない所**——とくに **関数の引数** と **props** です。次のページからやります。
+
+</Callout>
+
+## 関数の引数と戻り値 {#function}
+
+関数の**引数**は、TypeScript が値を推論できません（何が渡されるか、書く時点では不明だから）。だから**引数には型を書きます**。戻り値は推論に任せてよいことが多いです。
+
+```ts
+function toYen(price: number): string {
+  return `${price.toLocaleString()}円`
+}
+//                ↑              ↑
+//                │              └─ 戻り値の型（省略しても推論される）
+//                └─ 引数の型（ここは書く）
+```
+
+`price: number` と書いておくと、`toYen('安い')` のように文字列を渡した瞬間に赤い波線が出ます。
+
+## わざと壊す：型に合わない値を入れる {#break}
+
+型の効き目を見ます。`number` の変数に、文字列を入れてみます。
+
+```ts title="型の効き目"
+const price: number = '3200' // ← 文字列を入れた
+```
+
+`'3200'` に赤い波線が付き、こう出ます。
+
+```
+Type 'string' is not assignable to type 'number'.
+```
+
+「`string` 型の値は `number` 型のところには入れられません」。クオートを外して `3200`（数値）にすれば消えます。**実行する前に、型違いを止めてくれた**わけです。
+
+## 書き方カタログ：基本の型 {#catalog}
+
+```ts
+// 明示（引数・props など、推論が効かない所で）
+const name: string = '佐藤'
+const price: number = 3200
+const inStock: boolean = true
+const tags: string[] = ['a', 'b']
+
+// 推論に任せる（初期値がある変数）
+const total = 3200 // number と推論される
+const items = ['a', 'b'] // string[] と推論される
+
+// 関数
+function toYen(price: number): string {
+  return `${price}円`
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="const price = 3200 に、わざわざ : number と書く"
+  good="初期値がある変数は推論に任せ、型は関数の引数や props に書く"
+  note="推論が効く所に型を書くのは冗長。型は『推論が効かない所』に集中させる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`Type 'X' is not assignable to type 'Y'`** … 入れた値の型が、注釈・推論された型と違います。値か型のどちらかを合わせます。
+- **`Parameter 'x' implicitly has an 'any' type`** … 関数の引数に型が無く、推論もできない状態です。引数に型を書きます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="引数の x と y に number の型を書きます：function add(x: number, y: number)。戻り値は number と推論されるので省略できます。引数は推論が効かないので型が必要です。">
+
+2 つの数値を足す関数 `add` を書くとき、型はどこに書くべきでしょう。戻り値の型は必要ですか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 型注釈は `名前: 型`。配列は `string[]` のように中身の型 + `[]`
+- 初期値がある変数は**型推論**に任せる（書かない）
+- 型を書くのは、推論が効かない所——とくに**関数の引数**と**props**
+
+</SummaryBox>

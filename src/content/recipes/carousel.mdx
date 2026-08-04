@@ -1,0 +1,147 @@
+---
+title: カルーセル（ドラッグスライダー）
+minutes: 10
+slug: carousel
+section: recipes
+description: 横スクロールのカルーセル。スクロールは CSS の scroll-snap に任せ、前後ボタンとマウスのドラッグだけ足す。
+level: intermediate
+prerequisites: ['state/use-effect/basics']
+---
+
+import { CarouselDemo } from '@/demos/Carousel'
+
+<LearnBox>
+
+- CSS の `scroll-snap` で作る横スクロールカルーセル
+- 前後ボタン（`scrollBy`）と、マウスでのドラッグを足す
+- タッチ・キーボードを自分で書かずに済ませる
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+指（タッチ）でスワイプ、マウスならドラッグ、または右下のボタンで動きます。
+
+<Demo title="Carousel">
+  <CarouselDemo />
+</Demo>
+
+## スクロールは CSS に任せる {#scroll-snap}
+
+カルーセルを「毎フレーム座標を計算して `transform` で動かす」と作ると、重くて壊れやすくなります。**横スクロールとスナップ（ピタッと止まる）は、CSS だけでできます**。
+
+- `overflow-x: auto` … 横スクロールできる箱にする（タッチのスワイプが自動で付く）。
+- `scroll-snap-type: x mandatory` … 横方向に、必ずどこかにスナップする。
+- 各スライドに `scroll-snap-align: center` … 中央でピタッと止める。
+
+```scss title="Carousel.module.scss（要点）"
+.track {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+}
+
+.slide {
+  flex: 0 0 70%; // 1 枚 70%。次の 1 枚が少し見える
+  scroll-snap-align: center;
+}
+```
+
+この時点で、**タッチのスワイプもキーボードのスクロールも動きます**。JavaScript はまだ 1 行も書いていません。
+
+## 前後ボタンとマウスドラッグを足す {#js}
+
+デスクトップ用に「前へ／次へ」ボタンと、マウスでの掴んで動かす操作を足します。ボタンは `scrollBy` で少しスクロールするだけ。マウスドラッグは、押した位置と `scrollLeft` を覚えて、動いた分だけずらします。
+
+```tsx title="src/components/Carousel/Carousel.tsx（新規作成・全文）"
+import { useRef } from 'react'
+
+import styles from './Carousel.module.scss'
+
+interface Slide {
+  title: string
+  tint: string
+}
+
+export function Carousel({ slides }: { slides: Slide[] }) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const drag = useRef({ down: false, startX: 0, startLeft: 0 })
+
+  function step(dir: number) {
+    const track = trackRef.current
+    if (!track) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: reduce ? 'auto' : 'smooth' })
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (e.pointerType !== 'mouse') return // タッチはネイティブのスクロールに任せる
+    const track = trackRef.current
+    if (!track) return
+    drag.current = { down: true, startX: e.clientX, startLeft: track.scrollLeft }
+    track.setPointerCapture(e.pointerId)
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    const track = trackRef.current
+    if (!drag.current.down || !track) return
+    track.scrollLeft = drag.current.startLeft - (e.clientX - drag.current.startX)
+  }
+
+  function endDrag() {
+    drag.current.down = false
+  }
+
+  return (
+    <div>
+      <div
+        ref={trackRef}
+        className={styles.track}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        {slides.map((s) => (
+          <div key={s.title} className={styles.slide} style={{ background: s.tint }}>
+            {s.title}
+          </div>
+        ))}
+      </div>
+      <button type="button" aria-label="前へ" onClick={() => step(-1)}>‹</button>
+      <button type="button" aria-label="次へ" onClick={() => step(1)}>›</button>
+    </div>
+  )
+}
+```
+
+<JsNote feature="ドラッグ位置は useState ではなく useRef で持つ">
+
+マウスを動かすたびに `useState` を更新すると、そのたびに再描画が走ってカクつきます。ドラッグの途中経過（開始位置・開始スクロール量）は `useRef` に入れ、`scrollLeft` を直接書き換えます。画面に出す値ではないので、再描画は要りません。
+
+</JsNote>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="毎フレーム座標を計算して transform でスライドを動かす"
+  good="overflow-x + scroll-snap に任せ、ボタンとドラッグだけ足す"
+  note="自作アニメはタッチ・キーボード・慣性まで作り直しになる。スクロールはブラウザに任せるのが軽くて正しい。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **ピタッと止まらない** … 箱に `scroll-snap-type`、各スライドに `scroll-snap-align` の両方が要ります。
+- **ドラッグ中に文字が選択される** … スライドに `user-select: none` を付けます。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 横スクロールとスナップは CSS（`overflow-x` + `scroll-snap-type` + `scroll-snap-align`）
+- 前後ボタンは `scrollBy`、マウスドラッグは `scrollLeft` を直接書き換える
+- ドラッグの途中経過は `useState` ではなく `useRef`（再描画を起こさない）
+
+</SummaryBox>

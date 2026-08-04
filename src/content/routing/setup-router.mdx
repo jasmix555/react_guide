@@ -1,0 +1,130 @@
+---
+title: ルーターを設定する
+minutes: 9
+slug: setup-router
+section: routing
+description: createBrowserRouter で「この URL ではこの画面」を登録し、main.tsx の RouterProvider に渡す。SPA ルーティングの土台を作る。
+level: beginner
+prerequisites: ['routing/goal']
+---
+
+<LearnBox>
+
+- `createBrowserRouter` で「URL → 画面」の対応を登録する
+- `main.tsx` で `RouterProvider` に渡して、アプリ全体で使えるようにする
+- ルーターが無いと `<Link>` などが動かないこと
+
+</LearnBox>
+
+## まず react-router を入れる {#install}
+
+まだ入れていなければ、`my-shop` で入れます（詳しくは[「react-router を入れる」](/libraries/react-router)）。
+
+```bash
+npm install react-router-dom
+```
+
+## 「URL → 画面」を登録する {#config}
+
+ルーティングの中心は、**「どの URL で、どの画面（コンポーネント）を出すか」の一覧**です。`createBrowserRouter` に、その対応を配列で渡します。
+
+```tsx
+import { createBrowserRouter } from 'react-router-dom'
+
+import { ProductListPage } from './pages/ProductListPage'
+
+const router = createBrowserRouter([
+  { path: '/', element: <ProductListPage /> },
+])
+```
+
+1 件を分解します。
+
+```tsx
+{ path: '/', element: <ProductListPage /> }
+//  ↑           ↑
+//  │           └─ その URL で表示するコンポーネント
+//  └─ URL のパス（'/' はトップページ）
+```
+
+「`/` を開いたら `<ProductListPage />` を出す」という意味です。ページが増えたら、この配列に足していきます。
+
+## main.tsx で RouterProvider に渡す {#provider}
+
+作ったルーターを、アプリの一番外側の `RouterProvider` に渡します。これで、アプリ全体がルーティングを使えるようになります。`src/main.tsx` をこうします。
+
+```tsx title="src/main.tsx（全文）"
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+
+import { ProductListPage } from './pages/ProductListPage'
+import './styles/tokens.scss'
+
+const router = createBrowserRouter([
+  { path: '/', element: <ProductListPage /> },
+])
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <RouterProvider router={router} />
+  </StrictMode>,
+)
+```
+
+これまで `<App />` を描いていた場所が、`<RouterProvider router={router} />` に変わりました。**画面の出し分けは、これ以降ルーターが担当**します。
+
+<Callout type="note" title="App.tsx はどうなる？">
+
+一覧の中身は `App.tsx` から `pages/ProductListPage.tsx` に引っ越すのが自然です（「ページ」は `pages/` に置くと整理しやすい）。中身（`products.map(...)`）はそのまま移すだけです。
+
+</Callout>
+
+## わざと壊す：ルーターの外で Link を使う {#break}
+
+なぜ `RouterProvider` で包むのかを見ます。もし包まずに、どこかで `<Link>` を使うと、こう出ます。
+
+```
+useHref() may be used only in the context of a <Router> component.
+```
+
+「`<Link>`（内部で `useHref` を使う）は、`<Router>` の中でしか使えません」という意味です。`<Link>` や `useParams` などのルーティング機能は、**`RouterProvider` の内側**でしか動きません。だから一番外側で包みます。
+
+## 書き方カタログ：ルート登録 {#catalog}
+
+```tsx
+const router = createBrowserRouter([
+  { path: '/', element: <ProductListPage /> }, // トップ
+  { path: '/favorites', element: <FavoritesPage /> }, // お気に入り
+  { path: '/product/:id', element: <ProductDetailPage /> }, // 詳細（:id は次ページ）
+])
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="App.tsx で <RouterProvider> を、その中でさらに一覧も描く"
+  good="main.tsx の一番外側で <RouterProvider router={router} /> だけを描く"
+  note="ルーティングはアプリの最外側で 1 回。画面の中身はルート登録した各ページが持つ。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`useHref() may be used only in the context of a <Router>`** … `RouterProvider` の外で `<Link>` などを使っています。最外側で包みます。
+- **画面が真っ白** … `path` の綴り（`/`）や、`element` に渡すコンポーネントの import を確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="createBrowserRouter に { path: '/favorites', element: <FavoritesPage /> } を配列へ足します。path が URL、element がその URL で出すコンポーネントです。">
+
+`/favorites` を開いたら `<FavoritesPage />` を出したいとき、ルート登録にどう書き足しますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `createBrowserRouter([{ path, element }])` で「URL → 画面」を登録する
+- `main.tsx` の最外側で `RouterProvider router={router}` に渡す
+- `<Link>` や `useParams` は `RouterProvider` の内側でしか動かない
+
+</SummaryBox>

@@ -1,0 +1,172 @@
+---
+title: アコーディオン
+minutes: 9
+slug: accordion
+section: recipes
+description: クリックで開閉する FAQ 形式のアコーディオン。まず HTML だけで作り、1 つずつ開きたいときだけ React にする。
+level: beginner
+prerequisites: ['state/use-state/basics', 'components/rendering-lists']
+---
+
+import { AccordionDemo } from '@/demos/Accordion'
+
+<LearnBox>
+
+- HTML の `<details>` だけで作るアコーディオン（JavaScript 不要）
+- 「一度に 1 つだけ開く」にしたいときの React 版
+- キーボードと読み上げに対応させる書き方
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+作るのはこれです。見出しをクリックすると答えが開きます。ここでは「一度に 1 つだけ開く」React 版を触ってみてください。
+
+<Demo title="Accordion">
+  <AccordionDemo />
+</Demo>
+
+## まず React なしで作れないか考える {#native-first}
+
+アコーディオンと聞くと「state で開閉を管理して……」と身構えますが、**ほとんどの FAQ は HTML だけで作れます**。`<details>` と `<summary>` を使うと、開閉の仕組みがブラウザに最初から付いてきます。JavaScript も state も要りません。
+
+```tsx title="src/components/Faq.tsx（HTML だけ・全文）"
+export function Faq() {
+  return (
+    <div>
+      <details>
+        <summary>送料はかかりますか？</summary>
+        <p>5,000 円以上のご購入で送料無料です。</p>
+      </details>
+      <details>
+        <summary>返品はできますか？</summary>
+        <p>到着後 7 日以内、未使用のものに限りお受けします。</p>
+      </details>
+    </div>
+  )
+}
+```
+
+保存すると、`<summary>` の行がクリックできる見出しになり、押すたびに中身が開いたり閉じたりします。キーボードの Enter でも開閉でき、読み上げソフトにも「開いている／閉じている」が正しく伝わります。**これで足りるなら、ここで終わりです。**
+
+<Callout type="note" title="どちらを選ぶか">
+
+- FAQ のように「複数を同時に開いてもいい」→ `<details>` で決まり。追加のコードは要りません。
+- 「一度に 1 つだけ開く」「開閉に合わせて凝ったことをしたい」→ 次の React 版へ。
+
+</Callout>
+
+## 一度に 1 つだけ開きたいとき {#single-open}
+
+「1 つ開いたら他は閉じる」は `<details>` だけでは素直に作れません。ここで初めて state を使います。
+
+考え方はシンプルです。**いまどれが開いているかを、番号（index）で 1 つだけ覚えておく**。見出しを押したら、その番号に切り替える。同じものをもう一度押したら閉じる（`null`）。
+
+```tsx
+const [openIndex, setOpenIndex] = useState<number | null>(0)
+//     ↑          ↑
+//     │          └─ 開く項目を切り替える関数
+//     └─ いま開いている項目の番号
+```
+
+- **`openIndex`** … いま開いている項目の番号（`0`, `1`, `2` …）。どれも開いていなければ `null`。
+- **`setOpenIndex`** … 開く項目を切り替える関数。
+- **`useState<number | null>(0)`** … 型は「数値 **または** `null`」。初期値が `0` なので、最初は 1 番目が開いた状態で表示されます。
+
+## Accordion 本体 {#accordion-body}
+
+これが `Accordion` の全文です。`src/components/Accordion/Accordion.tsx` を新規作成して、この全文を貼り付けてください。
+
+```tsx title="src/components/Accordion/Accordion.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+interface AccordionItem {
+  q: string
+  a: string
+}
+
+export function Accordion({ items }: { items: AccordionItem[] }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(0)
+
+  return (
+    <div>
+      {items.map((item, i) => {
+        const isOpen = i === openIndex
+        return (
+          <div key={item.q}>
+            <h3>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+              >
+                {item.q}
+                <span aria-hidden>{isOpen ? '−' : '＋'}</span>
+              </button>
+            </h3>
+            {isOpen && <p>{item.a}</p>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+```
+
+読みどころは 3 つです。`const isOpen = i === openIndex` で「この項目は開いているか」を毎回計算する。`onClick={() => setOpenIndex(isOpen ? null : i)}` で「開いていれば閉じ（`null`）、閉じていればこの番号を開く」。そして `{isOpen && <p>…</p>}` で、開いているときだけ答えを描く。
+
+使う側は、質問と答えの配列を渡すだけです。
+
+```tsx title="src/App.tsx（使う側）"
+import { Accordion } from './components/Accordion/Accordion'
+
+const faq = [
+  { q: '送料はかかりますか？', a: '5,000 円以上で送料無料です。' },
+  { q: '返品はできますか？', a: '到着後 7 日以内、未使用のものに限ります。' },
+]
+
+function App() {
+  return <Accordion items={faq} />
+}
+
+export default App
+```
+
+## わざと壊す：閉じられないアコーディオン {#break-toggle}
+
+`onClick` の分岐を消して、`setOpenIndex(i)` だけにして保存してみます。
+
+```tsx title="Accordion.tsx（わざと壊す：閉じる分岐を消す）"
+onClick={() => setOpenIndex(i)}
+```
+
+開いた項目をもう一度押しても、**閉じなくなります**。`openIndex` がその番号のままだからです。`isOpen ? null : i` に戻すと、「開いているものを押したら `null`（＝閉じ）」が復活します。この 1 行が開閉トグルの心臓部です。
+
+## アクセシビリティの注意点 {#a11y}
+
+- **見出しは `<button>` で**：`<div onClick>` ではなく `<button>` にすると、キーボードの Tab で移動でき、Enter / Space で開閉できます。
+- **`aria-expanded`**：開いているかどうかを読み上げソフトに伝えます。`true` / `false` を state と連動させます。
+- **`<h3>` で囲む**：各見出しを見出しタグにしておくと、スクリーンリーダーで「見出し送り」ジャンプができます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="開閉を boolean の配列 [true, false, false] で管理する"
+  good="開いている番号を 1 つだけ number | null で持つ"
+  note="「1 つだけ開く」なら状態は 1 個で足ります。配列だと閉じ忘れ・同期ずれが起きやすい。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **クリックしても開かない** … `onClick` の中で `setOpenIndex` を呼べているか、`isOpen` の計算（`i === openIndex`）が合っているか確認します。
+- **キーボードで操作できない** … 見出しが `<button>` になっているか確認します。`<div>` だと Tab で止まりません。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 単純な FAQ は `<details>` / `<summary>` だけ。JavaScript も state も要らない
+- 「一度に 1 つだけ開く」ときだけ、開いている番号を `number | null` で 1 つ持つ
+- 見出しは `<button>` + `aria-expanded`。キーボードと読み上げに最初から対応させる
+
+</SummaryBox>

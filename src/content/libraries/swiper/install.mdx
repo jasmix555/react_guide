@@ -1,0 +1,68 @@
+---
+title: swiper を入れる
+minutes: 5
+slug: swiper-install
+section: swiper
+description: "npm install swiper で本体を入れる。React コンポーネントと型は同梱。忘れやすい CSS の読み込み swiper/css まで、最初のつまずきを押さえる。"
+level: beginner
+prerequisites: ['libraries/swiper/goal', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- `swiper` を 1 つ入れれば、React 用のコンポーネントも型もそろう
+- `swiper/react` から `Swiper` と `SwiperSlide` を読み込む
+- いちばん忘れやすい **CSS の読み込み**を最初に押さえる
+
+</LearnBox>
+
+## 入れる {#install}
+
+Swiper は 1 パッケージだけです。画面の動作に関わるので `-D` は付けません（[dependencies に入れる](/libraries/npm-install-writes)）。
+
+```bash
+npm install swiper
+```
+
+React 用のコンポーネント（`swiper/react`）も、型定義も本体に同梱です。`@types/*` を別に入れる必要はありません（[型定義が別パッケージ](/libraries/types-packages)ではありません）。
+
+## React から読み込む {#import}
+
+スライダー本体の `Swiper` と、1 枚 1 枚の `SwiperSlide` を、`swiper/react` から読み込みます。
+
+```tsx
+import { Swiper, SwiperSlide } from 'swiper/react'
+```
+
+## CSS を忘れずに {#css}
+
+Swiper は**見た目の CSS が別**になっています。これを読み込まないと、スライドが縦に積まれたように見えて「動かない！」と焦る——**いちばん多いつまずき**です。基本の CSS を、コンポーネントの先頭で 1 度読み込みます。
+
+```tsx
+import 'swiper/css'
+```
+
+<Callout type="mistake" title="崩れて見えるときは CSS 未読み込みを疑う">
+
+「スライドが全部縦に並ぶ」「横スワイプできない」ときは、たいてい `import 'swiper/css'` の書き忘れです。矢印やドットを使うときは、それぞれの CSS（`swiper/css/navigation` など）も足します（次のモジュールのページで扱います）。
+
+</Callout>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="Swiper は swiper 1 つを dependencies に入れ、使うコンポーネントの先頭で swiper/css を必ず読み込む"
+  alt="単純な 2〜3 枚の切り替えだけなら、レシピのカルーセルのように自前でも作れます。横流し・自動再生・レスポンシブが要るなら Swiper が早いです。"
+>
+
+パッケージは 1 つ、型は同梱。あとは **CSS の読み込みを忘れない**——これだけ押さえれば、Swiper のセットアップは終わりです。
+
+</Std>
+
+<SummaryBox>
+
+- `npm install swiper`。React コンポーネントも型も同梱、`dependencies` に入れる
+- `import { Swiper, SwiperSlide } from 'swiper/react'`
+- **`import 'swiper/css'` を忘れない**（崩れて見える原因の第 1 位）
+
+</SummaryBox>

@@ -1,0 +1,182 @@
+---
+title: オブジェクトの state を更新する
+minutes: 9
+slug: updating-objects
+section: state
+description: オブジェクトの state は {...prev, 変える所} で新しく作る。構文を分解し、フォームを全文で書く。直接書き換えると再描画されない理由は Part 2 の参照とコピー。書き方カタログ付き。
+level: beginner
+prerequisites: ['state/use-state/basics', 'javascript/reference-vs-copy']
+---
+
+<LearnBox>
+
+- 1 つの state に複数の値をまとめて持つ（オブジェクト）
+- `{...prev, 変える所}` の構文を分解し、フォームを全文で書く
+- 直接書き換えると再描画されない理由（Part 2 の参照とコピー）と書き方カタログ
+
+</LearnBox>
+
+## 複数の値をまとめて持つ {#why}
+
+state はオブジェクトも持てます。入力フォームで「名前」と「メール」をまとめて 1 つの state にできます。
+
+```tsx
+const [form, setForm] = useState({ name: '', email: '' })
+```
+
+これで `form.name`・`form.email` を 1 つの state で管理できます。問題は「**片方だけ更新したいとき**」の書き方です。ここで Part 2 の[参照とコピー](/guide/javascript/reference-vs-copy)が効きます。
+
+## 1 か所だけ更新する構文を分解する {#anatomy}
+
+「名前だけ変えたい」とき、`form.name = '...'` と直接書き換えてはいけません（理由は後で）。**元をコピーして、変えたい所だけ上書きした新しいオブジェクト**を作ります。構文を分解します。
+
+```tsx
+setForm((prev) => ({ ...prev, name: newName }))
+//       ↑           ↑         ↑
+//       │           │         └─ 変えたい所だけ上書き（後勝ち）
+//       │           └─ 前の中身を全部コピー（スプレッド）
+//       └─ 前の値（React が渡す最新の form）
+```
+
+- **`(prev) =>`** … 前の値を受け取る関数形（[前ページ](/guide/state/use-state/functional-updates)）。
+- **`...prev`** … 前のオブジェクトの中身を全部広げる（`email` などもそのまま引き継ぐ）。
+- **`name: newName`** … 同じキーを後ろに書くと上書き（後勝ち）。
+
+<Callout type="warn">
+
+アロー関数が**オブジェクトを返す**ときは `({ ... })` と**丸かっこで包みます**。包まないと、JavaScript が波かっこを「関数の本体」と勘違いします。
+
+</Callout>
+
+## フォームを全文で書く {#build}
+
+`src/components/ProfileForm/ProfileForm.tsx` を新規作成して、**この全文**を貼り付けてください。
+
+```tsx title="src/components/ProfileForm/ProfileForm.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+export function ProfileForm() {
+  const [form, setForm] = useState({ name: '', email: '' })
+
+  return (
+    <div>
+      <input
+        value={form.name}
+        onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+        placeholder="名前"
+      />
+      <input
+        value={form.email}
+        onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+        placeholder="メール"
+      />
+      <p>
+        {form.name}（{form.email}）
+      </p>
+    </div>
+  )
+}
+```
+
+## 保存すると何が起きるか {#result}
+
+名前欄に打つと、`onChange` で「`name` だけ入力値に差し替えた新しいオブジェクト」が作られ、`setForm` で state が更新されて再描画。下の `<p>` に反映されます。メール欄も同様で、**片方を打っても、もう片方は `...prev` で引き継がれるので消えません**。
+
+## わざと壊す：オブジェクトを直接書き換える {#break-mutate}
+
+なぜ直接書き換えてはいけないのか確かめます。`form` の中身を直接いじって `setForm` に渡してみます。
+
+```tsx
+function updateName(newName: string) {
+  form.name = newName // ← 元のオブジェクトを直接書き換え
+  setForm(form) // ← 同じオブジェクトを渡す
+}
+```
+
+入力しても、**画面は変わりません**。エラーも出ません。`form.name = newName` は中身を書き換えただけで、`setForm(form)` に渡した `form` は**さっきと同じオブジェクト（同じ参照）**。React は「参照が同じ＝変わっていない」と判断し、再描画をサボります。
+
+これはまさに Part 2 の[参照とコピー](/guide/javascript/reference-vs-copy)の話です。React に変化を伝えるには、`{ ...prev }` で**新しい入れ物**を作る必要があります。
+
+## 書き方カタログ：オブジェクトの更新 {#catalog}
+
+「元を壊さず 1 か所だけ変える」パターンをまとめます。
+
+```tsx
+// 1か所だけ変える
+setForm((prev) => ({ ...prev, name: '田中' }))
+
+// 数値の項目を増やす
+setUser((prev) => ({ ...prev, age: prev.age + 1 }))
+
+// 真偽の項目を反転
+setUser((prev) => ({ ...prev, active: !prev.active }))
+
+// 入力欄の値で更新（イベント）
+onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+```
+
+共通は「`{ ...prev, 変える所 }`」。まず全部コピーしてから、変えたいキーを上書きします。
+
+<Together
+  task="{ name: '', age: 0 } の state で、age だけを 20 に更新する関数を、元を壊さずに書いてみてください。"
+  hint="setUser((prev) => ({ ...prev, age: 20 })) の形です。丸かっこを忘れずに。"
+>
+
+```tsx
+const [user, setUser] = useState({ name: '', age: 0 })
+
+function setAge20() {
+  setUser((prev) => ({ ...prev, age: 20 }))
+}
+```
+
+`{ ...prev, age: 20 }` で、`name` はそのまま・`age` だけ `20` にした新しいオブジェクトを作っています。アロー関数がオブジェクトを返すので、`({ ... })` と丸かっこで包んでいる点にも注目してください。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="form.name = x; setForm(form)（直接書き換え→再描画されない）"
+  good="setForm((prev) => ({ ...prev, name: x }))"
+  note="同じ参照を渡しても React は変化に気づかない。新しいオブジェクトを作る。"
+/>
+
+<Diff
+  bad="setForm({ name: x })（他の項目が消える）"
+  good="setForm((prev) => ({ ...prev, name: x }))"
+  note="...prev を忘れると email など他のプロパティが消える。まず全部広げてから上書き。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="オブジェクトの state は、常に { ...prev, 変える所 } で新しいオブジェクトを作って更新する"
+  alt="入れ子が深いオブジェクトを頻繁に更新して書きづらいときは immer などの選択肢がありますが、まずはスプレッドで十分です。そもそも state を浅く保つ設計が先です。"
+>
+
+「元を書き換えない・新しい入れ物を作る」は、配列でもオブジェクトでも同じ鉄則です。`{ ...prev, 変える所 }` を型として覚えます。`...prev` を忘れると他の項目が消えるので、**まず全部広げてから上書き**の順で書きます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **更新しても画面が変わらない** … オブジェクトを直接書き換えていませんか。`{ ...prev, ... }` で新しく作ります。
+- **更新したら他の項目が消えた** … `...prev` を忘れています。まず広げてから、変える所を上書きします。
+- **`Unexpected token` などの構文エラー** … アロー関数でオブジェクトを返すとき、`({ ... })` の丸かっこが抜けていないか確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="setUser((prev) => ({ ...prev, name: '田中' })) と書きます。...prev で全プロパティを引き継ぎ、name だけ上書きした新しいオブジェクトを作ります。直接書き換えると再描画されません。">
+
+`{ name: '', age: 0 }` の state で、`age` を変えずに `name` だけ `'田中'` にするには、どう書けばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- オブジェクトの state は `{ ...prev, 変える所 }` で新しいオブジェクトを作って更新する
+- 直接書き換えると参照が同じままなので、React は再描画しない（Part 2 の参照とコピー）
+- `...prev` を忘れると他の項目が消える。まず全部広げてから上書きする
+
+</SummaryBox>

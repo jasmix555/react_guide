@@ -1,0 +1,157 @@
+---
+title: タイムラインで連続再生する
+minutes: 10
+slug: gsap-timeline
+section: gsap
+description: "gsap.timeline() で複数の動きを順番に。position パラメータで重なりを作り、restart などで操作する。GSAP らしさが一番出る機能。"
+level: intermediate
+prerequisites: ['libraries/gsap/usegsap']
+---
+
+import { GsapTimeline } from '@/demos/GsapTimeline'
+
+<LearnBox>
+
+- `gsap.timeline()` に動きを繋げて、順番に再生する
+- **position パラメータ**（`'+=0.2'` / `'-=0.2'`）で重なりを作る
+- タイムラインを `restart` / `pause` / `reverse` で操作する
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+「もう一度」を押すと、① → ② → ③ が順に入り、少し間をおいて「完了」が弾んで出ます。この「**順番**」と「**間**」を組み立てるのが、タイムラインです。
+
+<Demo title="gsap.timeline（順番と重なり）">
+  <GsapTimeline />
+</Demo>
+
+## timeline に繋げる {#chain}
+
+`gsap.to` / `from` を 1 つずつバラバラに書くと、全部**同時**に始まってしまいます。**`gsap.timeline()`** を作って、そこに `.from()` / `.to()` を**繋げて**いくと、書いた順に**次々と**再生されます。
+
+```tsx
+const tl = gsap.timeline()
+
+tl.from('.a', { opacity: 0, x: -24 }) // まず A
+  .from('.b', { opacity: 0, x: -24 }) // 次に B
+  .from('.c', { opacity: 0, x: -24 }) // 次に C
+```
+
+`tl.from(...).from(...)` のように繋げて書けます（メソッドチェーン）。デフォルトでは「前の動きが終わってから次」が始まります。
+
+## position パラメータで重なりを作る {#position}
+
+「前が終わってから」だと、少しもたつきます。各行の**最後に位置の指定**を足すと、開始のタイミングをずらせます。これが **position パラメータ**です。
+
+```tsx
+tl.from('.a', { x: -24 })
+  .from('.b', { x: -24 }, '-=0.2') // 前の終わりの 0.2 秒「前」から
+  .from('.c', { x: -24 }, '+=0.1') // 前の終わりの 0.1 秒「後」から
+```
+
+```tsx
+.from('.b', { x: -24 }, '-=0.2')
+//                       └─ 前の動きに 0.2 秒 重ねて始める
+```
+
+- **`'-=0.2'`** … 前の動きの終わりより **0.2 秒早く**始める（重なる）。
+- **`'+=0.1'`** … 前の動きの終わりより **0.1 秒遅く**始める（間があく）。
+- **`0.5`（数値）** … タイムラインの先頭から **0.5 秒の位置**（絶対指定）。
+
+`stagger`（少しずつずらす）と組み合わせると、複数要素をまとめて時間差で出せます。デモの① ② ③ は、1 つの `from` に `stagger: 0.25` を付けたものです。
+
+## タイムラインを操作する {#control}
+
+作ったタイムラインは、後から**操作**できます。デモの「もう一度」は `restart()` です。
+
+```tsx
+tl.pause() // 止める
+tl.play() // 再生
+tl.restart() // 最初から
+tl.reverse() // 逆再生
+```
+
+そのために、タイムラインを **ref に覚えておきます**。次が完成コードです。
+
+```tsx title="src/demos/GsapTimeline/GsapTimeline.tsx（全文）"
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { useRef } from 'react'
+
+import styles from './GsapTimeline.module.scss'
+
+export function GsapTimeline() {
+  const container = useRef<HTMLDivElement>(null)
+  const tl = useRef<gsap.core.Timeline | null>(null)
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia()
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        tl.current = gsap
+          .timeline()
+          .from(`.${styles.step}`, {
+            opacity: 0,
+            x: -24,
+            duration: 0.4,
+            stagger: 0.25,
+            ease: 'power2.out',
+          })
+          .from(
+            `.${styles.done}`,
+            { opacity: 0, scale: 0.6, duration: 0.4, ease: 'back.out(2)' },
+            '+=0.1',
+          )
+      })
+    },
+    { scope: container },
+  )
+
+  return (
+    <div className={styles.wrap} ref={container}>
+      <div className={styles.row}>
+        <span className={styles.step}>① 準備</span>
+        <span className={styles.step}>② 実行</span>
+        <span className={styles.step}>③ 確認</span>
+        <span className={styles.done}>✓ 完了</span>
+      </div>
+      <button type="button" className={styles.replay} onClick={() => tl.current?.restart()}>
+        もう一度
+      </button>
+    </div>
+  )
+}
+```
+
+`stagger: 0.25` で① ② ③が時間差で入り、`.from(..., '+=0.1')` で「完了」が最後に続きます。`ease: 'back.out(2)'` は「行き過ぎて戻る」弾む動きです。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="gsap.to を 3 つ並べて書く（全部同時に始まる）"
+  good="gsap.timeline() に繋げる（順番に再生される）"
+  note="順番のある動きは timeline。バラバラの to は同時発火で、意図した順にならない。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **全部同時に動く** … `gsap.timeline()` に**繋げて**いるか確認します。個別の `gsap.to` を並べると同時再生です。
+- **もたつく／詰まりすぎる** … position パラメータ（`'-=0.2'` / `'+=0.1'`）で重なりと間を調整します。
+- **`restart` が効かない** … タイムラインを `ref`（`tl.current`）に入れているか確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="gsap.timeline() を作り、.from(...).from(..., '-=0.2') のように繋げます。2 つ目の position を '-=0.2' にすると、前の動きに 0.2 秒重ねて始まり、続けて出る感じになります。'+=0.2' なら間があきます。">
+
+2 つの要素を「続けて、少し重ねて出す」には、`gsap.timeline()` にどう繋げ、position に何を指定しますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `gsap.timeline()` に `.from()` / `.to()` を繋げると、書いた順に再生される
+- position パラメータ（`'-=0.2'` 重ねる / `'+=0.1'` 間をあける / 数値は絶対位置）で調整
+- タイムラインを `ref` に覚えれば、`restart` / `pause` / `reverse` で操作できる
+
+</SummaryBox>

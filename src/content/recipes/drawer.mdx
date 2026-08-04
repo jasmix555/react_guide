@@ -1,0 +1,152 @@
+---
+title: ドロワー / ハンバーガーメニュー
+minutes: 10
+slug: drawer
+section: recipes
+description: ハンバーガーで開く横からのメニュー。dialog 要素を使い、フォーカスの閉じ込め・Esc・背景クリックを標準機能でまかなう。
+level: intermediate
+prerequisites: ['recipes/modal']
+---
+
+import { DrawerDemo } from '@/demos/Drawer'
+
+<LearnBox>
+
+- `<dialog>` で作る、横からスライドインするメニュー
+- フォーカスの閉じ込め・Esc・背景クリックを**標準機能**で済ませる
+- スライドのアニメーションと、背景スクロールの固定
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+スマホでおなじみの、ハンバーガーを押すと右から出てくるメニューです。メニュー内のリンク・✕・Esc・背景クリックで閉じます。
+
+<Demo title="Drawer">
+  <DrawerDemo />
+</Demo>
+
+## 自作せず `<dialog>` に任せる {#native-first}
+
+ドロワーやモーダルを自作すると、**フォーカスの閉じ込め**（Tab キーが後ろのページに逃げない）、**Esc で閉じる**、**背景の暗幕**を全部自分で書くことになります。これは地味に大変で、抜けやすい部分です。
+
+`<dialog>` 要素を `showModal()` で開くと、これらが**最初から付いてきます**。開閉は 2 つのメソッドだけです。
+
+```ts title="開く・閉じる"
+ref.current?.showModal() // 開く（暗幕・フォーカス閉じ込め・Esc 付き）
+ref.current?.close() // 閉じる
+```
+
+## Drawer 本体 {#drawer-body}
+
+`src/components/Drawer/Drawer.tsx` を新規作成して、この全文を貼り付けてください。
+
+```tsx title="src/components/Drawer/Drawer.tsx（新規作成・全文）"
+import { useRef } from 'react'
+
+import styles from './Drawer.module.scss'
+
+interface DrawerLink {
+  label: string
+  href: string
+}
+
+export function Drawer({ items }: { items: DrawerLink[] }) {
+  const ref = useRef<HTMLDialogElement>(null)
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="メニューを開く"
+        onClick={() => ref.current?.showModal()}
+      >
+        メニュー
+      </button>
+
+      <dialog ref={ref} className={styles.drawer} aria-label="メニュー">
+        <button type="button" aria-label="閉じる" onClick={() => ref.current?.close()}>
+          ✕
+        </button>
+        <nav>
+          {items.map((item) => (
+            <a key={item.href} href={item.href} onClick={() => ref.current?.close()}>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      </dialog>
+    </>
+  )
+}
+```
+
+ポイントは 2 つです。`ref` で本物の `<dialog>` を掴み、ハンバーガーの `onClick` で `showModal()`。そして**リンクを押したら `close()`** で閉じる（メニューは選んだら閉じるのが自然です）。
+
+## 横からスライドさせる {#animate}
+
+`<dialog>` は初期状態では画面中央に出ます。これを右端の縦長シートにして、スライドさせます。閉じている状態（右外＝`translateX(100%)`）を基本にし、`[open]` が付いたら `translateX(0)` に動かします。
+
+```scss title="Drawer.module.scss（要点）"
+.drawer {
+  position: fixed;
+  inset: 0 0 0 auto; // 右端いっぱい・上下フル
+  width: min(320px, 85vw);
+  margin: 0;
+  transform: translateX(100%);
+  transition:
+    transform 0.25s ease,
+    display 0.25s ease allow-discrete,
+    overlay 0.25s ease allow-discrete;
+}
+
+.drawer[open] {
+  transform: translateX(0);
+}
+
+// 開くときの「開始位置」。これが無いと開いた瞬間にパッと出る。
+@starting-style {
+  .drawer[open] {
+    transform: translateX(100%);
+  }
+}
+```
+
+<JsNote feature="@starting-style と allow-discrete">
+
+`<dialog>` は開くと `display` が切り替わるため、ふつうの `transition` だけでは動きません。`@starting-style` で「開いた瞬間の開始位置」を、`allow-discrete` で「閉じるときも最後まで見せる」を指定します。対応していない古いブラウザでは、アニメーション無しでパッと開閉します（＝壊れはしません）。
+
+</JsNote>
+
+## 背景スクロールを止める {#scroll-lock}
+
+開いている間、背後のページがスクロールできると気が散ります。JavaScript を足さなくても、CSS の `:has` で「開いている `<dialog>` があるページ」を狙って止められます。
+
+```scss title="Drawer.module.scss（追記）"
+:global(html:has(dialog[open])) {
+  overflow: hidden;
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="div でオーバーレイを作り、Esc・フォーカス・暗幕を全部自作する"
+  good="<dialog> を showModal() で開き、標準機能に任せる"
+  note="自作はフォーカスの閉じ込め漏れが起きやすい。dialog なら最初から正しく閉じ込められる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **背景を押しても閉じない** … `showModal()` で開いていますか（`show()` だと暗幕もフォーカス閉じ込めも付きません）。
+- **アニメーションしない** … `@starting-style` と `allow-discrete` が入っているか確認します。無くても開閉自体は動きます。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- ドロワーは自作せず `<dialog>` + `showModal()` / `close()`。Esc・フォーカス・暗幕が標準で付く
+- 位置は `inset: 0 0 0 auto` で右端。スライドは `transform` + `@starting-style`
+- 背景スクロールは `html:has(dialog[open])` に `overflow: hidden` で止める
+
+</SummaryBox>

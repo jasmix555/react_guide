@@ -1,0 +1,183 @@
+---
+title: イベントで state を変える
+minutes: 9
+slug: state-events
+section: state
+description: クリックで state を更新して画面を切り替える。onClick の構文を分解し、お気に入りトグルを全文で書く。setState を直接呼んで無限ループになる罠と、ハンドラの書き方カタログ。
+level: beginner
+prerequisites: ['state/use-state/basics', 'components/events']
+---
+
+import { FavoriteDemo } from '@/demos/Favorite'
+
+<LearnBox>
+
+- クリックで state を更新し、画面を切り替える
+- `onClick` の構文を分解する
+- 無限ループ（Too many re-renders）の罠と、ハンドラの書き方カタログ
+
+</LearnBox>
+
+## onClick の構文を分解する {#anatomy}
+
+Part 3 のイベント（`onClick`）と、このパートの state を合体させます。まず、これから書く 1 行を分解します。
+
+```tsx
+onClick={() => setFavorite(!favorite)}
+//       ↑     ↑           ↑
+//       │     │           └─ 今の値の逆（true ⇄ false）
+//       │     └─ state を更新する関数。呼ぶと再描画される
+//       └─ () => で包む。クリックされて初めて実行される
+```
+
+- **`() =>` で包む** … 「クリックされたら実行する関数」を渡します。`()` を付けて即実行してはいけません（後で罠を見ます）。
+- **`setFavorite(...)`** … state の更新関数。呼ぶと再描画。
+- **`!favorite`** … 今の値の逆（`!` は[記号の読み方](/guide/javascript/symbols)の「反対にする」）。`true` なら `false`、`false` なら `true`。
+
+## お気に入りボタンを全文で書く {#build}
+
+`src/components/FavoriteButton/FavoriteButton.tsx` を新規作成して、**この全文**を貼り付けてください。
+
+```tsx title="src/components/FavoriteButton/FavoriteButton.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+export function FavoriteButton() {
+  const [favorite, setFavorite] = useState(false)
+
+  return (
+    <button type="button" onClick={() => setFavorite(!favorite)}>
+      {favorite ? '♥ お気に入り済み' : '♡ お気に入り'}
+    </button>
+  )
+}
+```
+
+「お気に入りかどうか」を真偽値の state（`favorite`）で持ち、クリックで反転させています。
+
+## 保存すると何が起きるか {#result}
+
+ボタンを押すと `setFavorite(!favorite)` が呼ばれ、`favorite` が `true` / `false` で切り替わります。state が変わると再描画され、`favorite ? ... : ...` の三項演算子が新しい表示（ハートと文字）を選び直します。「クリック → state 更新 → 再描画」という、React の動きの基本形です。
+
+## 実際の動き {#demo}
+
+上のコードがそのまま動いているのがこれです。押してみてください。
+
+<Demo title="お気に入りトグル">
+  <FavoriteDemo />
+</Demo>
+
+## わざと壊す：onClick に setState を直接書く {#break-loop}
+
+Part 3 でやった「`()` を付けて即実行」の罠が、state では**もっと派手な症状**になります。アロー関数で包まず、`setFavorite` を直接書いてみます。
+
+```tsx
+<button type="button" onClick={setFavorite(!favorite)}>
+```
+
+保存した瞬間、画面が固まり、コンソールに大量のエラーが出ます。
+
+```
+Error: Too many re-renders. React limits the number of renders
+to prevent an infinite loop.
+```
+
+「**再描画が多すぎる。無限ループを防ぐために止めた**」という意味です。`onClick={setFavorite(!favorite)}` は、クリックを待たず**描画中に `setFavorite` を実行**します。→ state が変わる → 再描画 → また `setFavorite` が実行される → また再描画……と、**永遠に繰り返す**からです。防ぐには、必ずアロー関数で包みます。
+
+```tsx
+<button type="button" onClick={() => setFavorite(!favorite)}>
+```
+
+`() =>` で包めば、`setFavorite` はクリックされたときだけ実行されます。**`Too many re-renders` を見たら、`onClick` の中で `setState` を直接呼んでいないか**を真っ先に疑ってください。
+
+## 書き方カタログ：イベントハンドラ {#catalog}
+
+イベントの渡し方には、よく使う形がいくつかあります。まとめて覚えておくと、迷いません。
+
+```tsx
+// ① 用意した関数を渡す（引数なし）
+<button onClick={handleClick}>送信</button>
+
+// ② その場で書く（引数なし）
+<button onClick={() => setOpen(true)}>開く</button>
+
+// ③ 引数ありで呼ぶ → アロー関数で包む（() を直接付けない）
+<button onClick={() => buy(product)}>買う</button>
+
+// ④ イベントオブジェクト e を使う（入力欄の値を取るなど）
+<input onChange={(e) => setName(e.target.value)} />
+```
+
+①は「関数の名前だけ」を渡す形。②③は「その場で関数を作って」渡す形。④は入力欄などで、起きたイベントの情報（`e.target.value` ＝入力された文字）を使う形です。どれも共通するのは「**渡すのは関数**。`()` を付けて即実行しない」——これだけ守れば事故りません。
+
+<Together
+  task="「詳細を見る」ボタンを押すと説明文が出て、もう一度押すと消える開閉（トグル）を、完全なコンポーネントとして書いてみてください。open という真偽値の state を使います。"
+  hint="const [open, setOpen] = useState(false)、onClick で setOpen(!open)、{open && <p>説明</p>} で出し分けます。"
+>
+
+```tsx title="src/components/Detail/Detail.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+export function Detail() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(!open)}>
+        {open ? '閉じる' : '詳細を見る'}
+      </button>
+      {open && <p>ここに商品の説明が入ります。</p>}
+    </div>
+  )
+}
+```
+
+`open` を `!open` で反転させ、`{open && <p>...</p>}` で「`open` が `true` のときだけ説明を出す」（Part 3 の[条件表示](/guide/components/conditional)）にしています。開閉・表示/非表示・ON/OFF は、どれもこの「真偽値の state を反転」で作れます。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="onClick={setFavorite(!favorite)}（描画中に実行→無限ループ）"
+  good="onClick={() => setFavorite(!favorite)}"
+  note="setState を onClick に直接書くと Too many re-renders。必ずアロー関数で包む。"
+/>
+
+<Diff
+  bad="onClick={() => (favorite = !favorite)}（直接代入）"
+  good="onClick={() => setFavorite(!favorite)}"
+  note="state は更新関数で変える。直接代入では再描画されない。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="ON/OFF・開閉・表示切り替えは、真偽値の state を !値 で反転させる。イベントは必ずアロー関数で包む"
+  alt="次のページで学ぶ setFavorite(prev => !prev) の関数形は、短い間隔で連続して切り替える場面でより安全です。まずは !favorite の形で仕組みを掴みます。"
+>
+
+「切り替え」は真偽値 state の反転が定番。`onClick={() => setX(!x)}`。`() =>` で包むのを忘れないこと——忘れると `Too many re-renders` で無限ループになります。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Too many re-renders`** … `onClick={setX(...)}` のように、`setState` を描画中に呼んでいます。`onClick={() => setX(...)}` に直します。
+- **クリックしても切り替わらない** … `setState` を呼んでいるか、`!値` で反転できているかを確認します。
+- **一瞬だけ表示されて消える／画面が固まる** … 無限ループの初期症状のことがあります。まず `onClick` の書き方を見ます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="onClick={setOpen(!open)} だと描画中に setOpen が実行され、再描画→また実行…の無限ループ（Too many re-renders）になります。onClick={() => setOpen(!open)} とアロー関数で包みます。">
+
+`onClick={setOpen(!open)}` と書いたら `Too many re-renders` が出ました。なぜでしょう。どう直しますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- クリックで `setState` を呼ぶと、state が変わり画面が切り替わる
+- ON/OFF・開閉は、真偽値の state を `!値` で反転させるのが定番
+- `onClick` は必ずアロー関数で包む。直接呼ぶと `Too many re-renders`（無限ループ）
+
+</SummaryBox>

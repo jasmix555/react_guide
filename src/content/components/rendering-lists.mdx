@@ -1,0 +1,188 @@
+---
+title: 一覧を map で表示する
+minutes: 10
+slug: rendering-lists
+section: components
+description: 配列を map で JSX の配列に変えて一覧を表示する。なぜ key が要るのか、key に index を使わず安定した id を使う理由。key 忘れの警告も見る。
+level: beginner
+prerequisites: ['components/props', 'javascript/array-methods']
+---
+
+import { ProductListDemo } from '@/demos/ProductList'
+
+<LearnBox>
+
+- 配列を `map` で JSX に変えて、一覧を表示する
+- 一覧には `key` が必要な理由
+- `key` に index ではなく、安定した id を使う理由
+
+</LearnBox>
+
+## このページで作るもの {#goal}
+
+商品データの配列から、カードを並べた一覧を作ります。`<ProductCard />` を 6 回手で書くのではなく、**商品データの配列を `map` で回して、データの数だけカードを自動で並べ**ます。商品が 100 件になっても、コードは 1 行も増えません。まずコードを書いて、最後に動くものを見ます。
+
+## 配列を map で JSX に変える {#map}
+
+Part 2 で `map` は「配列の各要素を、別のものに変換して新しい配列を作る」とやりました。ここでは、**各商品データを `<ProductCard />` に変換**します。
+
+```tsx title="src/App.tsx（全文）"
+import products from './data/products.json'
+
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+function App() {
+  return (
+    <div>
+      {products.map((product) => (
+        <ProductCard name={product.name} price={product.price} key={product.id} />
+      ))}
+    </div>
+  )
+}
+
+export default App
+```
+
+`map` の 1 行を分解します。
+
+```tsx
+products.map((product) => <ProductCard key={product.id} ... />)
+//            ↑            ↑            ↑
+//            │            │            └─ key：React が要素を見分ける目印（固有の id）
+//            │            └─ 各 product を <ProductCard> に変換して返す
+//            └─ 配列の要素 1 つずつ（product）を受け取る
+```
+
+波かっこ `{ }` の中で `products.map(...)` を回し、各 `product` を `<ProductCard ... />` に変換しています。`map` が返すのは **JSX の配列**で、React はそれをそのまま並べて表示します。「データ 1 件 → カード 1 枚」を、配列全体に対して自動でやってくれるわけです。
+
+<JsNote feature="{products.map(...)} は JSX の配列を返している">
+
+`map` の結果は配列です。JSX の中に配列を置くと、React はその中身を順に並べて表示します。だから `{products.map((p) => <ProductCard ... />)}` は「カードの配列」を作り、それが一覧になります。Part 2 の `map` が、そのまま画面作りに効いてくる場所です。
+
+</JsNote>
+
+## 実際の動き {#demo}
+
+上のコードがそのまま動いているのが、これです。6 件のカードが並びます。
+
+<Demo title="配列からカード一覧を作る">
+  <ProductListDemo />
+</Demo>
+
+## わざと壊す：key を付けないと警告が出る {#break-no-key}
+
+上のコードには `key={product.id}` が付いていました。これをわざと外してみます。
+
+```tsx
+{products.map((product) => (
+  <ProductCard name={product.name} price={product.price} />
+))}
+```
+
+画面は一応表示されますが、ブラウザのコンソール（`F12`）に、こんな警告が出ます。
+
+```
+Warning: Each child in a list should have a unique "key" prop.
+```
+
+「**一覧の各要素には、ユニークな key を付けてください**」という意味です。`key` は、React が「どのカードがどのデータか」を見分けるための**目印**です。これが無いと、並べ替えたり一部を消したりしたときに、React が中身を取り違えて、表示がおかしくなることがあります。エラーで止まらないぶん見落としがちですが、**一覧を作ったら必ず `key`** です。
+
+## key には安定した id を使う {#stable-key}
+
+`key` には、**その要素をずっと一意に指し示せる値**——多くは各データの `id` を使います。
+
+```tsx
+<ProductCard ... key={product.id} /> // 商品ごとに固有の id
+```
+
+<Callout type="warn">
+
+`key` に配列の順番（index）を使うのは避けてください。`products.map((product, index) => ... key={index})` と書けてしまいますが、並べ替えや削除で**順番が変わると key の指す相手がずれ**、表示バグの原因になります。`product.id` のように、中身が動いても変わらない値を使います。
+
+</Callout>
+
+<Together
+  task="商品の tags（文字列の配列、例：['調理器具', 'IH対応']）を、<li> のリストで表示してみてください。key の付け方に注意しましょう。"
+  hint="tags.map((tag) => <li key={tag}>{tag}</li>) の形。tag 自体が一意ならそれを key にできます。"
+>
+
+```tsx
+<ul>
+  {product.tags.map((tag) => (
+    <li key={tag}>{tag}</li>
+  ))}
+</ul>
+```
+
+`tags` は文字列の配列なので、`map` で各 `tag` を `<li>` に変換します。タグ名が重複しないなら、`tag` そのものを `key` にできます（重複しうるなら id 付きのデータにします）。「配列があったら `map`、一覧にしたら `key`」がワンセットだと覚えてください。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="{products.map((p) => <ProductCard name={p.name} />)}（key 無し）"
+  good="{products.map((p) => <ProductCard name={p.name} key={p.id} />)}"
+  note="一覧には key が必須。無いとコンソール警告＋並べ替え時のバグの元。"
+/>
+
+<Diff
+  bad="key={index}（配列の順番を key にする）"
+  good="key={product.id}（データ固有の id を key にする）"
+  note="index は並べ替え・削除でずれる。中身が動いても変わらない id を使う。"
+/>
+
+## 書き方カタログ：一覧の作り方 {#catalog}
+
+```tsx
+// 配列 → 部品の一覧（key は id）
+{products.map((product) => (
+  <ProductCard key={product.id} name={product.name} />
+))}
+
+// 配列 → <li> の一覧
+{tags.map((tag) => (
+  <li key={tag}>{tag}</li>
+))}
+
+// 絞り込んでから並べる（filter → map）
+{products
+  .filter((product) => product.inStock)
+  .map((product) => <ProductCard key={product.id} name={product.name} />)}
+```
+
+「配列 → `map` → 各要素を JSX に → `key`」がワンセットです。
+
+## うちの標準 {#standard}
+
+<Std
+  decision="一覧は map で作り、key には必ずデータ固有の id を使う（index は使わない）"
+  alt="データに id がなく、順番も一切変わらない静的な一覧に限っては index でも実害は出ませんが、基本は id を持たせて id を key にします。"
+>
+
+「配列 → `map` → `key`」を一続きの型として体に入れます。`key` は id。これを守るだけで、一覧まわりのわかりにくいバグの大半を避けられます。商品・ユーザー・カート——一覧はアプリの至る所に出てくるので、ここは何度も使います。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Each child in a list should have a unique "key" prop`** … `map` の中の要素に `key` を付けていません。`key={item.id}` を足します。
+- **並べ替え・削除で表示が崩れる** … `key` に index を使っている可能性があります。固有の id に変えます。
+- **一覧が何も出ない** … `map` の結果を波かっこ `{ }` の中に置いているか、`return`（またはアロー関数の暗黙の return）で JSX を返しているかを確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="key は React が要素を見分ける目印です。index は並べ替えや削除で指す相手がずれるため、中身が動いても変わらない product.id を使います。">
+
+一覧の `key` に `index` ではなく `product.id` を使うのは、なぜでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- 一覧は、配列を `map` で JSX の配列に変換して作る（データの数だけ自動で並ぶ）
+- 一覧の各要素には `key` が必要。無いとコンソール警告＋取り違えバグの元
+- `key` には安定した id を使う。index は並べ替え・削除でずれるので避ける
+
+</SummaryBox>

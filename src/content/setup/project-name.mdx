@@ -1,0 +1,83 @@
+---
+title: 選択肢①：プロジェクト名とフレームワーク
+minutes: 6
+slug: setup-project-name
+section: setup
+description: 最初の2つの質問。プロジェクト名の付け方のルールと、フレームワーク一覧から React を選ぶ。
+level: beginner
+prerequisites: ['setup/create-vite']
+---
+
+<LearnBox>
+
+- 「Project name」の答え方と、名前のルール
+- 「Select a framework」の一覧から React を矢印で選ぶ
+- 選び間違えたときのやり直し方
+
+</LearnBox>
+
+`npm create vite@latest` を実行すると、質問が順に出ます。このページでは最初の 2 つ、**プロジェクト名**と**フレームワーク**に答えます。
+
+## 質問 1：Project name {#name}
+
+まずプロジェクト名を聞かれます。カーソルの位置に、そのまま名前を打ちます。
+
+```
+◇  Project name:
+│  my-shop
+```
+
+ここでは `my-shop` としました。この名前が、そのまま**作られるフォルダの名前**になります。打ったら `Enter`。
+
+名前のルールは 3 つだけです。
+
+- **半角の英数字とハイフン**で付ける（例：`my-shop`, `ec-sample`）
+- **空白を入れない**（`my shop` は避ける）
+- **大文字を避ける**（慣習的に小文字。`MyShop` より `my-shop`）
+
+<Callout type="note">
+
+何も打たずに `Enter` すると、既定の `vite-project` という名前が使われます。名前は後からフォルダ名を変えれば済むので、深く悩まなくて大丈夫です。
+
+</Callout>
+
+## 質問 2：Select a framework {#framework}
+
+次に「どの UI ライブラリで作るか」を聞かれます。**矢印キー `↑` `↓` で選んで `Enter`** です。マウスでは選べません。
+
+```
+◇  Select a framework:
+│  ○ Vanilla
+│  ○ Vue
+│  ● React      ← ↓ で2つ下げてここに合わせ、Enter
+│  ○ Preact
+│  ○ Lit
+│  ○ Svelte
+│  ○ Solid
+│  ○ Qwik
+│  ○ Angular
+│  ○ Marko
+│  ○ Others
+```
+
+一覧に並んでいるのは、React と同じ立ち位置の**別々の UI ライブラリ**です（Vue や Svelte など）。私たちが学ぶのは **React** なので、`↓` を 2 回押して React に合わせ、`Enter` を押します。
+
+<Callout type="analogy">
+
+「jQuery で書くか、Vanilla JS で書くか」を選ぶのに似ています。どれも Web の見た目を作る道具ですが、書き方の流儀が違います。今回は React の流儀を学びます。
+
+</Callout>
+
+React を選ぶと、最後の質問「**バリアント**」に進みます。ここが一番迷うところなので、次のページでまるごと 1 枚使って説明します。
+
+## 選び間違えたら {#redo}
+
+矢印で選んで `Enter` を押す前なら、`↑` `↓` で選び直せます。もし `Enter` を押してしまって「フレームワークを間違えた」と気づいたら、あわてず **`Ctrl` + `C`** でウィザードを中断し、もう一度 `npm create vite@latest` からやり直せば大丈夫です。まだフォルダは作られていないので、何も壊れません。
+
+<SummaryBox>
+
+- Project name はフォルダ名になる。半角英数字＋ハイフン、空白と大文字は避ける
+- フレームワークは矢印キーで選ぶ。一覧は別々の UI ライブラリで、私たちは React
+- 選択前は矢印で、確定後に気づいたら `Ctrl` + `C` でやり直せる
+
+</SummaryBox>

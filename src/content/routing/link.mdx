@@ -1,0 +1,107 @@
+---
+title: Link で移動する
+minutes: 8
+slug: routing-link
+section: routing
+description: a タグの代わりに Link で移動する。リロードせず画面だけ差し替える理由と、NavLink で現在ページを目立たせる方法。
+level: beginner
+prerequisites: ['routing/setup-router']
+---
+
+<LearnBox>
+
+- `<a>` ではなく `<Link>` で移動する理由（リロードしない）
+- `<Link to="...">` の基本
+- `NavLink` で「今いるページ」を目立たせる
+
+</LearnBox>
+
+## `<a>` はページ全体を読み直す {#why-link}
+
+LP では、リンクは `<a href="...">` でした。これはブラウザに「そのページを**まるごと開き直せ**」と命じます。SPA でこれをやると、**アプリ全体がリロード**され、真っ白になってから読み込み直します。持っていた state（お気に入り等）も全部消えます。
+
+react-router では、代わりに **`<Link>`** を使います。`<Link>` は、ページを読み直さず、**必要な中身だけを差し替え**ます。速く、state も保たれます。
+
+```tsx
+import { Link } from 'react-router-dom'
+
+<Link to="/product/p01">詳細を見る</Link>
+```
+
+```tsx
+<Link to="/product/p01">詳細を見る</Link>
+//    ↑
+//    └─ 移動先の URL（href ではなく to）
+```
+
+`href` ではなく **`to`** を使うのがポイントです。見た目は普通のリンクですが、クリックしてもリロードは起きません。
+
+## NavLink：今いるページを目立たせる {#navlink}
+
+ナビの「今いるページ」を目立たせたいときは、`<Link>` の代わりに **`NavLink`** を使います。`NavLink` は「今このリンク先にいるか（`isActive`）」を教えてくれるので、それでクラスを切り替えます。
+
+```tsx
+import { NavLink } from 'react-router-dom'
+
+<NavLink
+  to="/favorites"
+  className={({ isActive }) => (isActive ? styles.active : styles.link)}
+>
+  お気に入り
+</NavLink>
+```
+
+`className` に**関数**を渡せて、その引数の `isActive` が `true` なら `styles.active` を当てます。今いるページのリンクだけ色が変わる、あの動きです。
+
+## わざと壊す：Link の代わりに `<a>` を使う {#break}
+
+違いを体感します。商品一覧のリンクを、`<Link>` ではなく `<a>` で書いてみます。
+
+```tsx title="わざと a タグにする"
+<a href="/product/p01">詳細を見る</a>
+```
+
+クリックすると、画面が**一瞬白くなって**から読み込み直されます（ページ全体のリロード）。もし何か state を持っていたら、それも消えます。`<Link to="/product/p01">` に戻すと、白い点滅は消え、中身だけがスッと差し替わります。**SPA の中のリンクは `<Link>`**——これが理由です。
+
+## 書き方カタログ：Link と NavLink {#catalog}
+
+```tsx
+// ふつうの移動
+<Link to="/">一覧へ</Link>
+<Link to={`/product/${product.id}`}>詳細</Link>
+
+// 今いるページを目立たせる
+<NavLink to="/favorites" className={({ isActive }) => (isActive ? styles.active : styles.link)}>
+  お気に入り
+</NavLink>
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad='<a href="/product/p01">詳細</a>'
+  good='<Link to="/product/p01">詳細</Link>'
+  note="アプリ内の移動で <a> を使うと全体リロードで state が消える。内部リンクは <Link>。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **クリックで画面が白く点滅する** … `<a href>` を使っています。`<Link to>` に変えます。
+- **`to` が効かない** … `<Link href>` になっていませんか。`<Link>` は `href` ではなく `to` です。
+- **外部サイトへのリンク** … 別サイト（`https://...`）への移動は、逆に普通の `<a href>` でよいです。`<Link>` はアプリ内の移動用です。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="<Link to={`/product/${product.id}`}>{product.name}</Link> と書きます。href ではなく to を使い、テンプレートリテラルで id を URL に埋め込みます。<a> だと全体がリロードされてしまいます。">
+
+商品一覧で、各商品名を押したら `/product/その商品のid` に移動するリンクを書いてください。
+
+</Exercise>
+
+<SummaryBox>
+
+- アプリ内の移動は `<Link to="...">`。`<a href>` は全体リロードで state が消える
+- `to` は `href` ではない。外部サイトだけ普通の `<a href>` を使う
+- 今いるページを目立たせるのは `NavLink` の `isActive`
+
+</SummaryBox>

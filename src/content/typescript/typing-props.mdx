@@ -1,0 +1,154 @@
+---
+title: props に型を付ける
+minutes: 9
+slug: typing-props
+section: typescript
+description: "props の形を interface で表し、分割代入で受け取る。任意の props（?）、既定値、children（ReactNode）まで。"
+level: beginner
+prerequisites: ['typescript/interface']
+---
+
+<LearnBox>
+
+- props の形を `interface` で表し、分割代入で受け取る
+- 任意の props（`?`）と既定値の組み合わせ
+- 中身（JSX）を受け取る `children: ReactNode`
+
+</LearnBox>
+
+## props はオブジェクト 1 個。その形を interface で {#props-interface}
+
+props は「オブジェクト 1 個」で届きます（[分割代入のページ](/guide/javascript/destructuring)で見たとおり）。だからその**形を `interface` で表す**のが、React での型の基本です。
+
+```tsx
+interface ProductCardProps {
+  name: string
+  price: number
+}
+
+function ProductCard({ name, price }: ProductCardProps) {
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()}円</p>
+    </article>
+  )
+}
+```
+
+分解します。
+
+```tsx
+function ProductCard({ name, price }: ProductCardProps) {
+//                   ↑                ↑
+//                   │                └─ props の形（interface）
+//                   └─ 届いた props を分割代入で取り出す
+```
+
+`{ name, price }` で中身を取り出し、`: ProductCardProps` で「その props はこの形」と決めています。呼ぶ側が `name` を渡し忘れたり、`price` に文字列を渡したりすると、赤い波線が出ます。
+
+## 任意の props（?）と既定値 {#optional}
+
+「渡しても渡さなくてもいい」props は `?` を付けます。渡されなかったときの**既定値**は、分割代入の側で `=` で書きます。
+
+```tsx
+interface ButtonProps {
+  label: string
+  variant?: 'primary' | 'secondary' // 任意
+}
+
+function Button({ label, variant = 'primary' }: ButtonProps) {
+  // variant を渡さなければ 'primary'
+  return <button className={variant}>{label}</button>
+}
+```
+
+`variant?` は「無くてもよい」、`variant = 'primary'` は「無かったらこの値」。この 2 つはセットでよく使います。
+
+## children：中身を受け取る {#children}
+
+`<Card>ここの中身</Card>` のように、**タグの中に入れた JSX** を受け取るには、`children` という決まった名前の props を使います。型は `ReactNode` です。
+
+```tsx
+import type { ReactNode } from 'react'
+
+interface CardProps {
+  title: string
+  children: ReactNode // 中に入れる JSX（文字列・要素・複数など何でも）
+}
+
+function Card({ title, children }: CardProps) {
+  return (
+    <section>
+      <h2>{title}</h2>
+      <div>{children}</div>
+    </section>
+  )
+}
+```
+
+`ReactNode` は「React が画面に出せるもの全部」（文字列・数値・JSX 要素・その配列など）を表す型です。中身を受け取る部品では、これを使います。
+
+## わざと壊す：必須の props を渡し忘れる {#break}
+
+型が props を守る様子を見ます。`price` が必須の `ProductCard` を、`name` だけで呼んでみます。
+
+```tsx title="props の渡し忘れ"
+<ProductCard name="トート" /> // ← price が無い
+```
+
+`ProductCard` に赤い波線が付き、こう出ます。
+
+```
+Property 'price' is missing in type '{ name: string; }'
+but required in type 'ProductCardProps'.
+```
+
+「必要な `price` が渡されていません」。`price={3200}` を足せば消えます。**渡し忘れを、実行前に止めてくれた**わけです。
+
+## 書き方カタログ：props の型 {#catalog}
+
+```tsx
+import type { ReactNode } from 'react'
+
+interface Props {
+  title: string // 必須
+  count?: number // 任意（?）
+  onClose: () => void // 関数（引数なし・戻り値なし）
+  children: ReactNode // 中身の JSX
+}
+
+function Panel({ title, count = 0, onClose, children }: Props) {
+  return <div>{/* ... */}</div>
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="function Card(props) { ... }（props に型が無い）"
+  good="interface CardProps を作り function Card({ ... }: CardProps)"
+  note="型が無いと props が any になり、渡し忘れも型違いも素通り。必ず形を付ける。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`Property 'x' is missing`** … 必須の props を渡し忘れています。渡すか、`interface` で `x?` にします。
+- **`children` を渡すと赤くなる** … `interface` に `children: ReactNode` を足し忘れています。
+- **`onClick` などの関数の型** … `() => void`（引数なし・戻り値なし）が基本形です。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="interface に count?: number を足します。? で任意にし、受け取り側で { count = 0 } のように既定値を書けば、渡されなくても 0 になります。">
+
+`Badge` コンポーネントに、任意の props `count`（数値、渡さなければ 0）を足すには、型と受け取りをどう書きますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- props はオブジェクト 1 個。形を `interface` で表し、`{ ... }: Props` で受け取る
+- 任意は `?`、既定値は分割代入の `=`。この 2 つはセットで使う
+- 中身の JSX を受け取るのは `children: ReactNode`
+
+</SummaryBox>

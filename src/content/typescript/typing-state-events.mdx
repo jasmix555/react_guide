@@ -1,0 +1,138 @@
+---
+title: state とイベントの型
+minutes: 9
+slug: typing-state-events
+section: typescript
+description: useState はたいてい推論に任せ、空配列や null 初期値のときだけ型を明示する。イベントハンドラの型の付け方まで。
+level: beginner
+prerequisites: ['typescript/product-type']
+---
+
+<LearnBox>
+
+- `useState` の型は、初期値から推論される（ふつう書かない）
+- 明示が要る場面（空配列・`null` 初期値）と `useState<型>()`
+- イベントハンドラに型を付ける（`ChangeEvent` など）
+
+</LearnBox>
+
+## useState は初期値から推論される {#inference}
+
+`useState` の型は、**初期値から自動で決まります**。だから、ふつうは型を書きません。
+
+```tsx
+const [count, setCount] = useState(0) // number と推論
+const [name, setName] = useState('') // string と推論
+const [open, setOpen] = useState(false) // boolean と推論
+```
+
+`count` は `number` に決まるので、`setCount('三')` のように文字列を渡せば止まります。ここまでは、型を 1 文字も書いていません。
+
+## 明示が要る場面：空配列と null {#explicit}
+
+推論できないのは、**初期値だけでは中身が分からない**ときです。代表が 2 つあります。
+
+**空の配列**。`useState([])` だと「何の配列か」が分かりません（`never[]` になります）。中身の型を `<>` で明示します。
+
+```tsx
+const [items, setItems] = useState<string[]>([])
+//                                 ↑         ↑
+//                                 │         └─ 初期値（空配列）
+//                                 └─ 中身の型を <> で明示（空だと推論できない）
+```
+
+**`null` から始まる値**。「まだ無ければ `null`、あとで入る」パターンです。
+
+```tsx
+const [selected, setSelected] = useState<Product | null>(null)
+```
+
+これで `selected` は「`Product` または `null`」になり、あとで `setSelected(product)` できます。
+
+## わざと壊す：useState(null) のまま値を入れる {#break}
+
+なぜ明示が要るかを見ます。型を書かずに `useState(null)` としてみます。
+
+```tsx title="型を書かない null"
+const [selected, setSelected] = useState(null)
+
+setSelected(product) // ← あとで Product を入れる
+```
+
+`product` に赤い波線が付き、こう出ます。
+
+```
+Argument of type 'Product' is not assignable to parameter of type 'null'.
+```
+
+`useState(null)` だと、TypeScript は「この state は**ずっと `null`**」と推論します。だから `Product` を入れようとすると止まります。`useState<Product | null>(null)` と書けば、「`Product` も入る」と伝わって解決します。
+
+## イベントハンドラの型 {#events}
+
+`onChange` などに**その場で**アロー関数を書くときは、引数 `e` の型は**自動で分かります**（書かなくてよい）。
+
+```tsx
+<input onChange={(e) => setName(e.target.value)} />
+// e の型は React が推論してくれる
+```
+
+一方、ハンドラを**別の関数に切り出す**と、`e` の型は推論できません。そのときは型を書きます。
+
+```tsx
+import type { ChangeEvent } from 'react'
+
+function handleChange(e: ChangeEvent<HTMLInputElement>) {
+  setName(e.target.value)
+}
+
+<input onChange={handleChange} />
+```
+
+`ChangeEvent<HTMLInputElement>` は「`<input>` の変更イベント」の型です。`<>` の中に、対象のタグ（`HTMLInputElement` など）を入れます。
+
+## 書き方カタログ：state とイベント {#catalog}
+
+```tsx
+// 推論に任せる（初期値から決まる）
+const [count, setCount] = useState(0) // number
+const [open, setOpen] = useState(false) // boolean
+
+// 明示する（空・null）
+const [items, setItems] = useState<string[]>([])
+const [sel, setSel] = useState<Product | null>(null)
+
+// イベント（切り出すとき）
+function onChange(e: ChangeEvent<HTMLInputElement>) {
+  /* e.target.value */
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="const [items, setItems] = useState([])（空配列を型なしで）"
+  good="const [items, setItems] = useState<string[]>([])"
+  note="空配列は中身が推論できず never[] になる。中身の型を <> で明示する。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`Argument of type 'X' is not assignable to parameter of type 'null'`** … `useState(null)` の推論です。`useState<X | null>(null)` にします。
+- **配列に push/set したら型エラー** … `useState([])` が `never[]` になっています。`useState<T[]>([])` にします。
+- **切り出したハンドラの `e` が `any`／エラー** … `e: ChangeEvent<HTMLInputElement>` のように型を書きます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="useState<Product | null>(null) と書きます。useState(null) のままだと型が null に固定され、あとで setSelected(product) が型エラーになります。<> で「Product または null」と明示します。">
+
+「選択中の商品（初期値は無し＝`null`）」の state を、あとで商品を入れられるように書くには、どうしますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `useState` はふつう初期値から推論される（型は書かない）
+- 空配列・`null` 初期値のときだけ `useState<型>()` で明示する
+- その場のハンドラは `e` を推論、切り出したら `ChangeEvent<HTMLInputElement>` などを書く
+
+</SummaryBox>

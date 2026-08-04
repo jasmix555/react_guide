@@ -1,0 +1,188 @@
+---
+title: うちの共通 mixin（getVw・mq）を使う
+minutes: 11
+slug: shared-mixin
+section: styling
+description: 現場で使い回している _mixin.scss を React に取り込む。styles フォルダに置いて @use で読み込み、getVw と mq で PC から SP まで組む実践。
+level: beginner
+prerequisites: ['styling/responsive']
+---
+
+<LearnBox>
+
+- 現場で使っている共通 `_mixin.scss` を React プロジェクトに取り込む
+- `styles/` に置いて、`.module.scss` から `@use` で読み込む
+- `getVw`（px→vw）と `mq`（767px でSP切替）で、いつものレスポンシブを組む
+
+</LearnBox>
+
+## この mixin が「うちの標準」 {#why}
+
+LP 制作でずっと使ってきた共通の `_mixin.scss`（`getVw` や `mq`）を、React でもそのまま使えます。スタイリングの考え方を新しく覚え直すのではなく、**慣れた道具を SCSS Modules に持ち込む**のがこのページのゴールです。まずは中身を手元に落とします。
+
+<Download href="/downloads/_mixin.scss" filename="_mixin.scss">_mixin.scss をダウンロード</Download>
+
+中身は、いつもの関数とミックスインです。
+
+- **`getVw($px, $viewport)`** … px を vw に変換（画面幅に合わせて伸縮）。
+- **`mq($breakpoint)`** … メディアクエリ。既定は `medium`（**767px 以下＝SP**）。
+- `fontSizeVw` / `fontSizeRem` / `lineHeight` / `getRatio` … フォントや比率のヘルパー。
+
+<Callout type="note" title="1 か所だけ整理しました">
+
+配布版は、元ファイルにあった **`mq` の二重定義を 1 つに整理**し、非推奨の `map-get` を新しい **`map.get`**（`@use "sass:map"`）に統一しています。挙動は同じですが、新しい Dart Sass でも警告なく動きます。手元のマスターも同様に直しておくと安心です。
+
+</Callout>
+
+## styles フォルダに置く {#place}
+
+ダウンロードした `_mixin.scss` を、プロジェクトの `src/styles/` に置きます。
+
+```
+my-shop/src/
+├─ styles/
+│  ├─ _mixin.scss     ← ここに置く
+│  └─ tokens.scss     ← 色のトークン（前のページ）
+├─ components/
+└─ ...
+```
+
+ファイル名の先頭の `_`（アンダースコア）は「これは部品（partial）で、単体では出力しない」という Sass の目印です。`_mixin.scss` はそのままでいきます。
+
+## .module.scss から @use で読み込む {#use}
+
+各コンポーネントの `.module.scss` の**先頭**で、`@use` して読み込みます。LP 時代の `@import` ではなく、いまの Sass は **`@use`** です。
+
+```scss title="ProductCard.module.scss（先頭）"
+@use '../../styles/mixin' as *;
+```
+
+```scss
+@use '../../styles/mixin' as *;
+//   ↑                      ↑
+//   │                      └─ as * ＝名前空間なしで getVw / mq をそのまま呼べる
+//   └─ styles/_mixin.scss への相対パス（先頭の _ と .scss は省く）
+```
+
+`as *` を付けると、`getVw(...)` や `@include mq` を、いつもの書き方のまま使えます（名前空間を付けたいときは `as m` として `m.getVw(...)` のようにもできます）。相対パスは、そのファイルから見た `styles/mixin` までの道のりです（`components/ProductCard/` からなら `../../styles/mixin`）。
+
+## getVw：px を vw にする {#getvw}
+
+`getVw` は、**デザイン上の px を、画面幅に合わせて伸縮する vw** に変換します。既定の基準幅は **750**（＝SP デザインの幅）です。
+
+```scss
+.title {
+  padding-left: getVw(30); // 750px デザインの 30px 相当。画面が狭ければ縮む
+}
+```
+
+```scss
+padding-left: getVw(30);
+//            ↑      ↑
+//            │      └─ 変換したい px（デザイン上のサイズ）
+//            └─ px → vw。既定の基準幅は 750（SP デザイン）
+```
+
+PC デザイン（幅が違う）を基準にしたいときは、第 2 引数に基準幅を渡します。そして **`min()` で最大値を頭打ち**にするのが、うちの定番です。
+
+```scss
+// PC は vw で伸縮しつつ、148px を超えない
+padding-left: min(getVw(148, 1200), 148px);
+```
+
+`getVw(148, 1200)` は「1200px 幅のデザインの 148px」を vw にしたもの。`min(それ, 148px)` で、画面がデザインより広くても 148px で止まります。狭くなると vw の分だけ縮みます。
+
+## mq：767px で SP に切り替える {#mq}
+
+`mq` は「その幅**以下**」のスタイルをまとめるミックスインです。既定は **`medium`＝767px**。うちの「PC → SP」の切り替えは、だいたいここです。
+
+```scss
+.box {
+  // PC のスタイル（ここが基本）
+  display: flex;
+  gap: 40px;
+
+  @include mq {
+    // 767px 以下（SP）だけ、ここが上書きされる
+    display: block;
+    gap: 0;
+  }
+}
+```
+
+`@include mq { ... }` の中が SP 用。別の幅にしたいときは `@include mq(large)` のように、`$mq-breakpoints` のキー（`small` / `medium` / `large` / `xlarge`）を渡します。
+
+## 実例：いつもの `&__inner` {#example}
+
+現場でよく書くこの形も、そのまま動きます。
+
+```scss title="Section.module.scss"
+@use '../../styles/mixin' as *;
+
+.section {
+  &__inner {
+    width: min(100%, 1200px);
+    margin: 0 auto;
+    padding-left: min(getVw(148, 1200), 148px); // PC：vw で伸縮、最大 148px
+
+    @include mq {
+      // 767px 以下（SP）
+      width: auto;
+      padding-left: 0;
+    }
+  }
+}
+```
+
+読み方は 3 つです。**PC** は `min(getVw(...), 148px)` で「vw で縮むが 148px は超えない」。**767px 以下** は `@include mq` の中で SP レイアウトに切り替え（`padding-left: 0`）。SP 側で vw を効かせたいところは、`getVw(30)` のように 750 基準の `getVw` を使います。
+
+<Together
+  task="ProductCard.module.scss の先頭に @use を書き、.name の左padding を getVw(24) にして、@include mq の中で 0 に戻してみてください。"
+  hint="先頭に @use '../../styles/mixin' as *; を足し、.name に padding-left: getVw(24); と @include mq { padding-left: 0; } を書きます。"
+>
+
+```scss title="ProductCard.module.scss"
+@use '../../styles/mixin' as *;
+
+.name {
+  padding-left: getVw(24);
+
+  @include mq {
+    padding-left: 0;
+  }
+}
+```
+
+`@use` を先頭に置けば、`getVw` も `@include mq` も、LP のときと同じ感覚で書けます。SCSS Modules（`styles.name`）の中でも、共通 mixin はそのまま活きます。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="各 .module.scss で @import 'mixin' する（古い書き方）"
+  good="各 .module.scss の先頭で @use '../../styles/mixin' as *;"
+  note="いまの Sass は @use。@import は非推奨。as * で getVw / mq を名前空間なしで使える。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`Undefined function getVw` / `no mixin named mq`** … その `.module.scss` の先頭で `@use '.../mixin' as *;` を書いているか確認します（ファイルごとに必要）。
+- **`@use` rules must be written before any other rules** … `@use` は必ずファイルの**先頭**に置きます。
+- **パスが見つからない** … 相対パスを確認します（`components/ProductCard/` からなら `../../styles/mixin`）。`_` と `.scss` は省きます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="そのファイルの先頭に @use '../../styles/mixin' as *; を書きます（as * で名前空間なし）。パスは components/X/ から styles/mixin への相対で、先頭の _ と .scss は省きます。書いたファイル内で getVw や @include mq が使えます。">
+
+新しいコンポーネントの `.module.scss` で `getVw` と `mq` を使うには、まず何を書きますか。書く場所とパスの注意点も。
+
+</Exercise>
+
+<SummaryBox>
+
+- 共通 `_mixin.scss` は `src/styles/` に置き、各 `.module.scss` の先頭で `@use '.../mixin' as *;`
+- `getVw($px)` は px→vw（既定 750 基準）。PC は `min(getVw($px, 基準幅), $px)` で頭打ち
+- `@include mq { }` は 767px 以下（SP）。切り替えはいつもどおりここで
+
+</SummaryBox>

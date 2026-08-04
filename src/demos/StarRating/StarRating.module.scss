@@ -1,0 +1,31 @@
+.demo {
+  width: 100%;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.star {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.on {
+  color: var(--c-warn); // 塗りつぶしの星（金色寄りのアクセント）
+}
+
+.off {
+  color: var(--c-line); // 空の星
+}
+
+.readout {
+  margin: var(--sp-2) 0 0;
+  color: var(--c-muted);
+  font-size: var(--fs-small);
+}

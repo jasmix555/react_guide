@@ -1,0 +1,240 @@
+---
+title: props で値を受け取る
+minutes: 10
+slug: props
+section: components
+description: 部品に値を渡して中身を変える props。分割代入での受け取り、軽い型付け、既定値、数値は波かっこで渡す。型の違う値を渡したときに型が止める様子も見る。
+level: beginner
+prerequisites: ['components/first-component', 'javascript/destructuring']
+---
+
+import { GreetingDemo } from '@/demos/GreetingDemo'
+
+<LearnBox>
+
+- props で部品に値を渡し、中身を変える
+- 分割代入で props を受け取り、軽く型を付ける
+- 数値は波かっこで渡す。型の違う値は型が止めてくれる
+
+</LearnBox>
+
+## 同じ部品で中身を変える {#what}
+
+前のページの `ProductCard` は、中身が「片手鍋・3,200円」で固定でした。これでは商品ごとに部品を作り直すことになってしまいます。そこで、**部品に外から値を渡して中身を変える**仕組みを使います。それが **props**（プロパティ）です。
+
+部品に外から渡す値のことを **props**（プロパティ）と呼びます。まずは `ProductCard` に、名前と価格を外から渡せるようにしていきます（このページの最後で、動く例も見ます）。
+
+## props を渡す・受け取る {#receive}
+
+props は、**HTML の属性のように渡します**。受け取る側は、Part 2 でやった**分割代入**で取り出します。
+
+```tsx title="渡す側（App.tsx）"
+<ProductCard name="ステンレス片手鍋 18cm" price={3200} />
+```
+
+```tsx title="受け取る側（ProductCard.tsx）"
+export function ProductCard({ name, price }: ProductCardProps) {
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()}円</p>
+    </article>
+  )
+}
+```
+
+渡すときは `name="..."` `price={3200}` のように属性で書きます。受け取るときは `({ name, price })` と**分割代入**で取り出し、あとは波かっこ `{name}` `{price}` で JSX に差し込みます。「部品に引数を渡す」という点では、ふつうの関数と同じです。
+
+<JsNote feature="props の受け取りは分割代入そのもの">
+
+`function ProductCard({ name, price })` の `{ name, price }` は、Part 2 の[分割代入](/guide/javascript/destructuring)です。React は部品に、渡された props を **1 つのオブジェクト**として渡します。それを分割代入で「name と price をください」と取り出しているだけです。
+
+</JsNote>
+
+## どんな props を受け取るか、型で書く {#types}
+
+`ProductCardProps` は、「この部品はどんな props を受け取るか」を書いた**型**です。うちは TypeScript なので、これを書いておくと、渡し間違いを実行前に止められます（型の詳しい話は後のパートで。ここでは形だけ）。
+
+```tsx title="ProductCard.tsx の先頭"
+interface ProductCardProps {
+  name: string
+  price: number
+}
+```
+
+「`name` は文字列、`price` は数値」と宣言しています。これで、`ProductCard` に渡せる props と、その型が決まりました。`ProductCard` を全文にすると、こうなります。
+
+```tsx title="src/components/ProductCard/ProductCard.tsx（全文）"
+interface ProductCardProps {
+  name: string
+  price: number
+}
+
+export function ProductCard({ name, price }: ProductCardProps) {
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()}円</p>
+    </article>
+  )
+}
+```
+
+受け取りの 1 行を分解します。
+
+```tsx
+export function ProductCard({ name, price }: ProductCardProps) {
+//                          ↑               ↑
+//                          │               └─ props の型（どんな値が来るか）
+//                          └─ props を分割代入で受け取る（name と price を取り出す）
+```
+
+## 既定値を付ける {#defaults}
+
+「渡さなかったときの初期値」を決められます。分割代入のところで `= 値` を書くだけです。
+
+```tsx
+export function ProductCard({ name, price, inStock = true }: ProductCardProps) {
+  // inStock を渡さなければ true になる
+}
+```
+
+`inStock = true` としておくと、`<ProductCard name="..." price={3200} />` のように `inStock` を省いても、`true` として扱われます。省略できる props は、型のほうも `inStock?: boolean` と `?` を付けておきます（`?` は「無くてもよい」の印）。
+
+## 数値は波かっこで渡す {#numbers}
+
+渡し方で 1 つだけ注意です。**文字列はそのまま、それ以外（数値・真偽値・変数）は波かっこ**で渡します。
+
+```tsx
+<ProductCard name="片手鍋" price={3200} inStock={false} />
+```
+
+`name` は文字列なので `"片手鍋"`。`price` は数値なので `{3200}`。`inStock` は真偽値なので `{false}`。文字列以外を波かっこ無しで書くと、意図した型で渡りません。
+
+## 実際の動き {#demo}
+
+props で「同じ部品・違う中身」になる様子を、別の `Greeting` 部品（`name` と `role` を受け取る）で見ます。まず全文、そのあとに動くものです。
+
+```tsx title="src/demos/GreetingDemo/Greeting.tsx（全文）"
+interface GreetingProps {
+  name: string
+  role?: string
+}
+
+export function Greeting({ name, role = 'メンバー' }: GreetingProps) {
+  return (
+    <div>
+      <span>{name} さん</span>
+      <span>{role}</span>
+    </div>
+  )
+}
+```
+
+<Demo title="同じ部品に違う props を渡す">
+  <GreetingDemo />
+</Demo>
+
+`<Greeting name="佐藤" role="デザイナー" />` のように渡すと、その値で表示が変わります。`role` を渡さなければ、既定値の「メンバー」になります。
+
+## わざと壊す：型の違う値を渡す {#break-type}
+
+型を書いておくと何が守られるのか、わざと壊して確かめます。`price` は数値なのに、文字列を渡してみます。
+
+```tsx
+<ProductCard name="片手鍋" price="3200" />
+```
+
+`"3200"` の部分に赤い波線が付き、こう出ます。
+
+```
+Type 'string' is not assignable to type 'number'.
+```
+
+「**文字列は、数値の型には入れられません**」という意味です。`price` を `number` と決めておいたおかげで、**実行する前に**「そこ、数値じゃないよ」と止めてくれました。もし型を書いていなかったら、`price.toLocaleString()` が思わぬ結果になるまで気づけません。これが型を書く価値です。数値は `price={3200}`（波かっこ）で渡せば通ります。
+
+<Together
+  task="ProductCard に、商品カテゴリを表す category という文字列の props を足してみてください。型に足し、受け取って <p>{category}</p> で表示するところまで書きましょう。"
+  hint="型に category: string を足し、分割代入に category を足し、JSX で {category} を表示します。"
+>
+
+```tsx title="ProductCard.tsx"
+interface ProductCardProps {
+  name: string
+  price: number
+  category: string
+}
+
+export function ProductCard({ name, price, category }: ProductCardProps) {
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()}円</p>
+      <p>{category}</p>
+    </article>
+  )
+}
+```
+
+props を増やす手順はいつも同じ 3 か所です——**①型に足す、②分割代入で受け取る、③JSX で使う**。使う側は `<ProductCard name="..." price={3200} category="kitchen" />` のように渡します。型に足さずに渡すと、「そんな props は無い」と型が教えてくれます。
+
+</Together>
+
+## 書き方カタログ：props の渡し方 {#catalog}
+
+```tsx
+<ProductCard name="片手鍋" />       // 文字列はそのまま
+<ProductCard price={3200} />        // 数値は波かっこ
+<ProductCard inStock={false} />     // 真偽値も波かっこ
+<ProductCard name={product.name} /> // 変数も波かっこ
+<Card>ここが中身</Card>             // children（開いて閉じる間の中身）
+```
+
+文字列だけクォート、それ以外は波かっこ、と覚えます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="<ProductCard price='3200' />（数値を文字列で渡す）"
+  good="<ProductCard price={3200} />"
+  note="文字列以外は波かっこで渡す。型が number なら文字列は弾かれる。"
+/>
+
+<Diff
+  bad="function ProductCard(props) { props.name … }"
+  good="function ProductCard({ name }: ProductCardProps) { name … }"
+  note="分割代入で受け取ると、何を使うか先頭で分かり、型も付けやすい。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="props は分割代入で受け取り、型（interface）を必ず書く。省略可能な props は ? と既定値をセットにする"
+  alt="props が 1〜2 個で使い捨ての小さな部品なら、型を inline（{ name }: { name: string }）で書くこともあります。数が増えたら interface に切り出します。"
+>
+
+`({ name, price }: ProductCardProps)` の形を基本にします。分割代入で「何を使うか」が先頭で見え、型で渡し間違いを止められます。省略できる props は、型に `?` を付け、分割代入で既定値を与える——この 2 つをセットにすると安全です。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Type 'X' is not assignable to type 'Y'`** … 渡した値の型が、宣言と違います。渡す側か型のどちらかを合わせます。
+- **`Property 'xxx' does not exist`** … 型に無い props を受け取ろう（または渡そう）としています。型に足します。
+- **数値が文字列として表示・計算される** … 波かっこ無しで渡していないか確認します（`price={3200}`）。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="①型（interface）に足す、②分割代入で受け取る、③JSX で {props名} として使う、の3か所です。渡す側は文字列以外を波かっこで渡します。">
+
+部品に新しい props を 1 つ足すとき、変更するのはどの 3 か所でしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- props は部品に値を渡す仕組み。属性で渡し、分割代入で受け取る
+- 型（interface）を書くと、渡し間違いを実行前に止められる。省略可は `?` ＋既定値
+- 数値・真偽値・変数は波かっこで渡す（`price={3200}`）。文字列だけそのまま
+
+</SummaryBox>

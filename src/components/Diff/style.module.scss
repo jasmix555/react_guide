@@ -1,0 +1,62 @@
+.diff {
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-code);
+  overflow: hidden;
+  background: var(--c-code-bg);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.9;
+  margin-top: var(--sp-4);
+
+  // The code sits on the always-dark code surface. Without this, the global
+  // inline-code "chip" rule (`.prose :not(pre) > code`, specificity 0-1-2)
+  // captures it: light `--c-sunk` chip background + inherited near-black
+  // `--c-text`, i.e. unreadable in light mode. `.diff .row code` is 0-2-1, so it
+  // wins the cascade — we strip the chip back to bare code-surface text here.
+  .row code {
+    color: var(--c-code-fg);
+    background: none;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    letter-spacing: 0;
+    white-space: pre;
+  }
+}
+
+.row {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: 3px var(--sp-3) 3px 0;
+  overflow-x: auto;
+}
+
+.gutter {
+  flex: 0 0 2.1rem;
+  text-align: center;
+  user-select: none;
+}
+
+// A faint tint + a solid coloured left edge and gutter marker — the row should
+// read as code with a coloured edge, not as a coloured block fighting the text.
+// Constant code-surface colours (not theme-flipping), so ❌/✅ stay unmistakable
+// in light mode too.
+.bad {
+  background: var(--c-code-danger-bg);
+  border-left: 3px solid var(--c-code-danger);
+}
+
+.good {
+  background: var(--c-code-success-bg);
+  border-left: 3px solid var(--c-code-success);
+}
+
+.note {
+  font-family: var(--font-body);
+  font-size: var(--fs-small);
+  color: var(--c-code-note-fg);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0;
+}

@@ -1,0 +1,10 @@
+.btn {
+  padding: var(--sp-3) var(--sp-6);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}

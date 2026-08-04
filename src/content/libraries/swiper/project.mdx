@@ -1,0 +1,112 @@
+---
+title: breakpoints で商品カルーセルにする
+minutes: 8
+slug: swiper-project
+section: swiper
+description: "breakpoints で画面幅ごとに表示枚数を変え、商品カルーセルを仕上げる。SwiperCarousel の全文を読み、products.json のデータを流し込む。"
+level: beginner
+prerequisites: ['libraries/swiper/modules']
+---
+
+import { SwiperCarousel } from '@/demos/SwiperCarousel'
+
+<LearnBox>
+
+- `breakpoints` で「この幅からは N 枚」を切り替える
+- モジュール込みの `SwiperCarousel` を全文で読む
+- `products.json` のデータをスライドに流し込む
+
+</LearnBox>
+
+## breakpoints でレスポンシブ {#breakpoints}
+
+`breakpoints` は「**この画面幅以上になったら、この設定にする**」という切り替え表です。キーが px、値がその幅以上での設定です。
+
+```tsx
+<Swiper
+  slidesPerView={1.1} // 既定（狭い画面）：1 枚強
+  breakpoints={{
+    520: { slidesPerView: 2 }, // 520px 以上：2 枚
+    820: { slidesPerView: 3 }, // 820px 以上：3 枚
+  }}
+>
+  {/* SwiperSlide を並べる */}
+</Swiper>
+```
+
+スマホでは 1 枚強を大きく見せ、画面が広がるほど枚数を増やす、という定番の形です。`spaceBetween` など他の設定も、幅ごとに変えられます。
+
+<Callout type="note" title="Swiper の breakpoints は min-width">
+
+うちの `mq` mixin は「その幅**以下**」でしたが、Swiper の `breakpoints` は「その幅**以上**」（min-width）です。向きが逆なので、**狭い画面の設定を既定に書き、広くなるほど上書き**していく、と考えると迷いません。
+
+</Callout>
+
+## 完成コード：商品カルーセル {#full}
+
+[モジュールのページ](/libraries/swiper/modules)で見た機能を全部入れた、商品カルーセルの全文です。読みどころは、`modules` に 4 つ渡していること、`autoplay` を `useReducedMotion` で切り替えていること、`breakpoints` で表示枚数を変えていることの 3 つです。データは `products.json` から流し込みます。
+
+```tsx title="src/demos/SwiperCarousel/SwiperCarousel.tsx（全文）"
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
+
+import { useReducedMotion } from 'motion/react'
+import { A11y, Autoplay, Navigation, Pagination } from 'swiper/modules'
+import { Swiper, SwiperSlide } from 'swiper/react'
+
+import products from '@/data/products.json'
+
+import styles from './SwiperCarousel.module.scss'
+
+export function SwiperCarousel() {
+  const reduce = useReducedMotion()
+  const items = products.slice(0, 8)
+
+  return (
+    <Swiper
+      className={styles.swiper}
+      modules={[Navigation, Pagination, Autoplay, A11y]}
+      spaceBetween={16}
+      slidesPerView={1.1}
+      loop
+      navigation
+      pagination={{ clickable: true }}
+      autoplay={reduce ? false : { delay: 2600, disableOnInteraction: false }}
+      breakpoints={{
+        520: { slidesPerView: 2 },
+        820: { slidesPerView: 3 },
+      }}
+    >
+      {items.map((p) => (
+        <SwiperSlide key={p.id} className={styles.slide}>
+          <span className={styles.name}>{p.name}</span>
+          <span className={styles.price}>{p.price.toLocaleString()}円</span>
+        </SwiperSlide>
+      ))}
+    </Swiper>
+  )
+}
+```
+
+<Demo title="商品カルーセル（レスポンシブ・自動再生つき）">
+  <SwiperCarousel />
+</Demo>
+
+商品カードの中身（画像や「お気に入り」ボタンなど）は、`SwiperSlide` の中に自由に書けます。ここでは名前と価格だけにしています。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="Swiper の breakpoints に { 768: { slidesPerView: 2 } } のように書きます。キーが px（その幅以上）、値がその幅での設定です。既定の slidesPerView を狭い画面用に書き、breakpoints で広い画面を上書きします。">
+
+「768px 以上で 2 枚見せる」には、`Swiper` に何をどう書きますか。既定値との関係も。
+
+</Exercise>
+
+<SummaryBox>
+
+- `breakpoints` は min-width（その幅**以上**）。狭い画面を既定に、広い画面を上書き
+- `modules` ＋各 props ＋ `breakpoints` で、実務のカルーセルが組める
+- スライドの中身は `SwiperSlide` の中に自由に書ける
+
+</SummaryBox>

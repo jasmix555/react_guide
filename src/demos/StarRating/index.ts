@@ -1,0 +1,1 @@
+export { StarRatingDemo } from './StarRatingDemo'

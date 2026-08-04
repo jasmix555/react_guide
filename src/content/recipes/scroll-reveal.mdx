@@ -1,0 +1,135 @@
+---
+title: スクロールで出現
+minutes: 9
+slug: scroll-reveal
+section: recipes
+description: 要素が画面に入ったらフワッと出す。scroll イベントではなく IntersectionObserver を使い、動きを減らす設定にも対応する。
+level: intermediate
+prerequisites: ['state/use-effect/basics']
+---
+
+import { ScrollRevealDemo } from '@/demos/ScrollReveal'
+
+<LearnBox>
+
+- 要素が画面に入ったら 1 度だけフワッと出す
+- `scroll` イベントを使わず `IntersectionObserver` に任せる理由
+- 「動きを減らす」設定（`prefers-reduced-motion`）への対応
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+LP でよく見る、下から少し上がりながらフワッと出るやつです。「リセット」を押すともう一度再生されます。
+
+<Demo title="ScrollReveal">
+  <ScrollRevealDemo />
+</Demo>
+
+## scroll イベントで位置を計算しない {#why-io}
+
+「画面に入ったか」を知るのに、`window` の `scroll` イベントで座標を毎回計算する——これは**やってはいけない書き方**です。スクロールのたびに何十回も実行され、カクつきの原因になります。
+
+ブラウザには専用の道具があります。`IntersectionObserver`（インターセクション・オブザーバー）です。「この要素が見えたら教えて」と登録しておくと、見えた瞬間だけ呼んでくれます。位置計算もタイミングも、ブラウザに任せられます。
+
+## Reveal 本体 {#reveal-body}
+
+`src/components/Reveal/Reveal.tsx` を新規作成して、この全文を貼り付けてください。
+
+```tsx title="src/components/Reveal/Reveal.tsx（新規作成・全文）"
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+
+import styles from './Reveal.module.scss'
+
+export function Reveal({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShown(true)
+          io.disconnect() // 一度出したら監視をやめる
+        }
+      },
+      { threshold: 0.2 },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} className={shown ? `${styles.reveal} ${styles.shown}` : styles.reveal}>
+      {children}
+    </div>
+  )
+}
+```
+
+読みどころはこの 3 つです。
+
+- **`new IntersectionObserver((entries) => …, { threshold: 0.2 })`** … 「2 割見えたら呼んで」と登録。`entry.isIntersecting` が「いま見えているか」。
+- **`io.observe(el)`** … この要素を監視対象にする。`ref` で本物の DOM を渡します。
+- **`io.disconnect()`** … 一度出したら監視をやめる。`useEffect` の後片付け（`return () => …`）でも必ず解除します。解除を忘れると監視が残り続けます。
+
+見た目は CSS で付けます。`shown` が付いたら、下からのズレと透明を 0 に戻すだけです。
+
+```scss title="Reveal.module.scss"
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.shown {
+  opacity: 1;
+  transform: none;
+}
+```
+
+## 動きを減らす設定に対応する {#reduced-motion}
+
+アニメーションが苦手な人・酔ってしまう人のために、OS には「動きを減らす」設定があります。これが有効なときは、**アニメーションせず最初から見せます**（隠したままにしない、が大事です）。CSS を 1 ブロック足すだけです。
+
+```scss title="Reveal.module.scss（追記）"
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+```
+
+<Callout type="warn" title="隠したままにしない">
+
+`prefers-reduced-motion` の対応でよくある事故が、「アニメーションを消したら中身も見えなくなった」です。動きを消すときは、必ず `opacity: 1` にして**中身は見せる**こと。動きだけを消し、情報は消さない、が原則です。
+
+</Callout>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="window.addEventListener('scroll', ...) で毎回スクロール位置を計算する"
+  good="IntersectionObserver に「見えたら教えて」と登録する"
+  note="scroll イベントは 1 スクロールで何十回も走りカクつく。見えたか判定は専用の Observer に任せる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **最初から全部見えている** … デモの箱のように、要素が最初から画面内にあると即座に出ます（正常）。本番のページでは、下にある要素がスクロールで入ったときに出ます。
+- **一瞬出てすぐ消える／何度も再生される** … `io.disconnect()` を呼べているか確認します。1 度出したら監視をやめるのがポイントです。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 「見えたか」は `scroll` イベントで計算せず、`IntersectionObserver` に任せる
+- 出したら `io.disconnect()`。後片付け（`return () => …`）でも必ず解除する
+- `prefers-reduced-motion` のときは動きを消し、中身は `opacity: 1` で見せる
+
+</SummaryBox>

@@ -1,0 +1,193 @@
+---
+title: 通し課題：複数ページのアプリにする
+minutes: 12
+slug: routing-project
+section: routing
+description: 通し課題。Layout と Outlet で共通ナビを持ち、一覧・商品詳細(:id)・お気に入り・404 の 4 ルートを createBrowserRouter で組み上げる。
+level: beginner
+prerequisites: ['routing/navigate']
+---
+
+<LearnBox>
+
+- ネストルート・`Outlet`・`:id`・404 を 1 つに組み上げる
+- `my-shop` を、一覧・詳細・お気に入りの複数ページアプリにする
+- 各ページを `pages/` に、共通レイアウトを `components/Layout` に置く
+
+</LearnBox>
+
+## 作るページ構成 {#structure}
+
+4 つのルートを、共通レイアウトの下にまとめます。
+
+- `/` … 商品一覧（`index` ルート）
+- `/product/:id` … 商品詳細
+- `/favorites` … お気に入り
+- `*` … それ以外（404）
+
+## フォルダ構成 {#tree}
+
+```
+my-shop/src/
+├─ main.tsx                       ← ルーター設定
+├─ components/
+│  ├─ Layout.tsx                  ← 共通ナビ + <Outlet />
+│  └─ ProductCard/
+├─ pages/
+│  ├─ ProductListPage.tsx
+│  ├─ ProductDetailPage.tsx
+│  ├─ FavoritesPage.tsx
+│  └─ NotFoundPage.tsx
+├─ types/product.ts
+└─ data/products.json
+```
+
+## 1. ルーター（main.tsx 全文） {#router}
+
+```tsx title="src/main.tsx（全文）"
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+
+import { Layout } from './components/Layout'
+import { FavoritesPage } from './pages/FavoritesPage'
+import { NotFoundPage } from './pages/NotFoundPage'
+import { ProductDetailPage } from './pages/ProductDetailPage'
+import { ProductListPage } from './pages/ProductListPage'
+import './styles/tokens.scss'
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Layout />,
+    children: [
+      { index: true, element: <ProductListPage /> },
+      { path: 'product/:id', element: <ProductDetailPage /> },
+      { path: 'favorites', element: <FavoritesPage /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+])
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <RouterProvider router={router} />
+  </StrictMode>,
+)
+```
+
+## 2. 共通レイアウト（Layout） {#layout}
+
+```tsx title="src/components/Layout.tsx（全文）"
+import { NavLink, Outlet } from 'react-router-dom'
+
+export function Layout() {
+  return (
+    <div>
+      <header>
+        <NavLink to="/">一覧</NavLink> <NavLink to="/favorites">お気に入り</NavLink>
+      </header>
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+```
+
+`<Outlet />` の場所に、今の URL に対応するページが入ります。
+
+## 3. 一覧ページ（Link で詳細へ） {#list}
+
+```tsx title="src/pages/ProductListPage.tsx（全文）"
+import { Link } from 'react-router-dom'
+
+import products from '../data/products.json'
+
+export function ProductListPage() {
+  return (
+    <div>
+      <h1>商品一覧</h1>
+      <ul>
+        {products.map((product) => (
+          <li key={product.id}>
+            <Link to={`/product/${product.id}`}>
+              {product.name}（{product.price.toLocaleString()}円）
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+各商品名が `<Link>` で、押すと `/product/その id` に移動します。
+
+## 4. 詳細ページ（useParams で探す） {#detail}
+
+[URL パラメータのページ](/guide/routing/route-params)で作ったものです。`:id` を取り出し、`find` で商品を探し、無ければメッセージを出します。
+
+```tsx title="src/pages/ProductDetailPage.tsx（全文）"
+import { Link, useParams } from 'react-router-dom'
+
+import products from '../data/products.json'
+
+export function ProductDetailPage() {
+  const { id } = useParams()
+  const product = products.find((p) => p.id === id)
+
+  if (!product) {
+    return <p>商品が見つかりませんでした。</p>
+  }
+
+  return (
+    <article>
+      <Link to="/">← 一覧へ</Link>
+      <h1>{product.name}</h1>
+      <p>{product.price.toLocaleString()}円</p>
+      <p>カテゴリ：{product.category}</p>
+    </article>
+  )
+}
+```
+
+## 5. お気に入り・404 ページ {#others}
+
+お気に入りページは、いまは枠だけ用意します。**「どの商品をお気に入りにしたか」を画面をまたいで共有する仕組みは、後のパート**で作ります（今は各カードの中だけで持っているためです）。
+
+```tsx title="src/pages/FavoritesPage.tsx"
+export function FavoritesPage() {
+  return (
+    <div>
+      <h1>お気に入り</h1>
+      <p>ここにお気に入りの商品が並びます（共有の仕組みは後のパートで作ります）。</p>
+    </div>
+  )
+}
+```
+
+```tsx title="src/pages/NotFoundPage.tsx"
+import { Link } from 'react-router-dom'
+
+export function NotFoundPage() {
+  return (
+    <div>
+      <h1>ページが見つかりません</h1>
+      <Link to="/">一覧へ戻る</Link>
+    </div>
+  )
+}
+```
+
+## 動かす {#run}
+
+`npm run dev` で開くと、`/` に一覧が出ます。商品名を押すと `/product/p01` のような URL に変わり、詳細が出ます。上のナビで一覧・お気に入りを行き来でき、ブラウザの戻る・進むも効きます。存在しない URL（`/xyz`）を打てば 404 が出ます。**1 画面だったアプリが、URL で切り替わる複数ページになりました。**
+
+<SummaryBox>
+
+- 共通ナビは親ルート `Layout` ＋ `<Outlet />`、各ページは `children`
+- 一覧は `<Link>` で詳細へ、詳細は `:id` を `useParams` で受けて `find`
+- 受け皿に `{ path: '*' }` の 404。お気に入りの「共有」は後のパートで
+
+</SummaryBox>

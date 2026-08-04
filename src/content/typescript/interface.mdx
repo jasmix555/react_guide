@@ -1,0 +1,156 @@
+---
+title: interface でオブジェクトの形を表す
+minutes: 8
+slug: interface
+section: typescript
+description: オブジェクトの「形」を interface で定義する。必須と任意（?）のプロパティ、interface と type の使い分けまで。
+level: beginner
+prerequisites: ['typescript/basic-types']
+---
+
+<LearnBox>
+
+- オブジェクトの「形」を `interface` で名前付きの型にする
+- 必須のプロパティと、任意（`?`）のプロパティ
+- `interface` と `type` の、ざっくりした使い分け
+
+</LearnBox>
+
+## オブジェクトの「形」を型にする {#interface}
+
+`{ name: '佐藤', age: 30 }` のようなオブジェクトは、「どんなプロパティを、どんな型で持つか」という**形**を持っています。その形に名前を付けるのが `interface` です。
+
+```ts
+interface User {
+  name: string
+  age: number
+}
+```
+
+分解します。
+
+```ts
+interface User {
+  name: string
+}
+//   ↑    ↑     ↑
+//   │    │     └─ そのプロパティの型
+//   │    └─ プロパティ名
+//   └─ 型の名前（大文字始まりが慣習）
+```
+
+この `User` 型は、`const user: User = { ... }` のように使います。形が合っていないと、赤い波線で止まります。
+
+```ts
+const user: User = { name: '佐藤', age: 30 } // OK
+```
+
+## 必須と任意（?） {#optional}
+
+上の `User` は、`name` も `age` も**必須**です。どちらか無いとエラーになります。「あってもなくてもいい」プロパティは、名前のうしろに `?` を付けます。
+
+```ts
+interface User {
+  name: string
+  age?: number // 任意：あってもなくてもよい
+}
+
+const a: User = { name: '佐藤' } // OK（age は無くてよい）
+const b: User = { name: '鈴木', age: 30 } // OK
+```
+
+<JsNote feature="? が付いた任意プロパティは undefined かもしれない">
+
+`age?: number` は「`number` または `undefined`」という意味です。使うときは値が無いかもしれないので、`user.age ?? 0` のように[未定義に備える](/guide/javascript/optional-chaining)と安全です。
+
+</JsNote>
+
+## わざと壊す：必須プロパティが足りない {#break}
+
+`interface` が形を守る様子を見ます。`age` を必須のまま、`name` だけのオブジェクトを作ってみます。
+
+```ts title="必須が足りない"
+interface User {
+  name: string
+  age: number // 必須
+}
+
+const user: User = { name: '佐藤' } // ← age が無い
+```
+
+`{ name: '佐藤' }` に赤い波線が付き、こう出ます。
+
+```
+Property 'age' is missing in type '{ name: string; }'
+but required in type 'User'.
+```
+
+「`User` 型に必要な `age` が足りません」。`age` を足すか、`interface` で `age?` にすれば消えます。**形のズレを、実行前に教えてくれる**わけです。
+
+## interface と type の使い分け {#interface-vs-type}
+
+オブジェクトの形は、`type` でも書けます。
+
+```ts
+type User = {
+  name: string
+  age: number
+}
+```
+
+どちらでもほぼ同じことができます。ざっくりした使い分けは次のとおりです。
+
+- **オブジェクトの形** → `interface`（拡張しやすく、props の定義でよく使われる）
+- **「どれか 1 つ」などの型** → `type`（`'a' | 'b'` のような union は `type`。次のページ）
+
+迷ったら「**オブジェクトの形は `interface`、union は `type`**」で始めれば十分です。
+
+## 書き方カタログ：interface {#catalog}
+
+```ts
+interface Product {
+  id: string
+  name: string
+  price: number
+  inStock: boolean
+  imageUrl?: string // 任意（?）
+  tags: string[] // 配列
+}
+
+const p: Product = {
+  id: 'p1',
+  name: 'トート',
+  price: 3200,
+  inStock: true,
+  tags: ['布'],
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="オブジェクトの形を、その場に毎回 { name: string; age: number } と書く"
+  good="interface User に名前を付け、User 型を使い回す"
+  note="名前を付けると、同じ形を何度も書かずに済み、変更も 1 か所で済む。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`Property 'x' is missing`** … 必須プロパティが足りません。足すか、`interface` で `x?` にします。
+- **`Object literal may only specify known properties`** … `interface` に無いプロパティを書いています。綴りミスか、`interface` 側に足し忘れです。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="imageUrl のうしろに ? を付けて imageUrl?: string にします。? は「あってもなくてもよい（number または undefined ならぬ string または undefined）」を表し、無くてもエラーになりません。">
+
+`interface Product` で、`imageUrl` を「あってもなくてもよい」プロパティにするには、どう書きますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `interface` はオブジェクトの「形」に名前を付ける型
+- 必須プロパティはそのまま、任意は名前のうしろに `?`（`undefined` かもしれない）
+- オブジェクトの形は `interface`、`'a' | 'b'` のような union は `type`
+
+</SummaryBox>

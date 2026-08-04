@@ -1,0 +1,116 @@
+---
+title: スクロールで出す・少しずつ出す
+minutes: 10
+slug: scroll-and-stagger
+section: framer-motion
+description: 見えたら出す whileInView と、少しずつ出す staggerChildren。一覧を順にフワッと表示する。once で 1 回だけ。
+level: intermediate
+prerequisites: ['libraries/framer-motion/motion-basics']
+---
+
+import { MotionRevealDemo } from '@/demos/MotionReveal'
+
+<LearnBox>
+
+- `whileInView`：画面に入ったら動かす（スクロールで出現）
+- `staggerChildren`：子を**少しずつ**ずらして出す
+- `viewport` の `once` で「1 回だけ」
+
+</LearnBox>
+
+## whileInView：見えたら出す {#in-view}
+
+`animate` は「マウント時」でしたが、**`whileInView`** は「**画面に入ったとき**」に動かします。下の枠をスクロールすると、見えた項目が順に出ます。
+
+<Demo title="whileInView（見えたら出る）">
+  <MotionRevealDemo />
+</Demo>
+
+書き方は `animate` を `whileInView` に変えるだけです。`viewport` で「1 回だけ（`once`）」「どれくらい見えたら（`amount`）」を指定します。
+
+```tsx
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  whileInView={{ opacity: 1, y: 0 }} // 見えたらこの状態へ
+  viewport={{ once: true, amount: 0.6 }} // 1 回だけ・60% 見えたら
+  transition={{ duration: 0.4 }}
+>
+  項目
+</motion.div>
+```
+
+`once: true` を付けないと、スクロールで出たり入ったりするたびに毎回動いて、うるさくなります。**基本は `once: true`**。
+
+<Callout type="note" title="scroll イベントは要らない">
+
+「見えたか」の判定は `motion` がやってくれるので、自分で `scroll` イベントを書く必要はありません（レシピの[スクロールで出現](/recipes/scroll-reveal)では、素の JavaScript で同じことを `IntersectionObserver` でやりました。`motion` はそれを内側でやっています）。
+
+</Callout>
+
+## staggerChildren：少しずつ出す {#stagger}
+
+一覧を「全部いっせいに」ではなく「**1 枚ずつ、少し遅れて**」出すと、上品に見えます。これが **stagger（時間差）** です。親に `staggerChildren`、子に出方を書きます。`variants`（名前付きの状態）を使います。
+
+```tsx
+// 親：子を 0.08 秒ずつずらして出す
+<motion.ul
+  initial="hidden"
+  animate="show"
+  variants={{
+    hidden: {},
+    show: { transition: { staggerChildren: 0.08 } },
+  }}
+>
+  {items.map((item) => (
+    // 子：hidden → show の出方を持つ
+    <motion.li
+      key={item.id}
+      variants={{
+        hidden: { opacity: 0, y: 16 },
+        show: { opacity: 1, y: 0 },
+      }}
+    >
+      {item.name}
+    </motion.li>
+  ))}
+</motion.ul>
+```
+
+- **`variants`** … `hidden` / `show` のように、状態に**名前**を付けたもの。
+- 親の `initial="hidden"` `animate="show"` が、**子にも伝わる**。
+- 親の `staggerChildren: 0.08` で、子が **0.08 秒ずつ遅れて** `show` になる。
+
+このページの最初に見た「カードが少しずつ出る」は、これです。`variants` で名前を付けると、親から子へ一括で指示できるのがポイントです。
+
+## reduced-motion を忘れない {#reduce}
+
+`whileInView` も `stagger` も、[動きを減らす設定](/libraries/framer-motion/reduced-motion)への配慮が要ります。`useReducedMotion` が `true` なら、`staggerChildren` を `0` にし、`initial` を出さない（最初から見せる）ようにします。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="whileInView に once を付けない"
+  good="viewport={{ once: true }} で 1 回だけ出す"
+  note="once が無いと、スクロールで出入りするたび毎回動いてうるさい。基本は once。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **スクロールしても出ない／すぐ出る** … `viewport` の `amount`（どれくらい見えたら）を調整します。枠内スクロールなら `viewport={{ root: 枠のref }}` を渡します。
+- **stagger がいっせいに出る** … 親に `staggerChildren`、子に `variants` があるか、親の `initial`/`animate` が状態名（`"hidden"`/`"show"`）になっているか確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="animate の代わりに whileInView を使い、viewport={{ once: true }} を付けます。once が無いと、スクロールで画面を出入りするたびに毎回アニメして、うるさくなります。">
+
+「スクロールして見えたら 1 回だけフワッと出す」には、`animate` の代わりに何を使い、何を付けますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `whileInView` は「画面に入ったら」動かす。`viewport={{ once: true }}` で 1 回だけ
+- `staggerChildren` は子を少しずつずらして出す。`variants` で名前を付けて親から指示
+- どちらも `useReducedMotion` への配慮（stagger 0・最初から表示）を忘れない
+
+</SummaryBox>

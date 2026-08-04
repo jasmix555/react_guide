@@ -1,0 +1,240 @@
+---
+title: 分割代入
+minutes: 12
+slug: destructuring
+section: javascript
+description: props を受け取る書き方の正体。オブジェクトと配列から値を取り出す記法を、手を動かして React で使うまで。
+level: beginner
+prerequisites: ['setup/summary']
+---
+
+import { GreetingDemo } from '@/demos/GreetingDemo'
+
+<LearnBox>
+
+- オブジェクトと配列から必要な値だけを取り出す書き方
+- `function Greeting({ name })` の `{ name }` が何をしているか
+- 既定値・名前の付け替え、配列の分割代入（`useState` の形）
+
+</LearnBox>
+
+## このページで作るもの {#goal}
+
+このページでは、「名前と役割を受け取って表示する部品」`Greeting` を、自分で読めて書けるようになります。同じ 1 つの部品に、渡す値だけを変えて並べる——その「値を受け取る」部分の書き方が、これから学ぶ**分割代入**です。実際に動くカードは、下でコードを見たあとに確認します。
+
+## props はまとめて1つのオブジェクトで届く {#why-props-object}
+
+React の部品（コンポーネント）には、親から値が届きます。この値を **props** と呼びますが、**props はまとめて 1 つのオブジェクトで届きます**。だから、その中から欲しい値を取り出す作業が最初に必要になります。分割代入は、その取り出しを短く書く記法です。
+
+<Callout type="analogy">
+
+PHP の include に変数を渡していたのを思い出してください。渡ってきた `$data` から `$data['title']` と取り出していた——あの「取り出し」を、React では受け取る瞬間にまとめてやります。
+
+</Callout>
+
+## ステップ 1：オブジェクトから取り出す {#object}
+
+まず React を離れて、素の JavaScript で分割代入を確かめます。オブジェクトから値を取り出す、一番小さな例です。
+
+```ts title="オブジェクトの分割代入" showLineNumbers
+const user = { name: '佐藤', role: 'デザイナー' }
+
+// これまでの書き方：1 個ずつ
+const name1 = user.name
+
+// 分割代入：まとめて
+const { name, role } = user
+```
+
+各行の意味は次のとおりです。
+
+- **1 行目** — 元のオブジェクト。`name` と `role` の 2 つを持っています。
+- **4 行目** — 今までの取り出し方。`user.name` と書いて 1 個ずつ。
+- **7 行目** — `{ }` の中にキー名を並べると、同じ名前の変数がまとめて作られます。
+
+7 行目のあと、`name` には `'佐藤'`、`role` には `'デザイナー'` が入っています。`const { name, role } = user` は、`const name = user.name; const role = user.role` を 1 行で書いたものだ、と考えてください。
+
+<JsNote feature="{ name, role } は分割代入です">
+
+オブジェクトのキーと同じ名前の変数を、まとめて作る記法です。`user.name` と同じ値が `name` に入ります。左辺の `{ }` はオブジェクトを作っているのではなく、「取り出す」ための記号です。
+
+</JsNote>
+
+## ステップ 2：React の props で使う {#in-react}
+
+本題です。props はオブジェクトで届くので、受け取るところで分割代入します。まず**全文**を見てください。これが完成形の `Greeting` です。
+
+```tsx title="src/demos/GreetingDemo/Greeting.tsx（全文）"
+interface GreetingProps {
+  name: string
+  role?: string
+}
+
+export function Greeting({ name, role = 'メンバー' }: GreetingProps) {
+  return (
+    <div className="card">
+      <span>{name} さん</span>
+      <span>{role}</span>
+    </div>
+  )
+}
+```
+
+注目は 6 行目の `({ name, role = 'メンバー' }: GreetingProps)` です。ここで props というオブジェクトから `name` と `role` を分割代入で取り出しています。取り出した `name` を、下の `{name}` で画面に出しています。
+
+この `Greeting` に、名前や役割を変えて渡すと、次のように並びます（3 枚目は `role` を渡していないので、既定値の「メンバー」が出ます）。
+
+<Demo title="Greeting">
+  <GreetingDemo />
+</Demo>
+
+比べると分かりやすいので、**分割代入を使わない書き方**も見ておきます。
+
+```tsx title="分割代入を使わない場合（参考）"
+export function Greeting(props: GreetingProps) {
+  return (
+    <div className="card">
+      <span>{props.name} さん</span>
+      <span>{props.role}</span>
+    </div>
+  )
+}
+```
+
+こちらは `props.name` `props.role` と、毎回 `props.` を付けています。動きは同じですが、React では**分割代入して `props.` を省くほうが普通**です。
+
+## ステップ 3：既定値と名前の付け替え {#defaults}
+
+`role = 'メンバー'` の `= 'メンバー'` は**既定値**です。親が `role` を渡さなかったとき、`role` は `'メンバー'` になります。完成形デモの 3 枚目「田中 さん」は role を渡していないので、既定値の「メンバー」が出ていました。
+
+名前を変えたいときは、コロンで新しい名前を指定します。
+
+```ts title="名前の付け替え"
+const { name: userName } = user // user.name の値を userName という変数で受ける
+```
+
+## ステップ 4：配列は「位置」で取り出す {#array}
+
+配列の分割代入は `[ ]` を使い、キー名ではなく**順番**で受け取ります。これ、実はもう見たことがあります。`useState` の戻り値がこれです。
+
+```tsx title="useState の受け取り方"
+const [count, setCount] = useState(0) // [現在の値, 更新する関数] の順
+```
+
+`useState(0)` は「値」と「更新する関数」を**この順番の配列**で返します。だから `[count, setCount]` と位置で受け取ります。名前は自由ですが、**順番には意味があります**（1 個目が値、2 個目が更新関数）。
+
+配列の分割代入も、部品に分けて名前を付けておきます（`[ ]` で受けるのがポイントです）。
+
+```tsx
+const [first, second] = arr
+//     ↑      ↑         ↑
+//     │      │         └─ 取り出す元の配列
+//     │      └─ 2 番目の要素（arr[1]）
+//     └─ 1 番目の要素（arr[0]）。名前は自由、順番で決まる
+```
+
+- **`[first, second]`** … `[ ]` で受けると**位置（順番）**で取り出す（キー名ではない）
+- **`first`** … 1 番目（`arr[0]`）。名前は自由に付けられる
+- **`second`** … 2 番目（`arr[1]`）
+- `useState` の `[count, setCount]` がまさにこれ。順番に意味がある
+
+## わざと壊す：波かっこを外すとオブジェクトが直接描画される {#break-no-braces}
+
+props の `{ }` を忘れると何が起きるか、体験しておきましょう。`Greeting` の引数から `{ }` を外して、`props` 全体を `name` という名前で受けてしまいます。
+
+```tsx title="Greeting.tsx（わざと壊す：{ } を外す）"
+export function Greeting(name: GreetingProps) {
+  return (
+    <div className="card">
+      <span>{name} さん</span> {/* name は props オブジェクトそのもの */}
+    </div>
+  )
+}
+```
+
+保存すると、画面が真っ白になり、コンソールにこう出ます。
+
+```
+Uncaught Error: Objects are not valid as a React child
+(found: object with keys {name, role}).
+```
+
+意味はこうです。`{ }` を外したことで、`name` は「`name` と `role` を持つ**オブジェクトそのもの**」になりました。そのオブジェクトを `{name}` で画面に出そうとしたので、React が「**オブジェクトは画面に出せない**（found: object with keys name, role）」と止めました。`{ }` を戻して、`name` という**文字列**を取り出せば直ります。
+
+<Callout type="note">
+
+この `Objects are not valid as a React child` は、「文字列を出すつもりが、うっかりオブジェクトを出そうとした」ときの定番エラーです。分割代入の `{ }` 忘れは、その典型例です。
+
+</Callout>
+
+## 書き方カタログ：分割代入のいろいろ {#catalog}
+
+オブジェクトはキー名で、配列は位置で取り出します。既定値・名前替え・rest もよく使います。
+
+```tsx
+const { name, role } = user           // オブジェクト：キー名で取り出す
+const { name, role = 'メンバー' } = user // 既定値（渡されなければ 'メンバー'）
+const { name: userName } = user       // 名前を付け替える（userName で受ける）
+const { name, ...rest } = user        // name 以外をまとめて rest に
+const [first, second] = arr           // 配列：位置で取り出す
+const [count, setCount] = useState(0) // useState はまさにこれ
+```
+
+props はオブジェクトで届くので、コンポーネントの引数では `function Card({ title }: Props)` のように、この `{ }` の形で受け取るのが React の普通です。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="function Card(title) { ... }"
+  good="function Card({ title }) { ... }"
+  note="props はオブジェクト1個で届く。{ } を忘れると、title に props 全体が入ってしまう。"
+/>
+
+<Diff
+  bad="const { nam } = user"
+  good="const { name } = user"
+  note="キー名のタイプミスはエラーにならず undefined になるだけ。名前は正確に。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **取り出したはずの値が `undefined`** … 左辺のキー名と、オブジェクトの実際のキー名がズレています（`nam` と `name` など）。綴りを合わせます。
+- **`Objects are not valid as a React child`** … 上の「わざと壊す」と同じ原因です。オブジェクトをそのまま `{ }` で出そうとしています。中の文字列を取り出して出します。
+
+<Deeper title="rest（残り）と入れ子の分割代入">
+
+`const { name, ...rest } = user` と書くと、`name` 以外をまとめて `rest` に入れられます。「コンポーネントを作る」パートで、ネイティブ属性を引き継ぐときに多用します。入れ子（`const { user: { name } } = data`）も可能ですが、深くすると読みにくくなるので普段は 1 段までにします。
+
+</Deeper>
+
+## まとめと練習 {#summary}
+
+<Together
+  task="コンソールで product = { name: 'トート', price: 3200 } を作り、分割代入で name と price を 1 行で取り出して表示してみてください。"
+  hint="const { name, price } = product と書き、console.log(name, price) で確認します。"
+>
+
+```js
+const product = { name: 'トート', price: 3200 }
+const { name, price } = product
+console.log(name, price) // トート 3200
+```
+
+`{ name, price }` と書くと、`product.name` と `product.price` が、同じ名前の変数へ一度に入ります。
+
+</Together>
+
+<Exercise answer="const { title, price } = item と書きます。{ } の中にキー名を並べるだけです。">
+
+`item` が `{ title: '本', price: 500 }` のとき、`title` と `price` を 1 行で取り出してください。
+
+</Exercise>
+
+<SummaryBox>
+
+- props はオブジェクトで届くので、受け取る瞬間に `{ }` で分割代入するのが React の普通
+- `role = '既定値'` で既定値、`name: newName` で名前替えができる
+- 配列（`useState` の戻り値など）は位置で取り出す。順番に意味がある
+- `{ }` を忘れて `Objects are not valid as a React child` は定番の合図
+
+</SummaryBox>

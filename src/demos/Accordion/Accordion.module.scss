@@ -1,0 +1,51 @@
+.accordion {
+  width: 100%;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--c-surface);
+}
+
+.item + .item {
+  border-top: 1px solid var(--c-line);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--fs-body);
+}
+
+.trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: transparent;
+  border: none;
+  color: var(--c-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--c-sunk);
+  }
+}
+
+.icon {
+  flex: none;
+  min-width: 1.2em;
+  text-align: center;
+  color: var(--c-accent);
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.panel {
+  margin: 0;
+  padding: 0 var(--sp-4) var(--sp-4);
+  color: var(--c-muted);
+}

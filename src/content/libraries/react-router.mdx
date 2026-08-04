@@ -1,0 +1,72 @@
+---
+title: react-router を入れる（設定は後で）
+minutes: 5
+slug: react-router
+section: libraries
+description: 画面を切り替える「ルーティング」の部品 react-router-dom を入れる。何のためのものかと入れ方まで。実際の設定は Part 10 で扱う。
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- 「ルーティング（画面の切り替え）」とは何か
+- `react-router-dom` を入れる
+- 使い方（設定）は Part 10 でやる、という見通し
+
+</LearnBox>
+
+## ルーティングとは「画面の切り替え」 {#why}
+
+LP は 1 枚のページで完結することが多いですが、アプリになると「一覧 → 詳細 → カート」のように**複数の画面**を行き来します。このとき、URL（`/products`、`/cart` など）に応じて**表示する画面を切り替える**仕組みを **ルーティング** と呼びます。
+
+React 自体にはルーティング機能が無いので、部品で足します。うちで使うのが **`react-router`** です（実は、あなたが今読んでいるこの学習サイトも react-router で画面を切り替えています）。
+
+<Callout type="analogy">
+
+建物の受付と案内図のようなものです。「`/cart` に行きたい」と言われたら、カートの部屋へ案内する。ルーティングは、URL という住所を見て、どの画面を出すかを決める案内係です。
+
+</Callout>
+
+## 入れる {#install}
+
+画面の動作に必要なので `dependencies`（`-D` なし）で入れます。パッケージ名は `react-router-dom` です。
+
+```bash
+npm install react-router-dom
+```
+
+`package.json` の `dependencies` に `react-router-dom` が増えます。型は本体に同梱されているので、`@types/*` は要りません。
+
+<Callout type="note">
+
+パッケージ名は `react-router-dom`（末尾に `-dom`）です。Web 向けの部品がこちらにまとまっています。名前が長いので、入れるときに間違えやすい点だけ注意してください。
+
+</Callout>
+
+## 使い方は Part 10 で {#later}
+
+ルーティングは「入れれば動く」ものではなく、「どの URL でどの画面を出すか」を**設定するコード**を書いて初めて機能します。その設定は React の構造（コンポーネント）を先に理解してからのほうが分かりやすいので、**このパートでは入れるところまで**にします。あとで Part 10 で詳しくやります。
+
+ここでは「画面を切り替えたくなったら `react-router` を使う」「パッケージ名は `react-router-dom`」の 2 つを覚えておけば十分です。
+
+## うちの標準 {#standard}
+
+<Std
+  decision="複数画面の切り替えは react-router（react-router-dom）を使う"
+  alt="1 画面で完結する小さなものなら、ルーティングは要りません。画面が増えて URL で出し分けたくなったら入れます。"
+>
+
+ルーティングの定番として `react-router-dom` を使います。入れ方はこのページのとおり 1 コマンド。実際の設定（どの URL で何を出すか）は、コンポーネントを学んだ後の Part 10 でまとめてやります。
+
+</Std>
+
+## まとめと練習 {#summary}
+
+<SummaryBox>
+
+- ルーティング＝URL に応じて表示する画面を切り替える仕組み
+- 部品は `react-router-dom`。`npm install react-router-dom`（dependencies）で入れる
+- 設定（どの URL で何を出すか）は Part 10 で。ここでは入れ方と役割まで
+
+</SummaryBox>

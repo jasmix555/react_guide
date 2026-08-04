@@ -1,0 +1,1 @@
+export { FavoriteDemo } from './Favorite'

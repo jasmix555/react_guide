@@ -1,0 +1,163 @@
+---
+title: sass を入れる
+minutes: 8
+slug: install-sass
+section: libraries
+description: SCSS を書くための sass を devDependency として入れ、.module.scss を作って読み込む。入れ忘れたときの Preprocessor dependency エラーも体験する。
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- `sass` を `devDependency` として入れる（`-D`）
+- `.module.scss` を作って React から読み込む最小の形
+- 入れ忘れたときに出る `Preprocessor dependency 'sass'` エラー
+
+</LearnBox>
+
+## なぜ sass を入れるのか {#why}
+
+うちのスタイルは **SCSS Modules** で書きます（詳しくは Part 5「スタイリング」でやります）。SCSS は、いつもの CSS に「入れ子」「変数」「まとめ」などの書きやすさを足したものです。ただし、SCSS はブラウザがそのままでは読めません。**ビルド時に、SCSS をふつうの CSS へ変換する道具**が要ります。それが `sass` です。
+
+`sass` は画面の動作そのものではなく **ビルドを助ける道具**なので、前のページでやったとおり `devDependencies` に入れます。
+
+## 入れる {#install}
+
+`my-shop` で、次を実行します。
+
+```bash
+npm install -D sass
+```
+
+終わったら `package.json` の `devDependencies` に `"sass": "^1.x.x"` が増えているはずです。Vite は `sass` が入っていれば、`.scss` ファイルを**自動で認識**します。追加の設定ファイルは要りません。
+
+<Callout type="note">
+
+`sass` は型定義も本体に同梱されているので、`@types/sass` のような別パッケージは要りません。入れるのはこの 1 つだけです。
+
+</Callout>
+
+## .module.scss を作って読み込む {#module}
+
+実際に、見出しに色を付けてみます。まず、スタイルを書くファイルを作ります。ファイル名は **`.module.scss`** で終わらせるのが約束です（`.module` が「このスタイルはこのファイル専用」の目印になります。詳しくは Part 5「スタイリング」）。
+
+```scss title="src/App.module.scss（新規作成）"
+.title {
+  color: crimson;
+  font-size: 2rem;
+}
+```
+
+次に、`App.tsx` からこのスタイルを読み込み、`className` に割り当てます。
+
+```tsx title="src/App.tsx"
+import styles from './App.module.scss'
+
+function App() {
+  return <h1 className={styles.title}>商品一覧アプリ</h1>
+}
+
+export default App
+```
+
+`import styles from './App.module.scss'` で、さっき書いたスタイルを `styles` という名前で受け取り、`styles.title` でクラスを当てます。保存すると、見出しが**赤く大きく**なります。ここまでが、SCSS を使う最小の一式です。
+
+<JsNote feature="className はふつうの文字列ではなく styles.title">
+
+`styles.title` は「`App.module.scss` の中の `.title` を指す、自動生成された固有のクラス名」です。ふつうに `className="title"` と書くのとは違い、他のファイルの `.title` と衝突しません。この「衝突しない仕組み」が SCSS Modules の肝で、Part 5「スタイリング」でじっくりやります。ここでは「`.module.scss` は `import styles` して `styles.クラス名` で使う」形だけ覚えてください。
+
+</JsNote>
+
+## わざと壊す：sass を入れずに .scss を読む {#break-no-sass}
+
+`sass` がなぜ要るのかを、逆から体感します。もし `sass` を入れる前に `.scss` を読み込むと（あるいは `node_modules` から `sass` を消すと）、`npm run dev` の画面にこう出ます。
+
+```
+[plugin:vite:css] Preprocessor dependency "sass" not found.
+Did you install it?
+```
+
+「**SCSS を変換する道具 `sass` が見つからない。入れた？**」という意味です。Vite が「`.scss` を CSS に変換しようとしたのに、変換係がいない」と言っています。`npm install -D sass` を実行すれば解決します。**`Preprocessor dependency "sass" not found` を見たら、`sass` の入れ忘れ**——これで直せます。
+
+<Together
+  task="src/App.module.scss に、背景を薄いグレー（#f5f5f5）にする .card クラスを追加し、App.tsx の中の適当な要素に styles.card を当ててみてください。"
+  hint=".module.scss に .card { background: #f5f5f5; } を足し、<div className={styles.card}>…</div> のように使います。"
+>
+
+```scss title="src/App.module.scss"
+.title {
+  color: crimson;
+  font-size: 2rem;
+}
+
+.card {
+  background: #f5f5f5;
+  padding: 1rem;
+}
+```
+
+```tsx title="src/App.tsx"
+import styles from './App.module.scss'
+
+function App() {
+  return (
+    <div className={styles.card}>
+      <h1 className={styles.title}>商品一覧アプリ</h1>
+    </div>
+  )
+}
+
+export default App
+```
+
+`.card` を `.module.scss` に足して、`styles.card` で当てるだけです。クラスを増やすときは「SCSS に定義 → `styles.クラス名` で使う」を繰り返します。複数の要素を返すので、全体を 1 つの `<div>` で囲んでいる点にも注目してください（React は「返す要素は 1 つ」が原則。Part 7 でやります）。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="npm install sass（dependencies に入れる）"
+  good="npm install -D sass（devDependencies に入れる）"
+  note="sass はビルド時の変換係。完成した画面の動作には含まれないので -D。"
+/>
+
+<Diff
+  bad="className='title' と文字列で書く"
+  good="import styles from './App.module.scss' して className={styles.title}"
+  note=".module.scss は import して styles.クラス名 で使う。衝突しない仕組みが働く。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="スタイルは SCSS Modules（.module.scss）で書き、sass は devDependency として入れる"
+  alt="ごく小さな全体設定（リセット CSS や CSS 変数の定義）は、モジュールにしない素の .scss を 1 枚だけ持つこともあります。個々の部品のスタイルは .module.scss に閉じ込めます。"
+>
+
+`sass` は `-D` で 1 つ入れるだけ。あとは `.module.scss` を作り、`import styles` して `styles.クラス名` で当てます。「なぜ入れるか」は明確——SCSS をブラウザが読める CSS に変換するため。使い込み方は Part 5「スタイリング」で詳しくやります。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Preprocessor dependency "sass" not found`** … `sass` の入れ忘れです。`npm install -D sass` を実行します。
+- **`styles.title` が `undefined` になる** … ファイル名が `.module.scss` で終わっているか、クラス名の綴りが合っているか確認します。
+- **スタイルが当たらない** … `className={styles.title}`（波かっこ）になっているか、`className="styles.title"`（文字列）になっていないかを確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="npm install -D sass で入れ、src/Xxx.module.scss にクラスを定義し、そのコンポーネントで import styles from './Xxx.module.scss' して className={styles.クラス名} で当てます。">
+
+新しいコンポーネントにスタイルを付けたいとき、`sass` を入れてから何をどの順でやればよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- `sass` は SCSS を CSS に変換する道具。`npm install -D sass`（devDependency）で入れる
+- スタイルは `.module.scss` に書き、`import styles` して `className={styles.クラス名}` で当てる
+- `Preprocessor dependency "sass" not found` は `sass` の入れ忘れの合図
+
+</SummaryBox>

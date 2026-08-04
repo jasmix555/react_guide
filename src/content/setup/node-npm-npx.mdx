@@ -1,0 +1,75 @@
+---
+title: Node.js / npm / npx とは
+minutes: 6
+slug: setup-node-npm-npx
+section: setup
+description: これから何百回も打つ npm と npx。その正体と、Node.js との3つの関係を先に押さえる。
+level: beginner
+prerequisites: ['setup/goal']
+---
+
+<LearnBox>
+
+- Node.js が「何を可能にする道具」なのか
+- `npm` と `npx` の違い（毎日使うのに混同しがち）
+- 3 つがどう繋がっているか
+
+</LearnBox>
+
+これから `npm install` や `npx` を何百回も打ちます。意味を知らずに打つと、エラーが出たときに何が起きているのか分からず固まります。ここで正体を押さえておくと、後がずっと楽です。
+
+## Node.js — JavaScript を PC で動かす {#node}
+
+JavaScript はもともと「ブラウザの中だけ」で動く言語でした。**Node.js は、その JavaScript をブラウザの外（あなたの PC）で動かせるようにした実行環境**です。
+
+なぜこれが要るのか。React のプロジェクトを動かす道具（Vite、TypeScript の変換、各種チェック）は、すべて JavaScript で書かれていて、**ブラウザではなくあなたの PC 上で動きます**。それを動かす土台が Node.js です。Node.js が入っていないと、この先の道具は 1 つも起動しません。
+
+<Callout type="analogy">
+
+PHP を動かすのに PHP 本体（と XAMPP）が要ったのと同じ立ち位置です。Node.js は「JavaScript 版の実行環境」だと思ってください。
+
+</Callout>
+
+## npm — ライブラリを入れる道具 {#npm}
+
+`npm`（Node Package Manager）は、**他人が作った部品（ライブラリ）を自分のプロジェクトに入れる道具**です。Node.js を入れると一緒に付いてきます。
+
+たとえば「日付をきれいに整形するライブラリ」が欲しいとき、`npm install date-fns` と打つと、そのライブラリが `node_modules` というフォルダにダウンロードされ、コードから使えるようになります。LP 制作で jQuery プラグインを手でダウンロードして `<script>` で読み込んでいた作業を、`npm` が自動でやってくれる、と考えると近いです。
+
+## npx — 入れずに1回だけ実行する道具 {#npx}
+
+`npx` は npm の兄弟で、**「プロジェクトに入れずに、1 回だけ実行する」道具**です。
+
+プロジェクトを作る `create-vite` のような道具は、最初の 1 回しか使いません。それを `npm install` で恒久的に入れるのは無駄です。`npx`（や `npm create`）を使うと、その場でダウンロードして実行し、終わったら残しません。
+
+## 3 つの関係 {#relationship}
+
+| 名前 | 何をする道具か | 例 |
+| --- | --- | --- |
+| **Node.js** | JavaScript を PC で動かす土台 | これが無いと全部動かない |
+| **npm** | ライブラリを**入れて残す** | `npm install date-fns` |
+| **npx** | 道具を**入れずに1回実行** | `npx`（`npm create vite` の中身） |
+
+つまり **Node.js という土台の上に npm と npx が乗っている**、という関係です。Node.js を入れれば、npm も npx も自動で使えるようになります。次のページから、実際に入っているか確認していきます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="npm create-vite my-app"
+  good="npm create vite@latest my-app"
+  note="プロジェクト作成は npm create（内部で npx 相当）。ハイフンで繋いだコマンド名ではない。"
+/>
+
+<Deeper title="pnpm や yarn、bun との違い">
+
+`npm` の代わりに `pnpm` `yarn` `bun` を使う現場もあります。役割（ライブラリを入れる）は同じで、速さやディスクの使い方が違うだけです。このガイドは、Node.js に最初から付いてくる `npm` で統一します。チームで別のものを使うと決まったら、その時に乗り換えれば十分です。
+
+</Deeper>
+
+<SummaryBox>
+
+- **Node.js** は JavaScript を PC で動かす土台。これが無いと道具は 1 つも動かない
+- **npm** はライブラリを入れて残す道具、**npx** は入れずに 1 回だけ実行する道具
+- Node.js を入れれば npm も npx も付いてくる
+
+</SummaryBox>

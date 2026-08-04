@@ -1,0 +1,111 @@
+---
+title: Swiper と SwiperSlide で作る
+minutes: 8
+slug: swiper-basics
+section: swiper
+description: "Swiper と SwiperSlide でいちばん小さいスライダーを作る。slidesPerView で表示枚数、spaceBetween で間隔、loop でループ。一覧は map で並べる。"
+level: beginner
+prerequisites: ['libraries/swiper/install']
+---
+
+import { SwiperBasic } from '@/demos/SwiperBasic'
+
+<LearnBox>
+
+- `Swiper`（外側）と `SwiperSlide`（1 枚）の組み合わせ
+- `slidesPerView` / `spaceBetween` / `loop` の 3 つの基本設定
+- 一覧を `map` で `SwiperSlide` に並べる
+
+</LearnBox>
+
+## 形：Swiper の中に SwiperSlide {#shape}
+
+スライダーは、**外側の `Swiper`** の中に、**1 枚ぶんの `SwiperSlide`** を並べるだけです。
+
+```tsx
+<Swiper>
+  <SwiperSlide>1 枚目</SwiperSlide>
+  <SwiperSlide>2 枚目</SwiperSlide>
+  <SwiperSlide>3 枚目</SwiperSlide>
+</Swiper>
+```
+
+`Swiper` がスワイプやドラッグの操作を引き受け、`SwiperSlide` の 1 つ 1 つが、画面に流れる「面」になります。
+
+## よく使う設定 {#options}
+
+`Swiper` に props（属性）で設定を渡します。まず覚えるのはこの 3 つです。
+
+- `slidesPerView` … 一度に見える枚数。`1` なら 1 枚ずつ、`1.15` のように小数にすると「次が少し見える」形。
+- `spaceBetween` … スライド同士の間隔（px）。
+- `loop` … 端まで行ったら最初に戻ってループする。
+
+```tsx
+<Swiper slidesPerView={1.15} spaceBetween={12} loop>
+  {/* SwiperSlide を並べる */}
+</Swiper>
+```
+
+<JsNote feature="一覧は map で並べる">
+
+スライドが配列データなら、[map で並べます](/guide/components/rendering-lists)。`SwiperSlide` にも `key` を付けるのを忘れずに。
+
+```tsx
+{items.map((item) => (
+  <SwiperSlide key={item.id}>{item.name}</SwiperSlide>
+))}
+```
+
+</JsNote>
+
+## 完成コード：いちばん小さい Swiper {#full}
+
+`slidesPerView={1.15}` で「次のスライドがちょっと見える」ようにしています。これだけで、指でもマウスでも動くスライダーになります（矢印やドットは次のページで足します）。ルート要素が `Swiper` そのものなので、`className` で幅 100% を当てています。
+
+```tsx title="src/demos/SwiperBasic/SwiperBasic.tsx（全文）"
+import 'swiper/css'
+
+import { Swiper, SwiperSlide } from 'swiper/react'
+
+import styles from './SwiperBasic.module.scss'
+
+const slides = [1, 2, 3, 4, 5, 6]
+
+export function SwiperBasic() {
+  return (
+    <Swiper className={styles.swiper} spaceBetween={12} slidesPerView={1.15}>
+      {slides.map((n) => (
+        <SwiperSlide key={n} className={styles.slide}>
+          スライド {n}
+        </SwiperSlide>
+      ))}
+    </Swiper>
+  )
+}
+```
+
+<Demo title="いちばん小さい Swiper（ドラッグ／スワイプで動く）">
+  <SwiperBasic />
+</Demo>
+
+## うまくいかないとき {#trouble}
+
+- **縦に積まれて横に動かない** … `import 'swiper/css'` の書き忘れです（[前のページ](/libraries/swiper/install)）。
+- **1 枚しか見えない** … `slidesPerView` を `1.15` や `2` にすると複数見えます。
+- **`loop` がおかしい** … スライドの枚数が `slidesPerView` に対して少なすぎると乱れます。枚数を増やすか表示枚数を減らします。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="外側に <Swiper>、中に <SwiperSlide> を並べます。データ配列なら items.map((item) => <SwiperSlide key={item.id}>{item.name}</SwiperSlide>) のように書き、key を付けます。slidesPerView や spaceBetween は Swiper に渡します。">
+
+配列データからスライダーを作るとき、`Swiper` と `SwiperSlide` をどう組み、`map` で何に注意しますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 外側 `Swiper` ＋ 中に `SwiperSlide`。操作は `Swiper` が引き受ける
+- `slidesPerView`（表示枚数）/ `spaceBetween`（間隔）/ `loop`（ループ）が基本
+- 一覧は `map` で並べ、`SwiperSlide` に `key` を付ける
+
+</SummaryBox>

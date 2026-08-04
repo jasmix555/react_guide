@@ -1,0 +1,155 @@
+---
+title: URL パラメータ（商品詳細）
+minutes: 10
+slug: route-params
+section: routing
+description: 同じテンプレで商品ごとの詳細ページを作る。:id のパラメータを useParams で取り出し、products.find で商品を探す。見つからない場合の扱いまで。
+level: beginner
+prerequisites: ['routing/link']
+---
+
+<LearnBox>
+
+- `:id` で「URL の一部を変数にする」パラメータ
+- `useParams` で `:id` の値を取り出す
+- その id の商品を `find` で探し、見つからない場合も扱う
+
+</LearnBox>
+
+## 商品ごとにページは作らない {#why}
+
+商品が 12 個あるからといって、詳細ページを 12 ファイル作るのは無理があります。作るのは**テンプレ 1 つ**。URL の一部（商品の id）だけを変数にして、「その id の商品」を表示します。
+
+- `/product/p01` → p01 の詳細
+- `/product/p05` → p05 の詳細
+
+どちらも**同じ `ProductDetailPage`** が担当し、URL の id 部分だけが違います。
+
+## :id でパラメータを受ける {#param}
+
+ルート登録で、変数にしたい部分を **`:名前`** で書きます。
+
+```tsx
+{ path: '/product/:id', element: <ProductDetailPage /> }
+//                ↑
+//                └─ : で始まる部分は「変数」。/product/p01 でも /product/p05 でも一致する
+```
+
+`:id` は「ここは何か 1 つの値が入る」という意味です。`/product/p01` でも `/product/xyz` でも、この 1 つのルートに一致します。
+
+## useParams で取り出す {#useparams}
+
+URL に入った id は、`useParams` で取り出します。ルート定義の `:id` と**同じ名前**で受け取ります。
+
+```tsx
+import { useParams } from 'react-router-dom'
+
+function ProductDetailPage() {
+  const { id } = useParams()
+  // /product/p01 を開いていれば、id は 'p01'
+}
+```
+
+```tsx
+const { id } = useParams()
+//      ↑            ↑
+//      │            └─ URL の :id の部分を取り出す
+//      └─ ルート定義の :id と同じ名前で受け取る
+```
+
+## 商品を探して表示する {#find}
+
+id が分かれば、その商品を `products` から `find` で探します。ここで大事なのが、**見つからない場合**（存在しない id を打たれたなど）の扱いです。
+
+```tsx title="src/pages/ProductDetailPage.tsx（全文）"
+import { useParams } from 'react-router-dom'
+
+import products from '../data/products.json'
+
+export function ProductDetailPage() {
+  const { id } = useParams()
+  const product = products.find((p) => p.id === id)
+
+  if (!product) {
+    return <p>商品が見つかりませんでした。</p>
+  }
+
+  return (
+    <article>
+      <h1>{product.name}</h1>
+      <p>{product.price.toLocaleString()}円</p>
+      <p>カテゴリ：{product.category}</p>
+    </article>
+  )
+}
+```
+
+`if (!product) return ...` で、無いときは早めに切り上げます。この 1 行があると、`product.name` を安全に書けます（[union の narrowing](/guide/typescript/union-literal) と同じ考え方です）。
+
+<JsNote feature="useParams の値は string | undefined">
+
+`useParams` で取り出した `id` は、`string` または `undefined` です（URL にその部分が無いこともあるため）。`find` の結果も「見つかった商品 または `undefined`」。だから `if (!product)` のチェックが要ります。省くと `product.name` で「`product` は `undefined` かもしれない」と型に怒られます。
+
+</JsNote>
+
+## わざと壊す：見つからない場合を扱わない {#break}
+
+`if (!product)` を消してみます。
+
+```tsx title="わざと壊す：チェックを消す"
+const product = products.find((p) => p.id === id)
+return <h1>{product.name}</h1> // ← product は undefined かもしれない
+```
+
+`product.name` に赤い波線が付き、こう出ます。
+
+```
+'product' is possibly 'undefined'.
+```
+
+「`product` は `undefined` かもしれません」。存在しない id が来たら `find` は `undefined` を返すからです。`if (!product) return ...` を戻せば、その先では「見つかった商品」に絞られ、安全に `product.name` が書けます。
+
+<Together
+  task="一覧の各商品名を <Link> にして、押すと /product/その商品のid に飛ぶようにしてみてください（id は product.id）。"
+  hint="<Link to={`/product/${product.id}`}>{product.name}</Link> です。テンプレートリテラルで id を URL に埋め込みます。"
+>
+
+```tsx
+import { Link } from 'react-router-dom'
+
+// 一覧の中で
+;<Link to={`/product/${product.id}`}>{product.name}</Link>
+```
+
+`to` にテンプレートリテラルで id を埋め込みます。押すと `/product/p01` のような URL に移動し、`ProductDetailPage` が `useParams` でその id を受け取ります。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="const product = products.find(...) の結果を、チェックせず product.name で使う"
+  good="if (!product) return ... で無い場合を先に扱ってから使う"
+  note="find は見つからないと undefined。チェックしないと型エラー、実行時はクラッシュの元。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`useParams` の名前が合わない** … ルートの `:id` と、`const { id }` の名前を一致させます。`:productId` なら `const { productId }`。
+- **`'product' is possibly 'undefined'`** … `find` の結果を `if (!product)` でチェックしてから使います。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="ルートを { path: '/product/:id', element: <ProductDetailPage /> } とし、ページ側で const { id } = useParams() で取り出します。:id とうけとる名前を一致させます。">
+
+`/product/p03` のような URL で商品詳細を出すには、ルート定義とページ側で、それぞれどう書きますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 詳細ページはテンプレ 1 つ。URL の一部を `:id` で変数にする
+- `const { id } = useParams()` で取り出す（ルートの `:id` と同じ名前）
+- `find` の結果は `undefined` かもしれない。`if (!product) return ...` で先に扱う
+
+</SummaryBox>

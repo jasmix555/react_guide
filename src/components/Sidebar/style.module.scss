@@ -1,0 +1,232 @@
+@use 'styles/mixins' as *;
+
+.sidebar {
+  padding: var(--sp-4) var(--sp-3) var(--sp-16);
+  font-size: var(--fs-small);
+}
+
+// Section switcher (学ぶ / ライブラリ / レシピ). The top bar shows these on
+// desktop, so this copy only appears once the sidebar is a drawer.
+.tabSwitch {
+  display: none;
+
+  @include down($bp-sidebar) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+    margin-bottom: var(--sp-3);
+    padding-bottom: var(--sp-3);
+    border-bottom: 1px solid var(--c-line);
+  }
+}
+
+.tabSwitchItem {
+  flex: 1 1 auto;
+  text-align: center;
+  padding: 6px 10px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  color: var(--c-muted);
+  text-decoration: none;
+  font-family: var(--font-head);
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--c-text);
+    background: var(--c-sunk);
+  }
+}
+
+.tabSwitchActive {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+  background: var(--c-accent-tint);
+}
+
+.part + .part {
+  margin-top: var(--sp-1);
+}
+
+.partHeadRow {
+  display: flex;
+  align-items: center;
+}
+
+.partHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: var(--sp-2) var(--sp-2);
+  border-radius: var(--radius-sm);
+  color: var(--c-text);
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  line-height: 1.4;
+
+  &:hover {
+    background: var(--c-sunk);
+  }
+}
+
+.partReset {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--c-muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 5px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--c-text);
+    background: var(--c-sunk);
+  }
+}
+
+.caret {
+  flex: 0 0 auto;
+  color: var(--c-muted);
+  font-size: 10px;
+}
+
+.partRing {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.partNo {
+  color: var(--c-muted);
+}
+
+.partBody {
+  margin: 2px 0 var(--sp-3) var(--sp-3);
+  padding-left: var(--sp-3);
+  border-left: 1px solid var(--c-line);
+}
+
+.group {
+  margin: var(--sp-1) 0;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-sm);
+  color: var(--c-muted);
+
+  &:hover {
+    background: var(--c-sunk);
+    color: var(--c-text);
+  }
+}
+
+.groupCaret {
+  flex: 0 0 auto;
+  font-size: 9px;
+}
+
+.groupLabel {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+// Its own indent level, one step deeper than a page — a real third rail, not a
+// floating label.
+.groupBody {
+  margin: 2px 0 var(--sp-2) var(--sp-3);
+  padding-left: var(--sp-3);
+  border-left: 1px solid var(--c-line);
+}
+
+.pageRow {
+  margin: 1px 0;
+}
+
+.pageLine {
+  display: flex;
+  align-items: center;
+}
+
+.pageLink {
+  flex: 1 1 auto;
+  display: block;
+  padding: 5px var(--sp-2);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid transparent;
+  color: var(--c-muted);
+  text-decoration: none;
+  line-height: 1.5;
+
+  &:hover {
+    color: var(--c-text);
+    background: var(--c-sunk);
+  }
+}
+
+.pageActive {
+  color: var(--c-accent);
+  font-weight: 600;
+  border-left-color: var(--c-accent);
+  background: var(--c-accent-tint);
+}
+
+.peek {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--c-muted);
+  font-size: 10px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+
+  &:hover {
+    color: var(--c-text);
+    background: var(--c-sunk);
+  }
+}
+
+.headings {
+  list-style: none;
+  margin: 2px 0 var(--sp-2);
+  padding-left: var(--sp-4);
+}
+
+.heading {
+  display: block;
+  padding: 3px var(--sp-2);
+  border-left: 2px solid transparent;
+  margin-left: -1px;
+  color: var(--c-muted);
+  text-decoration: none;
+  font-size: 12.5px;
+  line-height: 1.5;
+
+  &:hover {
+    color: var(--c-text);
+  }
+}
+
+.headingActive {
+  color: var(--c-accent);
+  border-left-color: var(--c-accent);
+}

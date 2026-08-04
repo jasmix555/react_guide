@@ -1,0 +1,195 @@
+---
+title: Promise と async / await
+minutes: 10
+slug: promise-async-await
+section: javascript
+description: 時間のかかる処理を待つ仕組み。後で結果が届く Promise と、それを素直に書く async / await。await 忘れの罠。
+level: beginner
+prerequisites: ['javascript/functions-as-values']
+---
+
+<LearnBox>
+
+- 「後で結果が届く」処理＝`Promise`
+- `async` / `await` で、届くのを待ってから受け取る
+- `await` を書き忘れると何が届くのか
+
+</LearnBox>
+
+## なぜ「待つ」仕組みが要るのか {#why}
+
+サーバーから商品データを取ってくる、といった処理は**一瞬では終わりません**。数百ミリ秒かかることもあります。その間プログラム全体を止めるわけにはいかないので、JavaScript は「**結果は後で届けます**」という約束＝**`Promise`** を先に返します。そして、届いたら受け取る書き方が **`async` / `await`** です。
+
+このページは「形」を掴むのが目的です。実際のデータ取得は Part 11 で詳しくやります（あとで詳しくやります）。
+
+<Callout type="analogy">
+
+飲食店で注文すると、料理そのものではなく**番号札**を先に渡されます。これが `Promise` です。出来上がったら番号で呼ばれ、料理を受け取ります。`await` は「呼ばれるまでその場で待つ」動きにあたります。
+
+</Callout>
+
+## async / await の形 {#shape}
+
+「時間のかかる処理を待って結果を使う」関数には、頭に **`async`** を付けます。そして、待ちたい処理の前に **`await`** を置きます。
+
+```ts title="src/api/products.ts（イメージ）"
+async function getProducts() {
+  const res = await fetch('/products.json') // 届くまで待つ
+  const data = await res.json() // 中身を取り出すのも待つ
+  return data
+}
+```
+
+`await` の 1 行を、部品に分けて名前を付けます。
+
+```ts
+const data = await fetch(url)
+//    ↑      ↑     ↑
+//    │      │     └─ 時間のかかる処理（Promise を返す）
+//    │      └─ await＝結果が届くまでここで待つ（async 関数の中だけ）
+//    └─ 待った結果の「中身」が入る（Promise ではなく本体）
+```
+
+- **`const data`** … 待った結果の**中身**が入る（`await` があるので Promise ではなく本体）
+- **`await`** … 結果が届くまで**ここで待つ**。`async` を付けた関数の中でだけ使える
+- **`fetch(url)`** … 時間のかかる処理。すぐには結果を返さず `Promise`（後で届く約束）を返す
+
+`await fetch(...)` は「`fetch` の結果が届くまで、ここで待ってから次へ進む」という意味です。`await` を書くと、`Promise`（番号札）ではなく**中身そのもの**を受け取れます。`await` は `async` を付けた関数の中でだけ使えます。
+
+<JsNote feature="Promise は「後で届く結果」を包んだ箱">
+
+`fetch(...)` は、すぐには結果を返さず `Promise`（後で届く約束）を返します。`await` はその箱を開けて、中身が届くまで待ってから取り出します。`async` は「この関数の中では待つよ」という宣言です。
+
+</JsNote>
+
+## そのまま試せる完成コード {#runnable}
+
+上の `fetch` はサーバーが要りますが、`await` の動きだけなら、次のコードをコンソールにそのまま貼って試せます（`wait` も自分で作っているので、これ 1 つで完結します）。
+
+```ts title="コンソールにそのまま貼って動く"
+// 「ms ミリ秒待つ」処理を、Promise で自作する
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function run() {
+  console.log('開始')
+  await wait(1000) // ここで 1 秒待つ
+  console.log('1秒たった')
+}
+
+run()
+```
+
+`run()` を呼ぶと「開始」がすぐ出て、1 秒後に「1秒たった」が出ます。`await wait(1000)` が「待ち終わるまで次へ進まない」ので、順番どおりに表示されます。`await` を消すと、待たずに 2 行が続けて出ます。
+
+## わざと壊す：await を忘れる {#break-no-await}
+
+一番ありがちなミスが、**`await` の書き忘れ**です。待たずに受け取ると、中身ではなく「番号札（`Promise`）」がそのまま入ります。
+
+```ts
+async function getProducts() {
+  const data = fetch('/products.json') // await を忘れた
+  console.log(data) // Promise { <pending> }  ← データではない
+  return data
+}
+```
+
+`data` に商品一覧が入るはずが、`Promise { <pending> }`（まだ届いていない約束）が入りました。エラーは出ませんが、その `data` を配列として `map` しようとすると「配列じゃない」と落ちます。**「`Promise { <pending> }` が出た」「`.map` できないと言われる」ときは、`await` の付け忘れ**を真っ先に疑ってください。`await` を足せば、中身の配列が入ります。
+
+## エラーに備える：try / catch {#try-catch}
+
+通信は失敗することがあります（電波が悪い、サーバーが落ちている、など）。失敗したときに備えて、`try` / `catch` で囲みます。
+
+```ts
+async function getProducts() {
+  try {
+    const res = await fetch('/products.json')
+    const data = await res.json()
+    return data
+  } catch (error) {
+    console.error('取得に失敗しました', error)
+    return [] // 失敗時は空配列を返しておく
+  }
+}
+```
+
+`try` の中で失敗が起きると、`catch` に飛びます。失敗しても**アプリごと落ちない**ようにするための保険です。
+
+<Together
+  task="wait(ms) という「ms ミリ秒待つ」処理があるとして、async 関数の中で 1 秒待ってから '完了' と表示する run 関数の形を書いてみてください。（wait は Promise を返すものとします）"
+  hint="async function run() の中で await wait(1000) してから console.log('完了')。"
+>
+
+```ts
+async function run() {
+  await wait(1000) // 1秒待つ
+  console.log('完了') // 待ち終わってから出る
+}
+```
+
+`await wait(1000)` で「1 秒の待ちが終わるまでここで止まり」、その後に `console.log('完了')` へ進みます。`await` が無いと、待たずに即「完了」が出てしまいます。
+
+</Together>
+
+## 書き方カタログ：async / await のいろいろ {#catalog}
+
+`async` を付けた関数の中で `await` を使う——この組み合わせが基本です。よく使う形を並べます。
+
+```ts
+async function load() { }                      // async：中で await が使える関数
+const res = await fetch(url)                    // await：届くまで待って中身を受け取る
+const data = await res.json()                   // 続けて await（JSON 化も待つ）
+const [a, b] = await Promise.all([f1(), f2()])  // 同時に走らせて全部待つ
+const items = await load().catch(() => [])      // 失敗時の代わりを用意
+const bad = fetch(url)                          // ✗ await 無し → Promise { <pending> } が入る
+```
+
+`await` を付ければ中身、忘れれば `Promise` がそのまま入ります。通信は `try` / `catch`（または `.catch`）で失敗に備えます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="const data = fetch(url)"
+  good="const data = await fetch(url)"
+  note="await が無いと中身ではなく Promise が入る。async 関数の中で await を付ける。"
+/>
+
+<Diff
+  bad="await を通常の（async でない）関数の中で使う"
+  good="関数に async を付けてから await を使う"
+  note="await は async 関数の中だけ。付け忘れると構文エラーになる。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="非同期処理は .then のチェーンではなく async / await で書き、通信は try / catch で囲む"
+  alt="複数の取得を同時に走らせて全部待つ、といった場面では Promise.all を使います。まずは async / await が読めれば十分です。"
+>
+
+`async` / `await` は、上から下へ「待って、受け取って、次へ」と**手続きの順に読める**のが利点です。`.then().then()` のチェーンより、初めての人にも追いやすい。失敗に備えて `try` / `catch` をセットにします。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Promise { <pending> }` が出る／結果が配列でない** … `await` を書き忘れています。`async` 関数の中で `await` を付けます。
+- **`await is only valid in async functions`** … `await` を、`async` の付いていない関数で使っています。関数に `async` を付けます。
+- **`Uncaught (in promise)`** … 失敗が `catch` されていません。`try` / `catch` で囲みます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="関数に async を付け、const res = await fetch(url) のように await を足します。await が無いと data には Promise が入り、後で map しようとして落ちます。">
+
+`function load() { const data = fetch(url); return data }` は、なぜ期待どおりに動かないでしょう。どう直せばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- 時間のかかる処理は結果を待たず `Promise`（後で届く約束）を先に返す
+- `async` を付けた関数の中で `await` を使うと、届くのを待って中身を受け取れる
+- `await` を忘れると中身ではなく `Promise` が入る。通信は `try` / `catch` で失敗に備える
+
+</SummaryBox>

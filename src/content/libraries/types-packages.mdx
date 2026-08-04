@@ -1,0 +1,127 @@
+---
+title: 型定義が別パッケージのとき（@types/*）
+minutes: 8
+slug: types-packages
+section: libraries
+description: 'TypeScript で使うとき、型が本体に含まれる部品と、別に @types/○○ を入れる部品がある。Could not find a declaration file エラーの読み方と直し方。'
+level: beginner
+prerequisites: ['libraries/choosing']
+---
+
+<LearnBox>
+
+- ライブラリには「型が本体に入っているもの」と「別配りのもの」がある
+- `Could not find a declaration file for module` エラーの意味
+- `@types/○○` とは何か、どこに入るのか
+
+</LearnBox>
+
+## なぜ「型が無い」ことが起きるのか {#why}
+
+うちは TypeScript で書きます。TypeScript は、値が文字列なのか数値なのかといった **型** を頼りに、間違いを先に教えてくれます（Part 8 で詳しくやります）。ライブラリを使うときも、「この関数は何を受け取って何を返すのか」という型情報が要ります。
+
+ところが、ライブラリの世界には歴史的な事情があって、**型情報の届け方が 2 通り**あります。
+
+1. **型が本体に同梱されている** … `clsx` や `sass` など、最近の部品はこちら。入れるだけで型も付いてきます。
+2. **型が別パッケージ** … 少し古い、または JavaScript 前提で作られた部品はこちら。本体とは別に `@types/○○` を入れて、型を補います。
+
+2 のとき、型を入れ忘れると TypeScript が「型が見つからない」と教えてきます。それを読めるようにするのがこのページです。
+
+## Could not find a declaration file の読み方 {#error}
+
+型を持たないライブラリを、そのまま `import` すると、こういう赤い波線とエラーが出ます（例として、型が別配りな架空の部品 `some-lib` を入れたとします）。
+
+```
+Could not find a declaration file for module 'some-lib'.
+Try `npm i --save-dev @types/some-lib` if it exists.
+```
+
+日本語にすると「**`some-lib` の型定義ファイルが見つかりません。`@types/some-lib` があれば入れてみて**」です。エラーメッセージが、直し方（`@types/...` を入れる）まで教えてくれています。TypeScript のエラーは怖く見えますが、**後半に「こうすれば」が書いてあること**が多いので、最後まで読む癖をつけてください。
+
+<JsNote feature="declaration file（.d.ts）＝型の説明書">
+
+型定義ファイル（拡張子 `.d.ts`）は、ライブラリの中身そのものではなく、「この関数はこういう型ですよ」という**説明書だけ**を集めたファイルです。本体に同梱されていれば読み込むだけ。無ければ `@types/○○` という別パッケージで説明書を補います。
+
+</JsNote>
+
+## @types/○○ を入れて直す {#fix}
+
+エラーの指示どおり、型定義パッケージを入れます。型は**ビルド・開発時にだけ必要**なので、`-D`（`devDependencies`）で入れます。
+
+```bash
+npm install -D @types/some-lib
+```
+
+入れると `package.json` の `devDependencies` に `@types/some-lib` が増え、赤い波線が消えます。この `@types/*` は、有志が世界中のライブラリの型をまとめている **DefinitelyTyped** という仕組みから配られています。「本体は本体、型は @types」という二本立てだと覚えておけば十分です。
+
+<Callout type="note">
+
+実は、あなたのプロジェクトにはもう `@types/react` と `@types/react-dom` が入っています（`create vite` が入れてくれました）。React 本体も、型は別パッケージなのです。`package.json` の `devDependencies` を見ると見つかります。
+
+</Callout>
+
+## 入れる前に「型付きか」を見ておく {#check-first}
+
+前のページの「選び方」に、静かに 1 つ足します。**入れる前に、その部品が型付きかを見ておく**と、後で驚きません。npm のページに「TypeScript」バッジがあるか、`Types` の記載があれば、本体に型が同梱されています。無ければ `@types/○○` が要るかもしれない、と身構えておけます。
+
+うちのスタックの `clsx` / `sass` / `react-router` / `motion` は、いずれも**型が本体に同梱**されているので、`@types/*` を別に入れる必要はありません。
+
+<Together
+  task="架空の部品 old-slider を import したら『Could not find a declaration file for module 'old-slider'』と出ました。次に打つべきコマンドを書いてみてください。"
+  hint="エラーメッセージの後半がそのまま答えです。型は devDependencies に入れます。"
+>
+
+```bash
+npm install -D @types/old-slider
+```
+
+エラーの後半「`Try npm i --save-dev @types/old-slider if it exists`」がそのまま答えです。型は開発時だけ使うので `-D`（`devDependencies`）で入れます。もし `@types/old-slider` が存在しなければ（型を誰も用意していない部品もあります）、その部品の使用自体を見直すか、自分で最小限の型を書くことになります。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="型エラーが出たライブラリを、@types を dependencies に入れる"
+  good="@types/○○ は devDependencies（-D）に入れる"
+  note="型情報はビルド・開発時だけ必要。完成した画面の動作には含まれない。"
+/>
+
+<Diff
+  bad="Could not find a declaration file を見て、そのライブラリを諦める"
+  good="メッセージの指示どおり @types/○○ を入れれば直ることが多い"
+  note="TypeScript のエラーは後半に直し方が書いてあることが多い。最後まで読む。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="TypeScript で使うので、型が本体同梱か @types があるライブラリを選ぶ。@types/* は devDependencies に入れる"
+  alt="どうしても型の無い部品を使うときは、その部品を薄いラッパー（自分で型を付けた入り口）で包み、アプリ側からは型付きに見えるようにします。まずは型のある部品を選ぶのが先です。"
+>
+
+型があることは、選ぶときの基準の 1 つです。`Could not find a declaration file` が出たら、まず `@types/○○` を `-D` で入れてみる。それでも無ければ、その部品を使うべきか自体を考え直します。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Could not find a declaration file for module '○○'`** … 型が別配りです。`npm i -D @types/○○` を試します。
+- **`@types/○○` を入れても消えない** … エディタの TypeScript サーバーの再読み込み（VS Code なら再起動）で反映されることがあります。
+- **`@types/○○` が存在しない** … 誰も型を用意していない部品です。使用を見直すか、最小限の型を自分で書きます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="npm install -D @types/legacy-chart を試します。型はビルド・開発時だけ必要なので devDependencies（-D）に入れます。">
+
+`legacy-chart` を import したら「Could not find a declaration file」が出ました。次に何をすればよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- ライブラリの型は「本体同梱」と「`@types/○○` で別配り」の 2 通りがある
+- `Could not find a declaration file` は「型が見つからない」の合図。指示どおり `@types/○○` を入れる
+- `@types/*` は `devDependencies`（`-D`）。入れる前に「型付きか」を npm のページで見ておく
+
+</SummaryBox>

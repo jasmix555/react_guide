@@ -1,0 +1,64 @@
+---
+title: まとめと練習
+minutes: 6
+slug: routing-summary
+section: routing
+description: ルーティングのまとめ。設定・Link・URL パラメータ・共通レイアウト・useNavigate を振り返り、理解度チェックで自己確認する。次はデータ取得へ。
+level: beginner
+prerequisites: ['routing/goal']
+---
+
+<LearnBox>
+
+- このパートで身についた「複数ページを作る」力の総復習
+- 理解度チェック（つまずきやすい所を自己確認）
+- 次のパート（データ取得）への橋渡し
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+1 画面だった `my-shop` を、URL で切り替わる複数ページアプリにしました。要点を並べます。
+
+- **設定** … `createBrowserRouter([{ path, element }])` を `main.tsx` の `RouterProvider` に渡す。
+- **Link** … アプリ内の移動は `<Link to>`（`<a>` は全体リロードで state が消える）。今いるページは `NavLink`。
+- **URL パラメータ** … `/product/:id` の `:id` を `useParams` で取り出す。`find` の結果は `undefined` かもしれないのでチェックする。
+- **共通レイアウト** … 親ルート `Layout` ＋ `<Outlet />` に共通ナビ。各ページは `children`。
+- **プログラム移動** … 処理のあとで移すなら `useNavigate`。`navigate('/x')`、`navigate(-1)`。
+- **404** … `{ path: '*' }` で、どの URL にも一致しないときの受け皿。
+
+「URL とその画面」を対応づける——これが分かると、何ページのアプリでも作れます。
+
+## 理解度チェック {#quiz}
+
+<Exercise answer="<Link to='...'> を使います。<a href> はアプリ全体をリロードするので、画面が白く点滅し、持っていた state も消えます。<Link> は中身だけ差し替えるのでリロードされません。外部サイトへのリンクだけ <a> を使います。">
+
+アプリ内のページ移動に `<a href>` を使うと何が起きますか。代わりに何を使いますか。
+
+</Exercise>
+
+<Exercise answer="ルートを { path: 'product/:id', ... } とし、ページで const { id } = useParams() で取り出します。find の結果は undefined かもしれないので、if (!product) return ... で無い場合を先に扱ってから product.name などを使います。">
+
+`/product/:id` の詳細ページで、URL の id を受け取って商品を表示する流れを説明してください。注意点も。
+
+</Exercise>
+
+<Exercise answer="親ルートの element を Layout にし、Layout の中に共通ナビと <Outlet /> を置きます。各ページは親の children に登録します。Outlet の場所に、今の URL に対応する子ページが差し込まれます。">
+
+全ページ共通のヘッダーを 1 か所にまとめるには、ルート構成と `Layout` をどう作りますか。`<Outlet>` の役割は何ですか。
+
+</Exercise>
+
+## 次のパートへ {#next}
+
+ページはそろいましたが、商品データはまだ `products.json` を**直接 import** しています。実際のアプリでは、データは**サーバーから取ってくる**ことがほとんどです。
+
+次のパートは **データ取得**。`fetch` でサーバーからデータを読み込み、「読み込み中」「エラー」「成功」の状態を扱う書き方を学びます。ここまで作ってきたアプリが、本物のデータで動くようになります。
+
+<SummaryBox>
+
+- ルーティングは「URL → 画面」の登録（`createBrowserRouter` ＋ `RouterProvider`）
+- アプリ内移動は `<Link>`、パラメータは `:id` ＋ `useParams`、共通枠は `Layout` ＋ `<Outlet>`
+- 処理後の移動は `useNavigate`、受け皿は `{ path: '*' }` の 404
+
+</SummaryBox>

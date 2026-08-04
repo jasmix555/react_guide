@@ -1,0 +1,144 @@
+---
+title: カスタムセレクト
+minutes: 10
+slug: custom-select
+section: recipes
+description: 見た目を自由にしたいセレクト。まず標準の select を勧め、本当に必要なときだけ自作する。自作の代償も正直に説明する。
+level: intermediate
+prerequisites: ['state/use-effect/basics']
+---
+
+import { CustomSelectDemo } from '@/demos/CustomSelect'
+
+<LearnBox>
+
+- 標準の `<select>` を見た目調整して使う（まずこれ）
+- 本当に自由なデザインが要るときの、自作ドロップダウン
+- 自作すると何を失うか（キーボード・スマホ・読み上げ）を正直に知る
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+左が標準の `<select>`、右が自作のドロップダウンです。同じ「並び替え」を選べますが、作る手間と完成度がまるで違います。
+
+<Demo title="CustomSelect">
+  <CustomSelectDemo />
+</Demo>
+
+## まず結論：ふつうは `<select>` を使う {#use-native}
+
+先に大事なことを言います。**セレクトは、ほとんどの場合、標準の `<select>` を使うべきです**。理由は、自分で書かなくても最初から次のことが全部できているからです。
+
+- キーボードだけで開閉・選択できる（矢印キー、文字で頭出し）
+- スマホでは OS ネイティブのピッカーが出る
+- 読み上げソフトに正しく伝わる
+
+これを自作で完全に再現するのは、本当に大変です。まずは `<select>` を、少しだけ見た目調整して使いましょう。
+
+```tsx title="標準の select（これで十分なことが多い）"
+<select value={sort} onChange={(e) => setSort(e.target.value)}>
+  <option value="newest">新着順</option>
+  <option value="price-asc">価格が安い順</option>
+  <option value="popular">人気順</option>
+</select>
+```
+
+<Callout type="note" title="select はどこまで見た目を変えられる？">
+
+外側の枠（`border` / `padding` / 背景 / 矢印）は CSS で変えられます。一方、**開いたときの選択肢リストの見た目**は、ブラウザごとに制御が難しい部分です。「枠は整えたいが、リストの中身は標準でいい」なら `<select>` で足ります。
+
+</Callout>
+
+## 本当に必要なときだけ自作する {#when-custom}
+
+選択肢に画像を入れたい、色見本を並べたいなど、**リストの中身を自由にデザインしたいとき**だけ、自作を検討します。開閉を `state` で持ち、外側クリックと Esc で閉じます。
+
+```tsx title="src/components/CustomSelect/CustomSelect.tsx（新規作成・全文）"
+import { useEffect, useRef, useState } from 'react'
+
+interface Option {
+  value: string
+  label: string
+}
+
+export function CustomSelect({
+  options,
+  value,
+  onChange,
+}: {
+  options: Option[]
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = options.find((o) => o.value === value)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {selected?.label ?? '選択してください'} ▾
+      </button>
+
+      {open && (
+        <ul role="listbox">
+          {options.map((o) => (
+            <li
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              onClick={() => {
+                onChange(o.value)
+                setOpen(false)
+              }}
+            >
+              {o.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+```
+
+読みどころは 2 つです。`useEffect` の中で「外側クリック（`pointerdown`）」と「Esc」を監視して閉じる。そして後片付け（`return () => …`）で必ず解除する。`aria-haspopup` / `aria-expanded` / `role="listbox"` / `role="option"` で、これはセレクトだと読み上げに伝えます。
+
+## 自作の代償を正直に {#honesty}
+
+上の自作版は、マウスでは気持ちよく動きます。でも、標準の `<select>` にあった次の点は、**まだ足りていません**。
+
+<Diff
+  bad="見た目のためだけに <select> を捨て、自作して a11y を失う"
+  good="まず <select>。中身のデザインが本当に要るときだけ自作する"
+  note="矢印キー移動・文字での頭出し・スマホのネイティブピッカーは、自作では相当な追加実装が要る。"
+/>
+
+矢印キーでの移動、文字を打っての頭出し、スマホでのネイティブなピッカー——これらを足していくと、コードはどんどん増えます。「デザインの自由」と引き換えに「使いやすさ」を自分で作り直すことになる、と理解した上で選んでください。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- セレクトは基本 `<select>`。キーボード・スマホ・読み上げが最初から正しい
+- 外枠は CSS で調整できる。リストの中身まで自由にしたいときだけ自作する
+- 自作は `state` + 外側クリック + Esc で作れるが、a11y の作り直しという代償がある
+
+</SummaryBox>

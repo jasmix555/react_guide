@@ -1,0 +1,82 @@
+---
+title: gsap と @gsap/react を入れる
+minutes: 6
+slug: gsap-install
+section: gsap
+description: "GSAP 本体と、React 公式の @gsap/react を入れる。useGSAP が後片付けと StrictMode の二重実行を引き受けてくれる理由まで。"
+level: beginner
+prerequisites: ['libraries/gsap/goal', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- `gsap` 本体と `@gsap/react` の 2 つを入れる
+- なぜ React では `@gsap/react`（`useGSAP`）を使うのか
+- プラグイン（ScrollTrigger など）は `registerPlugin` で有効化する
+
+</LearnBox>
+
+## 2 つを入れる {#install}
+
+GSAP 本体（`gsap`）と、React 用の公式ラッパー（`@gsap/react`）をまとめて入れます。どちらも画面の動作に関わるので、`-D` は付けません（[dependencies に入れる](/libraries/npm-install-writes)）。
+
+```bash
+npm install gsap @gsap/react
+```
+
+`package.json` の `dependencies` に 2 つ増えます。型は本体に同梱されているので、`@types/*` は不要です（[型定義が別パッケージ](/libraries/types-packages)にはなっていません）。
+
+<Callout type="note" title="GSAP は無料になりました">
+
+以前は ScrollTrigger など一部のプラグインが有料（Club GreenSock）でしたが、**2025 年から全機能が無料**で使えます。古い記事に「有料」と書いてあっても、今は気にせず使って大丈夫です。
+
+</Callout>
+
+## なぜ @gsap/react を使うのか {#why-hook}
+
+GSAP 本体だけでも動かせますが、React では**後片付け**が問題になります。コンポーネントが消えるとき、作ったアニメーションも止めて片付けないと、メモリやエラーの原因になります。さらに開発中は **React が useEffect を 2 回実行**（StrictMode）するので、素朴に書くとアニメーションが二重に動きます。
+
+**`@gsap/react` の `useGSAP` フックは、この面倒を全部引き受けます。**
+
+- コンポーネントが消えるとき、中で作ったアニメーションを**自動で片付ける**。
+- **StrictMode の二重実行**でも正しく動く。
+- `scope` を渡すと、セレクタ（`.card` など）を**その箱の中だけ**に限定できる。
+
+つまり「`useEffect` で自分で後始末を書く」代わりに、`useGSAP` に任せます。使い方は次のページで詳しく見ます。
+
+## プラグインは registerPlugin で {#plugins}
+
+ScrollTrigger のような**プラグイン**は、本体とは別に「使います」と登録してから使います。1 度登録すれば、そのアプリ全体で使えます。
+
+```tsx
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+// 使う前に 1 度だけ登録する
+gsap.registerPlugin(ScrollTrigger)
+```
+
+<Callout type="warn" title="登録し忘れの罠">
+
+`registerPlugin` を書かずに ScrollTrigger を使うと、動かない・警告が出ます。プラグインを使うページ（またはアプリの入口）で、**インポート＋登録**をセットで書く、と覚えておきます。
+
+</Callout>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="GSAP を使うときは gsap 本体 ＋ @gsap/react をセットで入れ、アニメーションは必ず useGSAP の中に書く"
+  alt="単純なホバーやフェードは、GSAP を入れずに CSS の transition や Framer Motion で足ります。GSAP は、タイムラインやスクロール連動など、GSAP でないと面倒な場面で使います。"
+>
+
+React で GSAP を使うなら `@gsap/react` はほぼ必須です。後片付けと StrictMode を自分で書くのは事故のもと。`useGSAP` に任せるのを標準にします。
+
+</Std>
+
+<SummaryBox>
+
+- `npm install gsap @gsap/react`。どちらも `dependencies`、型は同梱
+- React では `useGSAP` を使う（後片付け・StrictMode 二重実行・`scope` を引き受ける）
+- プラグイン（ScrollTrigger など）は `gsap.registerPlugin(...)` で 1 度登録してから使う
+
+</SummaryBox>

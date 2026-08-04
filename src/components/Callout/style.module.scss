@@ -1,0 +1,270 @@
+// Shared styles for the callout family (Callout / Deeper / Std / JsNote).
+// ponytail: one folder for the family — they read as one system and share this
+// stylesheet, so grouping beats four near-identical folders.
+
+.callout {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  padding: var(--sp-3) var(--sp-4);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-body);
+}
+
+.icon {
+  flex: 0 0 auto;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.body {
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  letter-spacing: 0.04em;
+  margin: 0 0 2px;
+}
+
+.content > * + * {
+  margin-top: var(--sp-2);
+}
+
+.note {
+  background: var(--c-accent-tint);
+  border-left: 3px solid var(--c-accent);
+  .title {
+    color: var(--c-accent);
+  }
+}
+.warn {
+  background: var(--c-warn-tint);
+  border-left: 3px solid var(--c-warn);
+  .title {
+    color: var(--c-warn);
+  }
+}
+.mistake {
+  background: var(--c-danger-tint);
+  border-left: 3px solid var(--c-danger);
+  .title {
+    color: var(--c-danger);
+  }
+}
+.analogy {
+  background: var(--c-teal-tint);
+  border-left: 3px solid var(--c-teal);
+  .title {
+    color: var(--c-teal);
+  }
+}
+
+// ── 深掘り ──
+.deeper {
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  overflow: hidden;
+  margin-top: var(--sp-4);
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: var(--c-muted);
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::after {
+      content: '▸';
+      margin-left: auto;
+    }
+  }
+
+  &[open] summary::after {
+    content: '▾';
+  }
+}
+
+.deeperTag {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  padding: 1px 7px;
+}
+
+.deeperBody {
+  padding: 0 var(--sp-4) var(--sp-3);
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+  line-height: 1.85;
+
+  > * + * {
+    margin-top: var(--sp-2);
+  }
+}
+
+// ── うちの標準 (signature) ──
+.std {
+  background: var(--c-accent-tint);
+  border: 1px solid var(--c-line);
+  border-left: 4px solid var(--c-accent);
+  border-radius: var(--radius);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-4);
+  margin-top: var(--sp-6);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  font-family: var(--font-head);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 11px;
+  border-radius: var(--radius-pill);
+}
+
+.decision {
+  font-family: var(--font-head);
+  font-size: 17px;
+  font-weight: 700;
+  margin: var(--sp-3) 0 var(--sp-2);
+}
+
+.reason {
+  font-size: var(--fs-body);
+  color: var(--c-muted);
+
+  > * + * {
+    margin-top: var(--sp-2);
+  }
+}
+
+.stdAlt {
+  margin-top: var(--sp-3);
+  border-top: 1px dashed var(--c-line);
+  padding-top: var(--sp-2);
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: var(--c-accent);
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::before {
+      content: '▸ ';
+    }
+  }
+
+  &[open] summary::before {
+    content: '▾ ';
+  }
+}
+
+.stdAltBody {
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+  margin-top: var(--sp-2);
+
+  > * + * {
+    margin-top: var(--sp-2);
+  }
+}
+
+// ── 前提の再確認 (part intro) ──
+.partIntro {
+  border: 1px solid var(--c-line);
+  border-left: 4px solid var(--c-teal);
+  border-radius: var(--radius);
+  background: var(--c-teal-tint);
+  padding: var(--sp-4);
+  margin: var(--sp-4) 0 var(--sp-8);
+}
+
+.partIntroHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  color: var(--c-teal);
+  margin: 0 0 var(--sp-2);
+}
+
+.partIntroBody {
+  font-size: var(--fs-small);
+
+  > * + * {
+    margin-top: var(--sp-2);
+  }
+}
+
+// ── JsNote ──
+.jsnote {
+  border: 1px dashed var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-sunk);
+  margin-top: var(--sp-2);
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--fs-small);
+    color: var(--c-muted);
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::after {
+      content: '▸';
+      margin-left: auto;
+    }
+  }
+
+  &[open] summary::after {
+    content: '▾';
+  }
+}
+
+.jsTag {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--c-teal);
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  padding: 1px 7px;
+}
+
+.jsBody {
+  padding: 0 var(--sp-3) var(--sp-3);
+  font-size: var(--fs-small);
+  color: var(--c-text);
+  line-height: 1.8;
+}

@@ -1,0 +1,92 @@
+---
+title: トップへ戻る
+minutes: 7
+slug: back-to-top
+section: recipes
+description: 下までスクロールしたときだけ出る「上に戻る」ボタン。scroll イベントではなく IntersectionObserver で判定する。
+level: intermediate
+prerequisites: ['recipes/scroll-reveal']
+---
+
+import { BackToTopDemo } from '@/demos/BackToTop'
+
+<LearnBox>
+
+- 下にスクロールしたときだけ出る「上に戻る」ボタン
+- `scroll` イベントで位置を計算しない作り方
+- スムーズスクロールと、動きを減らす設定への対応
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+枠の中を下にスクロールすると、右下にボタンが現れます。押すと上に戻ります。
+
+<Demo title="BackToTop">
+  <BackToTopDemo />
+</Demo>
+
+## 見張り役を置いて監視する {#sentinel}
+
+「どれくらいスクロールしたか」を `scroll` イベントで毎回計算するのは避けます（[スクロールで出現](/recipes/scroll-reveal)と同じ考え方です）。**いちばん上に小さな見張り役（sentinel）を置き、それが画面から外れたらボタンを出す**、とします。判定は `IntersectionObserver` に任せます。
+
+```tsx title="src/components/BackToTop/BackToTop.tsx（要点）"
+const [show, setShow] = useState(false)
+const sentinel = useRef<HTMLDivElement>(null)
+
+useEffect(() => {
+  const el = sentinel.current
+  if (!el) return
+  // 見張り役が見えていない = 下までスクロールした、とみなす
+  const io = new IntersectionObserver(([entry]) => setShow(!entry.isIntersecting))
+  io.observe(el)
+  return () => io.disconnect()
+}, [])
+```
+
+`entry.isIntersecting` が「見張り役が見えているか」。見えていない（`!`）＝上から離れた、なのでボタンを出します。
+
+## 上に戻す {#scroll-top}
+
+ボタンを押したら、`scrollTo` で先頭へ戻します。動きを減らす設定の人にはスムーズを切り、一瞬で戻します。
+
+```tsx title="ボタンの動き"
+function toTop() {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+}
+```
+
+そして、`show` が `true` のときだけボタンを描きます。位置は画面の右下に固定します。
+
+```tsx
+{show && (
+  <button type="button" onClick={toTop} className={styles.top}>
+    ↑ トップへ
+  </button>
+)}
+```
+
+<Callout type="note" title="このデモは枠内スクロール">
+
+本番では、ページ全体のスクロール（`window.scrollTo`）とビューポート右下への固定（`position: fixed`）で作ります。このデモは説明のため、`IntersectionObserver` の監視範囲（`root`）を下の枠内スクロールにしています。
+
+</Callout>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="window.addEventListener('scroll', ...) で scrollY を毎回見る"
+  good="先頭に置いた sentinel を IntersectionObserver で監視する"
+  note="scroll イベントは 1 スクロールで何十回も走る。見えたか判定は Observer に任せるのが軽い。"
+/>
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- スクロール量は `scroll` イベントで計算せず、先頭の見張り役を `IntersectionObserver` で監視
+- 見張り役が外れたら（`!isIntersecting`）ボタンを出す
+- `scrollTo` で先頭へ。動きを減らす設定なら `behavior: 'auto'` にする
+
+</SummaryBox>

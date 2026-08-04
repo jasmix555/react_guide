@@ -1,0 +1,97 @@
+---
+title: まとめと練習
+minutes: 6
+slug: state-summary
+section: state
+description: state と hooks のまとめ。再描画の仕組み・useState・イベント・不変更新・関数形・useEffect を振り返り、通し課題で ProductCard にお気に入り機能を付ける。
+level: beginner
+prerequisites: ['state/goal']
+---
+
+<LearnBox>
+
+- このパートで身についた「動く画面」の作り方の総復習
+- 通し課題：`ProductCard` にお気に入りボタンを付ける
+- 次のステップ（state の共有）への見通し
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+React の心臓部を一通り触りました。要点を並べます。
+
+- **再描画の仕組み** … 普通の変数を書き換えても画面は変わらない。**state を更新したときだけ** React は描き直す。
+- **useState** … `const [count, setCount] = useState(0)`。読むのは `count`、変えるのは `setCount`。
+- **イベントで更新** … `onClick={() => setX(...)}`。ON/OFF は `!値` で反転。直接呼ぶと `Too many re-renders`。
+- **不変更新** … 配列は `[...prev, x]` / `filter`、オブジェクトは `{ ...prev, 変える所 }`。元を書き換えると再描画されない（Part 2 の参照とコピー）。
+- **関数形** … 前の値から決まる更新は `set(prev => ...)`。連続更新でも取りこぼさない。
+- **useEffect** … 副作用は描画のあとに。依存配列で「いつ動くか」を決め、`return` で後片付け。
+
+「画面が変わる」ものの裏には必ず state がある——この見方が、これからずっと効きます。
+
+## 通し課題：ProductCard にお気に入りを付ける {#project}
+
+通し課題の `ProductCard` に、このパートの内容で命を吹き込みます。**各カードが「お気に入りかどうか」の state を持ち**、ボタンで切り替えられるようにします。
+
+```tsx title="src/components/ProductCard/ProductCard.tsx（お気に入りを追加）"
+import { useState } from 'react'
+
+interface ProductCardProps {
+  name: string
+  price: number
+}
+
+export function ProductCard({ name, price }: ProductCardProps) {
+  const [favorite, setFavorite] = useState(false)
+
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()}円</p>
+      <button type="button" onClick={() => setFavorite((prev) => !prev)}>
+        {favorite ? '♥ お気に入り済み' : '♡ お気に入り'}
+      </button>
+    </article>
+  )
+}
+```
+
+一覧の各カードが、それぞれ独立した `favorite` の state を持ちます。1 枚のハートを押しても、他のカードは変わりません（state はコンポーネントごとに別々だからです）。まずはこれで「押すと切り替わる」を完成させてください。
+
+<Callout type="note">
+
+「お気に入りにした商品を、別の画面（お気に入り一覧）でも見たい」——そうなると、state を各カードではなく**親に持ち上げて共有**する必要が出てきます（**リフトアップ**）。これは複数の画面を作るときに本格的に扱います。今は「カードごとに state を持つ」で十分です。
+
+</Callout>
+
+## 練習 {#exercise}
+
+<Exercise answer="普通の変数は書き換えても再描画されないためです。useState で持ち、setFavorite((prev) => !prev) のように更新関数（できれば関数形）で更新すると、画面が切り替わります。">
+
+「お気に入りを普通の変数 `let favorite = false` で持って `favorite = !favorite` にしたら、画面が切り替わりませんでした」。なぜでしょう。どう直しますか。
+
+</Exercise>
+
+<Exercise answer="3 回とも同じ古い count を見るので 1 しか増えません。setCount(prev => prev + 1) の関数形なら、毎回「最新の値」を受け取るので 3 増えます。前の値から決まる更新は関数形にします。">
+
+ボタン 1 回のクリックで `setCount(count + 1)` を 3 回呼んでも、数字が 1 しか増えませんでした。なぜでしょう。どう直しますか。
+
+</Exercise>
+
+<Exercise answer="依存配列に入れた値が変わったときだけ effect が動きます。[] なら最初の 1 回だけ、省略すると毎回動きます。setInterval を使う effect で return () => clearInterval(...) を書かないと、タイマーが二重に走ったり止まらなくなります。">
+
+`useEffect(fn, [])` の `[]`（依存配列）は何を決めていますか。また、`setInterval` を使う effect で `return () => ...` を書かないと何が起きますか。
+
+</Exercise>
+
+## 次のパートへ {#next}
+
+これで、`ProductCard` は**押すと動く**部品になりました。ただ、見た目はまだ素のままです。次のパートでは **スタイリング（SCSS Modules）** で、この一覧をきちんと整えていきます。ここで作った「動く仕組み」に、いよいよ見た目を与えます。
+
+<SummaryBox>
+
+- state を更新したときだけ画面は描き直される。配列・オブジェクトは元を壊さず新しく作る
+- 前の値から決まる更新は関数形 `set(prev => ...)`。副作用は `useEffect`＋依存配列＋後片付け
+- 通し課題：`ProductCard` に `useState` でお気に入りトグルを付けた。共有はリフトアップで（後のパート）
+
+</SummaryBox>

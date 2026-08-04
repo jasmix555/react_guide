@@ -1,0 +1,126 @@
+---
+title: union とリテラル型
+minutes: 8
+slug: union-literal
+section: typescript
+description: "'a' | 'b' のリテラル union で「どれか 1 つ」を表す。X または null の扱いと、if で型を絞り込む narrowing まで。"
+level: beginner
+prerequisites: ['typescript/typing-props']
+---
+
+<LearnBox>
+
+- リテラル型と union（`'a' | 'b'` ＝「どれか 1 つ」）
+- `X | null` のように「値、または無し」を表す
+- `if` で型を絞り込む（narrowing）
+
+</LearnBox>
+
+## リテラル型：特定の値だけ許す {#literal}
+
+`string` は「どんな文字列でも」ですが、**特定の文字列だけ**に限りたいことがあります。`variant` に入れてよいのは `'primary'` か `'secondary'` だけ、のように。そのときは、値そのものを型にします（リテラル型）。
+
+```ts
+type Variant = 'primary' | 'secondary' | 'ghost'
+```
+
+```ts
+type Variant = 'primary' | 'secondary' | 'ghost'
+//             ↑           ↑
+//             │           └─ | は「または」
+//             └─ この 3 つの文字列のうち、どれか 1 つだけ
+```
+
+`|` は「または」。`Variant` 型の変数には、この 3 つ以外を入れられません。[button-variants のページ](/guide/components/button-variants)で使ったのがこれです。
+
+## union 型：どれか 1 つ {#union}
+
+`|` でつなぐのは文字列だけでなく、型同士でもできます。「`string` または `number`」「`Product` または `null`」のように、**複数の型のどれか**を表せます。これを union（合併）型と呼びます。
+
+```ts
+type Id = string | number // 文字列 または 数値
+```
+
+React でよく出るのが **`X | null`** です。「まだ選ばれていないなら `null`、選ばれたら `Product`」のような state を表します。
+
+```tsx
+// 選択中の商品。まだ無ければ null
+const [selected, setSelected] = useState<Product | null>(null)
+```
+
+## narrowing：if で型を絞る {#narrowing}
+
+`Product | null` のような union は、そのままでは中身を使えません（`null` かもしれないから）。`if` でチェックすると、TypeScript は**その先で型を絞り込んで**くれます。これを narrowing（絞り込み）と呼びます。
+
+```tsx
+function label(selected: Product | null): string {
+  if (selected === null) {
+    return '未選択'
+  }
+  // ここから先、selected は Product に絞られている（null ではない）
+  return selected.name
+}
+```
+
+`if (selected === null) return ...` を通ったあとは、TypeScript は「`selected` はもう `null` ではない＝`Product`」と分かるので、`selected.name` が安全に書けます。
+
+## わざと壊す：union にない値を渡す {#break}
+
+リテラル union が守る様子を見ます。`'primary' | 'secondary'` の型に、無い値を入れてみます。
+
+```ts title="union にない値"
+type Variant = 'primary' | 'secondary'
+
+const v: Variant = 'primani' // ← 打ち間違い
+```
+
+`'primani'` に赤い波線が付き、こう出ます。
+
+```
+Type '"primani"' is not assignable to type 'Variant'.
+```
+
+「`'primani'` は `Variant`（primary か secondary）には入れられません」。正しい綴りにすれば消えます。もし型が `string` だったら、この打ち間違いは素通りしていました。
+
+## 書き方カタログ：union とリテラル {#catalog}
+
+```ts
+type Variant = 'primary' | 'secondary' // リテラル union
+type Id = string | number // 型の union
+type Nullable = Product | null // 値 または 無し
+
+// narrowing
+function f(x: string | null) {
+  if (x === null) return 0
+  return x.length // ここでは x は string
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="variant を string 型にする"
+  good="variant を 'primary' | 'secondary' のリテラル union にする"
+  note="string だと打ち間違いが素通り。リテラル union なら候補が固定され、補完も効く。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`'X' is possibly 'null'`** … `X | null` の中身を、`null` チェックせずに使っています。`if (x === null)` で絞ってから使います。
+- **リテラルが効かない** … 型が `string` になっていないか確認します。候補を固定するには `'a' | 'b'` と書きます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="useState<Product | null>(null) とします。まだ選ばれていない状態を null で表し、選ばれたら Product が入ります。使うときは if (selected === null) で絞ってから selected.name などを読みます。">
+
+「選択中の商品（まだ無ければ無し）」を持つ state の型は、どう書きますか。使うときの注意点も。
+
+</Exercise>
+
+<SummaryBox>
+
+- リテラル union `'a' | 'b'` は「特定の値のどれか 1 つ」。候補を固定でき、補完も効く
+- `X | null` は「値、または無し」。React の state でよく使う
+- union は `if` で絞る（narrowing）と、その先で中身を安全に使える
+
+</SummaryBox>

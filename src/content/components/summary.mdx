@@ -1,0 +1,98 @@
+---
+title: まとめと練習
+minutes: 6
+slug: components-summary
+section: components
+description: はじめての React のまとめ。JSX・コンポーネント・props・一覧（map と key）・条件表示・イベントを振り返り、通し課題で商品一覧を組み立てる。次は state へ。
+level: beginner
+prerequisites: ['components/goal']
+---
+
+<LearnBox>
+
+- このパートで身についた「部品で画面を組み立てる」力の総復習
+- 通し課題：`my-shop` に商品一覧を表示する
+- 次のパート（state）への橋渡し
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+このパートで、React の**画面を作る基本一式**がそろいました。順に振り返ります。
+
+- **JSX** … HTML に見える JavaScript。波かっこ `{ }` で値や式を差し込む。返す要素は 1 つ（複数は `<>...</>`）。
+- **コンポーネント** … JSX を返す関数。名前は大文字始まり。`import` して `<Xxx />` で使う。
+- **props** … 部品に値を渡す。分割代入で受け取り、型を付ける。数値は波かっこで渡す。
+- **一覧（map と key）** … 配列を `map` で JSX に変えて並べる。`key` には安定した id を使う。
+- **条件表示** … `? :` で二択、`&&` で「あるときだけ」。`&&` の左が数値なら `> 0` で真偽値にする。
+- **イベント** … `onClick` に関数を渡す（`()` は付けない）。引数はアロー関数で包む。
+
+Part 2 の JavaScript が、そのまま画面作りに効いているのが分かったと思います。`map`・分割代入・三項演算子・`&&`・関数を値として渡す——全部ここで使いました。
+
+## 通し課題：商品一覧を表示する {#project}
+
+通し課題の `my-shop` を、このパートの内容で一歩進めます。次を自分の手でやってみてください。
+
+1. `src/components/ProductCard/ProductCard.tsx` を作り、`name` と `price` を props で受け取って表示する。
+2. `App.tsx` で `products.json` を `import` し、`map` で `<ProductCard />` を並べる（`key={product.id}` を忘れずに）。
+3. 在庫切れ（`!product.inStock`）のときだけ「売り切れ」を出す。
+
+```tsx title="src/App.tsx（ここまでの到達点）"
+import products from './data/products.json'
+
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+function App() {
+  return (
+    <div>
+      <h1>商品一覧アプリ</h1>
+      {products.map((product) => (
+        <ProductCard
+          name={product.name}
+          price={product.price}
+          inStock={product.inStock}
+          key={product.id}
+        />
+      ))}
+    </div>
+  )
+}
+
+export default App
+```
+
+これで、データから商品一覧が並ぶところまで来ました。まだ**見た目は素**で、**押しても何も変わりません**。そこは次のパート以降で足していきます。
+
+## 練習 {#exercise}
+
+<Exercise answer="配列を map で <ProductCard /> に変換し、それぞれに key={product.id} を付けます。key が無いとコンソール警告が出て、並べ替え時にバグの元になります。">
+
+商品データの配列から一覧を表示するとき、`map` と一緒に必ず付けるべきものは何でしょう。理由も説明してみてください。
+
+</Exercise>
+
+<Exercise answer="? : は「二択」（true なら A、false なら B）。&& は「あるときだけ出す」（左が true のときだけ右を表示）。在庫数のような数値を && の左に置くと 0 がそのまま画面に出るので、count > 0 && ... のように真偽値にします。">
+
+「在庫ありなら『在庫あり』、なければ『売り切れ』」は `? :`、「レビューがあるときだけ星を出す」は `&&`。この 2 つの使い分けを説明してみてください。`&&` を数値に使うときの注意点も。
+
+</Exercise>
+
+<Exercise answer="onClick={handleClick} は関数そのものを渡す（クリック時に呼ばれる）。onClick={handleClick()} はその場で呼んだ結果を渡すので、描画のたびに実行されバグになりがち。引数を渡したいときは onClick={() => handleClick(id)} とアロー関数で包みます。">
+
+`onClick={handleClick}` と `onClick={handleClick()}` の違いは何でしょう。引数を渡したいときはどう書きますか。
+
+</Exercise>
+
+## 次のパートへ {#next}
+
+一覧は出ましたが、今の画面は **動きません**。「ボタンを押したら個数が増える」「お気に入りを切り替える」——こうした**画面が変わる**動きには、**state（状態）** が必要です。
+
+次のパートでは、その `useState` を学びます。ここで作った `ProductCard` に、いよいよ命が吹き込まれます。
+
+<SummaryBox>
+
+- JSX・コンポーネント・props・一覧（map/key）・条件表示・イベントで、画面は組み立てられる
+- Part 2 の JavaScript（map・分割代入・三項・&&）が、そのまま画面作りに効く
+- 通し課題：`ProductCard` を作り、`map` で一覧表示。動きを付けるのは次の state から
+
+</SummaryBox>

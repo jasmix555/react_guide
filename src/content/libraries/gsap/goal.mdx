@@ -1,0 +1,65 @@
+---
+title: このパートのゴール
+minutes: 6
+slug: gsap-goal
+section: gsap
+description: "GSAP で凝った動きを付ける。タイムラインで連続再生、ScrollTrigger でスクロール連動。Framer Motion との使い分けも押さえる。"
+level: beginner
+prerequisites: ['data/summary']
+---
+
+import { GsapTimeline } from '@/demos/GsapTimeline'
+
+<PartIntro>
+
+**GSAP**（ジーサップ／GreenSock Animation Platform）は、Web アニメーションの定番ライブラリです。LP でよく見る「スクロールに合わせて要素が動く」「複数の動きが順番に流れる」といった**凝った演出**を、細かくコントロールして作れます。
+
+うれしいことに、GSAP は **2025 年から全機能が無料**になりました（以前は有料だった ScrollTrigger などのプラグインも含めて）。React からは、公式の **`@gsap/react`**（`useGSAP` フック）で安全に扱えます。
+
+</PartIntro>
+
+<LearnBox>
+
+- GSAP は何が得意で、いつ使うのか
+- このパートを終えたときに作れるようになるもの
+- Framer Motion との関係（両方このタブにあります）
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+下は GSAP の**タイムライン**の例です。「もう一度」を押すと、① → ② → ③ が順番に入り、最後に「完了」が弾んで出ます。**順番のある動き**を、数行で組めるのが GSAP の得意技です。
+
+<Demo title="gsap.timeline（順番に再生）">
+  <GsapTimeline />
+</Demo>
+
+## GSAP は何が得意か {#why}
+
+[Framer Motion](/libraries/framer-motion/goal) は「React の状態に合わせて動かす」のが得意でした（マウント・ホバー・出入り）。GSAP は、そこからもう一歩、**動きそのものを細かく設計する**のが得意です。
+
+- **タイムライン** … 「A の後に B、少し重ねて C」という**順番と重なり**を、時間軸で組み立てる。
+- **ScrollTrigger** … スクロール位置に動きを**連動**させる（見えたら出す、スクロール量に合わせて動かす＝scrub、固定して見せる＝pin）。LP の花形です。
+- **細かい制御** … イージング（動きの緩急）、繰り返し、逆再生、途中から再生など、タイムラインを自在に操れる。
+
+「一覧がフワッと出る」程度なら Framer Motion で十分。**スクロール連動や、順番の込み入った演出**が要るときに GSAP、という住み分けです（詳しくは[使い分けのページ](/libraries/gsap/fm-vs-gsap)で）。
+
+## 動きには「理由」を、そして配慮を {#restraint}
+
+GSAP は強力なので、つい盛りすぎます。[Framer Motion のパート](/libraries/framer-motion/goal)と同じ原則で、**動きには理由**（注目・状態変化・操作への反応）を持たせます。そして **`prefers-reduced-motion`（動きを減らす設定）への配慮**も、GSAP では `gsap.matchMedia()` で最初から扱います。このパートのデモは、すべてこの配慮を入れてあります。
+
+## このパートの進み方 {#roadmap}
+
+1. **入れる** — `gsap` と `@gsap/react` をインストールする。
+2. **useGSAP の基本** — `gsap.to` / `from` / `fromTo` と `useGSAP` フック。
+3. **タイムライン** — `gsap.timeline()` で順番に再生する。
+4. **ScrollTrigger** — スクロールに連動させる。
+5. **使い分け** — Framer Motion と GSAP、どちらを使うか。
+
+<SummaryBox>
+
+- GSAP は「凝った動き」の定番。タイムラインとスクロール連動（ScrollTrigger）が得意
+- 2025 年から全機能が無料。React からは公式の `@gsap/react`（`useGSAP`）で扱う
+- 単純な動きは Framer Motion、スクロール連動や込み入った演出は GSAP
+
+</SummaryBox>

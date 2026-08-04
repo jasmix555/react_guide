@@ -1,0 +1,61 @@
+.carousel {
+  width: 100%;
+}
+
+.track {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding-bottom: var(--sp-2);
+  cursor: grab;
+  scrollbar-width: thin;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.slide {
+  flex: 0 0 70%;
+  scroll-snap-align: center;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  font-weight: 700;
+  color: var(--c-text);
+  user-select: none; // ドラッグ中に文字が選択されないように
+}
+
+.controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.arrow {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-pill);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--c-sunk);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    scroll-behavior: auto;
+  }
+}

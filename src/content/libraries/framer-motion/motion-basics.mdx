@@ -1,0 +1,117 @@
+---
+title: motion の基本
+minutes: 9
+slug: motion-basics
+section: framer-motion
+description: motion.div と initial / animate / transition。最初の状態から目指す状態へ、マウント時にフワッと動かす。spring と duration の違いも。
+level: beginner
+prerequisites: ['libraries/framer-motion/goal']
+---
+
+<LearnBox>
+
+- `motion.div` は「アニメできる div」
+- `initial`（最初）→ `animate`（目指す状態）で、マウント時に動かす
+- `transition` で動き方を決める（`spring` と `duration`）
+
+</LearnBox>
+
+## motion.div は「アニメできる div」 {#motion-div}
+
+`motion` を使うと、`<div>` の代わりに **`<motion.div>`** を書けます。見た目はただの `div` ですが、`initial` や `animate` といった**アニメ用の props** を受け取れます。
+
+```tsx
+import { motion } from 'motion/react'
+
+;<motion.div>ここが動かせる div</motion.div>
+```
+
+`div` だけでなく、`motion.ul`・`motion.li`・`motion.button` など、どのタグにも `motion.` を付けられます。
+
+## initial → animate で「出てくる」 {#initial-animate}
+
+いちばん基本の「マウント時にフワッと出る」は、`initial`（最初の状態）と `animate`（目指す状態）の 2 つで作ります。
+
+```tsx
+<motion.div
+  initial={{ opacity: 0, y: 16 }} // 最初：透明で少し下
+  animate={{ opacity: 1, y: 0 }} // 目指す：不透明で定位置
+  transition={{ duration: 0.4 }} // 0.4 秒かけて
+>
+  商品カード
+</motion.div>
+```
+
+- **`initial`** … 表示され始めた瞬間の状態（透明・少し下）。
+- **`animate`** … そこから**自動で動いていく先**（不透明・定位置）。
+- **`transition`** … どう動くか（時間や種類）。
+
+`opacity: 0 → 1` で「フワッと」、`y: 16 → 0` で「下から上へ」。この 2 つで「下からフワッと出る」ができます。この Framer Motion パートの最初に見たカードは、これを並べたものです。
+
+## transition：spring と duration {#transition}
+
+`transition` で動きの「質感」が変わります。よく使う 2 つです。
+
+```tsx
+transition={{ duration: 0.4 }}                          // 一定の速さで 0.4 秒
+transition={{ type: 'spring', stiffness: 300, damping: 24 }} // バネのように、少し弾む
+```
+
+- **`duration`** … 決めた時間で、等速っぽく動く。素直。
+- **`spring`** … バネの物理。`stiffness`（硬さ）と `damping`（減衰）で、弾み方を調整。**UI は spring のほうが自然**に感じられます。
+
+<JsNote feature="animate は「そこへ動け」の指示">
+
+`animate={{ opacity: 1 }}` は「opacity を 1 に**しておけ**」ではなく「1 に**なるまで動け**」という指示です。`initial` の値から `animate` の値へ、`transition` の決め方で動きます。値を変えれば、その新しい値へまた動きます。
+
+</JsNote>
+
+## 書き方カタログ：基本の動き {#catalog}
+
+```tsx
+// フワッと出る
+<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} />
+
+// 下から出る
+<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} />
+
+// 少し拡大しながら出る
+<motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} />
+
+// spring で自然に
+<motion.div
+  initial={{ y: 20 }}
+  animate={{ y: 0 }}
+  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+/>
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="ただの <div> に initial/animate を書く"
+  good="<motion.div> にする（motion. を付ける）"
+  note="アニメ props は motion 要素だけが受け取れる。ふつうの div では無視される。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **動かない** … タグが `<motion.div>`（`motion.` 付き）になっているか確認します。
+- **カクつく／不自然** … `transition` を `spring` にすると自然になります。`stiffness` / `damping` で調整します。
+- **`motion` が import できない** … `import { motion } from 'motion/react'` です（`motion` だけではありません）。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="initial={{ opacity: 0, y: 20 }} と animate={{ opacity: 1, y: 0 }} を <motion.div> に付けます。initial が最初（透明・下）、animate が目指す状態（不透明・定位置）で、transition で 0.4 秒などの動き方を決めます。">
+
+要素を「下から透明→不透明でフワッと出す」には、`<motion.div>` にどんな props を付けますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `<motion.div>` は「アニメできる div」。`motion.ul` など他のタグにも付けられる
+- `initial`（最初）→ `animate`（目指す状態）で、マウント時に動く
+- `transition` は `duration`（等速）か `spring`（自然に弾む）。UI は spring 向き
+
+</SummaryBox>

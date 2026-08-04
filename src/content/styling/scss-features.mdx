@@ -1,0 +1,172 @@
+---
+title: SCSS の機能（入れ子・変数・mixin）
+minutes: 9
+slug: scss-features
+section: styling
+description: SCSS が CSS に足す書きやすさ。入れ子、& で自分を指す、$ 変数、@mixin/@include をまとめて、ProductCard に使う。
+level: beginner
+prerequisites: ['styling/first-module']
+---
+
+<LearnBox>
+
+- 入れ子（ネスト）で、親子のセレクタをまとめて書く
+- `&` で「自分自身」を指す（`&:hover` など）
+- `$` 変数と `@mixin` で、同じ値・同じまとまりを再利用する
+
+</LearnBox>
+
+## 入れ子（ネスト） {#nesting}
+
+CSS では、親子の関係を毎回フルで書きます。SCSS は**入れ子**にできます。`.body` を `.card` の中に書くと、「`.card` の中の `.body`」の意味になります。
+
+```scss title="SCSS（入れ子で書く）"
+.card {
+  border: 1px solid #e5e7eb;
+
+  .body {
+    padding: 12px;
+  }
+
+  .name {
+    font-weight: 600;
+  }
+}
+```
+
+これはビルド時に、ふつうの CSS へ展開されます。
+
+```css title="変換後の CSS"
+.card { border: 1px solid #e5e7eb; }
+.card .body { padding: 12px; }
+.card .name { font-weight: 600; }
+```
+
+関係が近いものを 1 か所にまとめて書けるので、見通しが良くなります。
+
+<Callout type="warn" title="入れ子は深くしすぎない">
+
+3 段・4 段と深くすると、かえって読みにくく、詳細度も上がって上書きしづらくなります。**深くても 2 段まで**を目安にします。
+
+</Callout>
+
+## `&` は「自分自身」 {#ampersand}
+
+`&` は「いま書いているセレクタ自身」を指します。`:hover` や状態クラスをまとめるのに使います。
+
+```scss
+.card {
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px); // .card:hover の意味
+  }
+}
+```
+
+`&:hover` は `.card:hover` に展開されます。`&` を使うと、`.card` に関する指定を `.card` の中だけで完結できます。
+
+## `$` 変数：同じ値を 1 か所に {#variables}
+
+同じ色や余白を何度も書くと、変えるとき全部直す羽目になります。SCSS の **`$` 変数**にまとめると、1 か所直せば済みます。
+
+```scss
+$radius: 12px;
+$line: #e5e7eb;
+
+.card {
+  border: 1px solid $line;
+  border-radius: $radius;
+}
+```
+
+<JsNote feature="$ 変数はビルド時に「値が焼き込まれる」">
+
+SCSS の `$` 変数は、**ビルドの瞬間に実際の値へ置き換わり**ます。上の例なら、出力される CSS には `12px` や `#e5e7eb` が直接書かれます。実行中に切り替える（テーマ変更など）ことはできません。それができる CSS の `--変数` は、次のページで扱います。
+
+</JsNote>
+
+## `@mixin`：スタイルのまとまりを再利用 {#mixin}
+
+「複数のプロパティのまとまり」を使い回したいときは `@mixin` で定義し、`@include` で呼び出します。ボタンの見た目リセットなど、あちこちで使う塊に向きます。
+
+```scss
+@mixin button-reset {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.fav {
+  @include button-reset; // 上の 4 行がここに展開される
+  color: crimson;
+}
+```
+
+## 書き方カタログ：SCSS の機能 {#catalog}
+
+```scss
+// 入れ子
+.card {
+  .body { padding: 12px; }   // → .card .body
+  &:hover { ... }            // → .card:hover
+  &.active { ... }           // → .card.active（自分に active が付いたとき）
+}
+
+// 変数
+$accent: #4f46e5;
+.btn { background: $accent; }
+
+// mixin
+@mixin center { display: grid; place-items: center; }
+.badge { @include center; }
+```
+
+<Together
+  task="ProductCard.module.scss で .card に &:hover を足し、ホバーしたとき border の色が濃くなるようにしてみてください。"
+  hint=".card { ... &:hover { border-color: #9ca3af; } } の形です。& が .card 自身を指します。"
+>
+
+```scss title="ProductCard.module.scss"
+.card {
+  border: 1px solid #e5e7eb;
+
+  &:hover {
+    border-color: #9ca3af;
+  }
+}
+```
+
+`&:hover` は `.card:hover` に展開されます。`.card` の中に書けるので、ホバーの指定が離れた場所に散らばりません。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="同じ色 #e5e7eb を 10 か所に直書きする"
+  good="$line: #e5e7eb; にまとめ、$line で参照する"
+  note="直書きは、色を変えるとき全部探して直す羽目になる。変数なら 1 か所。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **入れ子が効かない** … `.module.scss`（SCSS）で書いているか確認します。素の `.css` では入れ子は使えません（※新しい CSS では一部可能ですが、ここでは SCSS 前提）。
+- **`&:hover` が別要素に効く** … `&` は「そのセレクタ自身」です。子に効かせたいなら入れ子（`.card { .body:hover { ... } }`）にします。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="&:hover です。& は今のセレクタ自身を指すので、.card の中の &:hover は .card:hover に展開されます。.card に関する指定を 1 か所にまとめられます。">
+
+`.card` の中で「`.card` 自身にホバーしたとき」の指定を書くには、何というセレクタを使いますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 入れ子で親子のセレクタをまとめて書く（深くても 2 段まで）
+- `&` は「そのセレクタ自身」。`&:hover` `&.active` に使う
+- `$` 変数はビルド時に値が焼き込まれる。まとまりの再利用は `@mixin` / `@include`
+
+</SummaryBox>

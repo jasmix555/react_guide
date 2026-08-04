@@ -1,0 +1,54 @@
+.demo {
+  width: 100%;
+  display: flex;
+  gap: var(--sp-4);
+  align-items: center;
+  // ツールチップが上に出るので、上に余白を確保しておく。
+  padding-top: var(--sp-8);
+}
+
+.btn {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--c-text);
+  color: var(--c-bg);
+  font-size: var(--fs-small);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+// ホバー、またはキーボードで中のボタンにフォーカスが入ったら出す。
+.wrap:hover .tip,
+.wrap:focus-within .tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tip {
+    transition: none;
+  }
+}

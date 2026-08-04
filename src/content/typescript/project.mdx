@@ -1,0 +1,141 @@
+---
+title: 通し課題：ProductCard を型で守る
+minutes: 10
+slug: typescript-project
+section: typescript
+description: Product 型を 1 か所に定義し、ProductCard の props を個別の 5 つから product 1 つにまとめる。一覧も型付きにして、渡し忘れや打ち間違いを止める。
+level: beginner
+prerequisites: ['typescript/typing-state-events']
+---
+
+<LearnBox>
+
+- `Product` 型を 1 か所（`types/product.ts`）に定義する
+- `ProductCard` の props を、個別の 5 つから `product` 1 つにまとめる
+- 一覧も型付きにして、渡し忘れ・打ち間違いを止める
+
+</LearnBox>
+
+## Product 型を 1 か所に {#type}
+
+まず、商品の形を `src/types/product.ts` にまとめます（[Product 型のページ](/guide/typescript/product-type)で作ったものです）。
+
+```ts title="src/types/product.ts"
+export interface Product {
+  id: string
+  name: string
+  price: number
+  category: 'kitchen' | 'living' | 'outdoor'
+  imageUrl: string
+  tags: string[]
+  inStock: boolean
+}
+```
+
+## before：props を 1 個ずつ {#before}
+
+Part 5 までの `ProductCard` は、props を 1 つずつ受け取っていました。商品は「決まった形」なのに、それを毎回バラして渡していたのです。
+
+```tsx title="src/components/ProductCard/ProductCard.tsx（before）"
+interface ProductCardProps {
+  name: string
+  price: number
+  category: string
+  imageUrl: string
+  inStock: boolean
+}
+
+export function ProductCard({ name, price, category, imageUrl, inStock }: ProductCardProps) {
+  // ...
+}
+```
+
+## after：Product 型 1 つにまとめる {#after}
+
+`Product` 型があるので、props は **`product` 1 つ**で済みます。受け取る形もスッキリします。
+
+```tsx title="src/components/ProductCard/ProductCard.tsx（after・全文）"
+import clsx from 'clsx'
+import { useState } from 'react'
+
+import type { Product } from '@/types/product'
+import styles from './ProductCard.module.scss'
+
+export function ProductCard({ product }: { product: Product }) {
+  const [fav, setFav] = useState(false)
+
+  return (
+    <article className={styles.card}>
+      <div className={styles.media}>
+        <img src={product.imageUrl} alt={product.name} loading="lazy" />
+        {!product.inStock && <span className={styles.sold}>売り切れ</span>}
+      </div>
+
+      <div className={styles.body}>
+        <span className={styles.category}>{product.category}</span>
+        <h3 className={styles.name}>{product.name}</h3>
+        <div className={styles.row}>
+          <span className={styles.price}>{product.price.toLocaleString()}円</span>
+          <button
+            type="button"
+            className={clsx(styles.fav, fav && styles.active)}
+            aria-pressed={fav}
+            aria-label="お気に入り"
+            onClick={() => setFav((f) => !f)}
+          >
+            {fav ? '♥' : '♡'}
+          </button>
+        </div>
+      </div>
+    </article>
+  )
+}
+```
+
+`product.name` `product.price` … と `product.` 経由で読みます。`product` は `Product` 型なので、`product.nam`（打ち間違い）は赤い波線で止まり、補完も効きます。
+
+## 一覧も型付きで {#list}
+
+`products.json` を `Product[]` として読み、各カードに `product` をそのまま渡します。呼び出しも短くなります。
+
+```tsx title="src/App.tsx"
+import products from './data/products.json'
+
+import type { Product } from './types/product'
+import styles from './App.module.scss'
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+const list = products as Product[]
+
+function App() {
+  return (
+    <div className={styles.list}>
+      {list.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  )
+}
+
+export default App
+```
+
+`product={product}` の 1 つを渡すだけ。`name={...} price={...}` と 5 つ書いていた before と比べて、渡し忘れも起きません。
+
+## before と after {#diff}
+
+<Diff
+  bad="<ProductCard name={p.name} price={p.price} category={p.category} ... />"
+  good="<ProductCard product={p} />"
+  note="決まった形のデータは、バラさず Product 型 1 つで渡す。渡し忘れも型違いも型が止める。"
+/>
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 商品の形は `Product` 型 1 か所に定義（`types/product.ts`）
+- `ProductCard` の props は `{ product }: { product: Product }` の 1 つにまとめる
+- 一覧は `products as Product[]` で型付けし、`product={product}` を渡すだけ
+
+</SummaryBox>

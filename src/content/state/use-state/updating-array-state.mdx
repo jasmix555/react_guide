@@ -1,0 +1,238 @@
+---
+title: 配列の state を更新する
+minutes: 12
+slug: updating-array-state
+section: state
+description: 追加・削除・並び替えを、元の配列を壊さずに。push で画面が変わらない理由を、実際に壊して確かめる。
+level: beginner
+prerequisites: ['javascript/destructuring']
+---
+
+import { ArrayStateDemo } from '@/demos/ArrayStateDemo'
+
+<LearnBox>
+
+- 配列の state に「追加・削除・並び替え」する書き方
+- `push` では画面が変わらない理由（実際に壊して確かめる）
+- スプレッド `[...]` と `filter` の使いどころ
+
+</LearnBox>
+
+## このページで作るもの {#goal}
+
+作るのは買い物リストです。入力して「追加」、各行で「↑（並び替え）」と「削除」ができます。これを、追加 → 削除 → 並び替えの順で**コードから組み立て**、最後に動くものを触ります。ポイントはずっと 1 つだけ、「**元の配列を壊さない**」です。
+
+## なぜ「壊さない」が大事なのか {#why}
+
+React は「**配列が別物になったかどうか**」で再描画を判断します。中身を書き換えても、配列そのもの（入れ物）が同じだと、React は「変わっていない」と判断して画面を更新しません。
+
+<Callout type="analogy">
+
+jQuery のころは `$('ul').append('<li>…</li>')` と、DOM を自分で書き換えていました。React では DOM を直接触りません。**新しいデータを渡して「これで描き直して」と伝える**だけ。その「新しいデータ」を用意するのが、このページの全部です。
+
+</Callout>
+
+## ステップ 0：リストを表示するだけの状態 {#baseline}
+
+まず、リストを表示するだけの状態から始めます。`src/demos/ArrayStateDemo/ArrayStateDemo.tsx` はこの骨格です（全文）。
+
+```tsx title="ArrayStateDemo.tsx（出発点・全文）"
+import { useState } from 'react'
+
+export function ArrayStateDemo() {
+  const [items, setItems] = useState<string[]>(['トマト', 'たまご', '牛乳'])
+
+  return (
+    <ul>
+      {items.map((item, i) => (
+        <li key={item + i}>{item}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+`useState<string[]>([...])` で、文字列の配列を state として持っています。`items.map(...)` で、各要素を `<li>` に並べています。ここに「追加・削除・並び替え」を足していきます。
+
+## ステップ 1：追加する（スプレッド） {#add}
+
+末尾に足す `add` 関数を書き加えます。
+
+```tsx title="ArrayStateDemo.tsx（追記・変更）"
+function add(text: string) {
+  setItems((prev) => [...prev, text])
+}
+```
+
+構文を分解します。
+
+```tsx
+setItems((prev) => [...prev, text])
+//        ↑         ↑        ↑
+//        │         │        └─ 末尾に足す新しい要素
+//        │         └─ 前の配列を全部広げる（スプレッド）
+//        └─ 前の値（React が渡す最新の items）
+```
+
+`[...prev, text]` は、「`prev` の中身を全部広げて、その後ろに `text` を足した**新しい配列**」です。元の `prev` は触っていません。`setItems` にこの新しい配列を渡すと、React は「別物になった」と判断して画面を描き直し、行が 1 つ増えます。
+
+<JsNote feature="[...prev, text] のスプレッド">
+
+`...prev` は「prev の中身をここに全部広げる」という意味です。後ろに `text` を足すので、prev を壊さずに 1 つ増えた新しい配列ができます。
+
+</JsNote>
+
+## ステップ 2：削除する（filter） {#remove}
+
+消したい要素「以外」を残す、と考えます。`filter` がそのまま使えます。
+
+```tsx title="ArrayStateDemo.tsx（追記・変更）"
+function remove(target: number) {
+  setItems((prev) => prev.filter((_, i) => i !== target))
+}
+```
+
+`filter` は、条件が `true` の要素だけを集めた**新しい配列**を返します。ここでは「番号が `target` と違う要素だけ残す」＝「`target` 番目を消す」です。
+
+<JsNote feature="filter は条件に合う要素だけ残す">
+
+「消す」ではなく「残す」で考えるのがコツです。`_` は「使わない引数」に付ける慣習的な名前で、ここでは各要素の中身を使わないので `_` にしています。
+
+</JsNote>
+
+## ステップ 3：並び替える（コピーしてから） {#reorder}
+
+入れ替えも、まずコピーしてから行います。元の配列は触りません。
+
+```tsx title="ArrayStateDemo.tsx（追記・変更）"
+function moveUp(i: number) {
+  if (i === 0) return // 先頭は上げられない
+  setItems((prev) => {
+    const next = [...prev] // まずコピー
+    ;[next[i - 1], next[i]] = [next[i], next[i - 1]] // 入れ替え
+    return next
+  })
+}
+```
+
+`[...prev]` でコピーを作り、そのコピーの中で 2 要素を入れ替え、`return next` で新しい配列を返します。ここでも元の `prev` は無傷です。
+
+<Together
+  task="末尾ではなく「先頭」に足す addTop 関数を、元の配列を壊さずに書いてみてください。（ヒント：スプレッドの順番を変える）"
+  hint="setItems((prev) => [新しい要素, ...prev]) の形です。text を prev の前に置きます。"
+>
+
+```tsx
+function addTop(text: string) {
+  setItems((prev) => [text, ...prev])
+}
+```
+
+`[text, ...prev]` は「新しい要素を先に置き、その後ろに prev を全部広げる」。末尾追加の `[...prev, text]` と、置く順番が逆なだけです。どちらも元の `prev` は壊しません。
+
+</Together>
+
+## 実際の動き {#demo}
+
+ここまでの追加・削除・並び替えが全部入ったものが、これです。入力して「追加」、各行の「↑」「削除」を触ってみてください。
+
+<Demo title="配列の state">
+  <ArrayStateDemo />
+</Demo>
+
+## わざと壊す：push で足すと画面が変わらない {#break-push}
+
+「元を壊すと画面が変わらない」を、実際に見ておきましょう。`add` を、スプレッドではなく `push` で書いてみます。
+
+```tsx title="ArrayStateDemo.tsx（わざと壊す：push で足す）"
+function add(text: string) {
+  items.push(text) // ← 元の配列に直接足す
+  setItems(items) // ← 同じ配列を渡す
+}
+```
+
+保存して、入力欄に「牛肉」と打って「追加」を押してください。**画面のリストは増えません。** エラーも出ません。ただ、何も起きないのです。
+
+理由はこうです。`items.push(text)` は、元の配列 `items` の中身を書き換えました。中身は 4 個に増えています。でも `setItems(items)` に渡した `items` は、**さっきと同じ配列（同じ入れ物）**です。React は入れ物が同じかどうかを見て「前と一緒＝変化なし」と判断し、描き直しをサボりました。だから増えたのに見えないのです。
+
+`[...prev, text]` に戻せば、毎回**新しい入れ物**を渡すので、React は必ず描き直します。
+
+```tsx title="ArrayStateDemo.tsx（直す：新しい配列を作る）"
+function add(text: string) {
+  setItems((prev) => [...prev, text])
+}
+```
+
+<Callout type="warn">
+
+`push` は「何も起きない」タイプのバグなので、エラーが出ないぶん原因に気づきにくいのが厄介です。**「更新したのに画面が変わらない」ときは、まず配列やオブジェクトを直接書き換えていないかを疑う**——これが鉄則です。
+
+</Callout>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="items.push(text); setItems(items)"
+  good="setItems((prev) => [...prev, text])"
+  note="push は同じ配列を書き換えるだけ。React は変化に気づかず、画面が更新されない。"
+/>
+
+<Diff
+  bad="items.sort(); setItems(items)"
+  good="setItems((prev) => [...prev].sort())"
+  note="sort も元の配列を並び替えてしまう。まずコピーしてから並び替える。"
+/>
+
+## 書き方カタログ：配列の更新 {#catalog}
+
+配列の state は「新しい配列を作る」のが全パターン共通です。よく使う形をまとめます。
+
+```tsx
+// 末尾に追加
+setItems((prev) => [...prev, newItem])
+
+// 先頭に追加
+setItems((prev) => [newItem, ...prev])
+
+// 条件に合うものを削除（「残す方」を書く）
+setItems((prev) => prev.filter((item) => item.id !== targetId))
+
+// 特定の要素だけ書き換え
+setItems((prev) =>
+  prev.map((item) => (item.id === targetId ? { ...item, done: true } : item)),
+)
+```
+
+`push`・`splice`・`sort` のような「元を変える」メソッドは使いません。`[...]`・`filter`・`map` で新しい配列を作れば、React は必ず再描画します。
+
+## うちの標準 {#standard}
+
+<Std
+  decision="配列の state は、常に新しい配列を作って渡す（元を書き換えない）"
+  alt="大量データで実測して遅い場合だけ、immer などのライブラリで書き心地を変える選択肢があります。まずはスプレッドと filter で十分です。"
+>
+
+`push` `sort` `splice` のような「元を変える」メソッドは state には使いません。スプレッド `[...]`・`filter`・`map` で**新しい配列**を作れば、React は必ず再描画します。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **追加・削除しても画面が変わらない** … `push` や `splice` で元の配列を書き換えていないか確認します。`[...prev, x]` や `filter` で新しい配列を作ります。
+- **`key` の警告がコンソールに出る** … `map` の各要素に `key` を付けます。並び替えがあるので、できれば index ではなく安定した値を使います（詳しくはリストのパートで）。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="setItems((prev) => prev.map((v, i) => (i === target ? newValue : v))) と書きます。map で「その位置だけ差し替えた新しい配列」を作ります。">
+
+リストの `target` 番目だけを `newValue` に書き換えるには、どう書けばよいでしょう。（ヒント：`map`）
+
+</Exercise>
+
+<SummaryBox>
+
+- React は「配列が別物か」で再描画を判断するので、必ず新しい配列を作る
+- 追加は `[...prev, x]`、削除は `filter`、並び替えはコピーしてから
+- `push` は「エラーは出ないが画面が変わらない」バグ。更新して変わらなければ、まず直接書き換えを疑う
+
+</SummaryBox>

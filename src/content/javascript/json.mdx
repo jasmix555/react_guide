@@ -1,0 +1,123 @@
+---
+title: JSON
+minutes: 8
+slug: json
+section: javascript
+description: データを文字列でやり取りする JSON。stringify で文字列に、parse でオブジェクトに戻す。保存や通信で使う理由まで。
+level: beginner
+prerequisites: ['javascript/objects-arrays']
+---
+
+<LearnBox>
+
+- JSON は「オブジェクトや配列を文字列にしたもの」
+- `JSON.stringify` で文字列に、`JSON.parse` でオブジェクトに戻す
+- どこで使うか（保存 `localStorage`・通信 `fetch`）
+
+</LearnBox>
+
+## JSON は「データの文字列」 {#intro}
+
+プログラムの中のオブジェクトは、そのままでは**保存したり送ったりできません**。保存も通信も、扱えるのは基本「文字列」だからです。そこで、オブジェクトを**文字列の形に変換した表現**が JSON です。見た目は JavaScript のオブジェクトによく似ています。
+
+```json
+{ "name": "トート", "price": 3200, "inStock": true }
+```
+
+このサイトの `products.json` も、この JSON という形式です。
+
+## オブジェクト → 文字列：JSON.stringify {#stringify}
+
+保存や送信の前に、オブジェクトを文字列に変換します。
+
+```js
+const product = { name: 'トート', price: 3200 }
+
+const text = JSON.stringify(product)
+// '{"name":"トート","price":3200}'（ただの文字列）
+
+typeof text // 'string'
+```
+
+## 文字列 → オブジェクト：JSON.parse {#parse}
+
+受け取った JSON 文字列は、そのままでは `.name` などで読めません。`JSON.parse` で**オブジェクトに戻して**から使います。
+
+```js
+const text = '{"name":"トート","price":3200}'
+
+const product = JSON.parse(text)
+product.name // 'トート'（オブジェクトに戻ったので読める）
+```
+
+`stringify`（固める）と `parse`（ほどく）は、ちょうど逆の操作です。
+
+## どこで使うのか {#where}
+
+- **保存（`localStorage`）** … ブラウザに残せるのは文字列だけ。保存時に `stringify`、読み出し時に `parse` します。このサイトの「読んだ記録」も同じ仕組みです。
+- **通信（`fetch`）** … サーバーから届くデータは JSON 文字列です。受け取って `parse`（`fetch` では `.json()`）してから使います。詳しくは [Promise と async / await](/guide/javascript/promise-async-await) で扱います。
+
+```js
+// localStorage は文字列しか保存できない
+localStorage.setItem('cart', JSON.stringify(cart)) // 保存：固める
+const cart = JSON.parse(localStorage.getItem('cart')) // 読み出し：ほどく
+```
+
+<JsNote feature="JSON はキーもダブルクオート、関数は入らない">
+
+JSON は JavaScript のオブジェクトと似ていますが、ルールが厳しめです。**キーも文字列も必ずダブルクオート `"..."`**、末尾のカンマは禁止、関数や `undefined` は入れられません（数値・文字列・真偽値・`null`・配列・オブジェクトだけ）。
+
+</JsNote>
+
+## わざと壊す：壊れた JSON を parse する {#break-parse}
+
+`JSON.parse` は、形が正しくない文字列を渡すとエラーで止まります。コンソールで試してください。
+
+```js
+JSON.parse("{ name: 'トート' }")
+// Uncaught SyntaxError: ... （キーと文字列がダブルクオートでない）
+```
+
+正しくは `'{ "name": "トート" }'` です。JSON では**シングルクオートは使えず、キーにもダブルクオートが要る**ため、上の文字列は「壊れた JSON」と見なされます。
+
+## 書き方カタログ：JSON の往復 {#catalog}
+
+```js
+const obj = { name: 'トート', tags: ['布', '軽量'] }
+
+JSON.stringify(obj) // オブジェクト → 文字列（保存・送信の前）
+JSON.parse(text) // 文字列 → オブジェクト（受け取ったあと）
+
+// 保存と読み出しの定番
+localStorage.setItem('key', JSON.stringify(obj))
+const back = JSON.parse(localStorage.getItem('key'))
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="オブジェクトをそのまま localStorage に保存する"
+  good="JSON.stringify で文字列にしてから保存する"
+  note="localStorage は文字列しか保存できない。オブジェクトを直接入れると [object Object] になる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`Unexpected token ... in JSON`** … 文字列の形が JSON として不正です。ダブルクオートか、余分なカンマがないか確認します。
+- **保存したら `[object Object]` になった** … `stringify` せずに保存しています。保存前に `JSON.stringify` します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="JSON.stringify(user) で文字列にしてから保存します。localStorage は文字列しか扱えないので、オブジェクトはそのままでは正しく保存できません。">
+
+オブジェクト `user` を `localStorage` に保存するには、保存の前に何をする必要があるでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- JSON は「オブジェクト・配列を文字列にした形式」。保存や通信は文字列しか扱えない
+- `JSON.stringify`（固める）→ 保存・送信、`JSON.parse`（ほどく）→ 受け取ったあと
+- JSON はキーも文字列もダブルクオート必須。関数や `undefined` は入らない
+
+</SummaryBox>

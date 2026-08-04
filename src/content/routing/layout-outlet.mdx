@@ -1,0 +1,121 @@
+---
+title: 共通レイアウトと Outlet
+minutes: 9
+slug: layout-outlet
+section: routing
+description: 全ページ共通のナビを 1 か所に。ネストルートと Outlet で共通レイアウトの中に各ページを差し込む。index ルートまで。
+level: beginner
+prerequisites: ['routing/route-params']
+---
+
+<LearnBox>
+
+- 全ページ共通のナビ・枠を、1 か所にまとめる
+- ネストルートと `<Outlet>` で、共通レイアウトに各ページを差し込む
+- 親と同じ URL で出す `index` ルート
+
+</LearnBox>
+
+## 共通のナビを、毎ページ書きたくない {#why}
+
+一覧・詳細・お気に入り。どのページにも、上部の同じナビ（ロゴやリンク）を出したい。でも、全ページに同じヘッダーをコピペするのは大変で、直すときも全部直す羽目になります。
+
+react-router では、**共通の枠（レイアウト）を親ルートにし、各ページを子ルートにする**ことで、これを 1 か所にまとめられます。
+
+## ネストルート：親の中に子を入れる {#nested}
+
+ルート登録を「親 → 子」の入れ子にします。親の `element` が共通レイアウト、`children` が各ページです。
+
+```tsx
+createBrowserRouter([
+  {
+    path: '/',
+    element: <Layout />, // 共通の枠
+    children: [
+      { index: true, element: <ProductListPage /> }, // '/'（親と同じ URL）
+      { path: 'product/:id', element: <ProductDetailPage /> }, // '/product/:id'
+      { path: 'favorites', element: <FavoritesPage /> }, // '/favorites'
+    ],
+  },
+])
+```
+
+子の `path` は、親の `/` に続く部分だけを書きます（`product/:id` → 実際は `/product/:id`）。`index: true` は「**親と同じ URL（`/`）で出す子**」の意味です。
+
+## Outlet：ここに子が入る {#outlet}
+
+親の `Layout` は、共通のナビを描き、**「子ページがここに入る」場所**を `<Outlet>` で示します。
+
+```tsx title="src/components/Layout.tsx（全文）"
+import { NavLink, Outlet } from 'react-router-dom'
+
+export function Layout() {
+  return (
+    <div>
+      <header>
+        <NavLink to="/">一覧</NavLink>
+        <NavLink to="/favorites">お気に入り</NavLink>
+      </header>
+
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+```
+
+```tsx
+<Outlet />
+//   ↑
+//   └─ ここに、今の URL に対応する「子ルートの画面」が入る
+```
+
+`/` なら `<Outlet>` の位置に `<ProductListPage>`、`/favorites` なら `<FavoritesPage>` が入ります。ヘッダーは常に共通のまま、中身だけが差し替わります。
+
+## わざと壊す：Outlet を置き忘れる {#break}
+
+`Layout` から `<Outlet />` を消してみます。
+
+```tsx title="わざと壊す：Outlet を消す"
+export function Layout() {
+  return (
+    <div>
+      <header>{/* ナビ */}</header>
+      <main>{/* Outlet が無い */}</main>
+    </div>
+  )
+}
+```
+
+ナビは出るのに、**各ページの中身がどこにも表示されません**。エラーは出ませんが、真っ白な `<main>` になります。理由は、子ルートの画面を入れる場所（`<Outlet>`）が無いからです。`<Outlet />` を戻せば、中身が現れます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="全ページのコンポーネントに、同じ <header> を毎回書く"
+  good="親ルートを Layout にし、共通ナビ + <Outlet /> を 1 か所に"
+  note="共通の枠はネストルートの親に。各ページは children にして Outlet に差し込む。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **ナビは出るが中身が出ない** … 親の `element` に `<Outlet />` を置き忘れています。
+- **`/` で一覧が出ない** … 一覧の子ルートを `{ index: true, element: ... }` にしているか確認します。
+- **子の `path` が二重スラッシュ** … 子は親からの続きだけ（`product/:id`）。先頭に `/` は付けません。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="親ルートの element を <Layout /> にし、Layout の中に共通ナビと <Outlet /> を置きます。各ページは親の children に登録します。Outlet の場所に、今の URL に対応する子ページが入ります。">
+
+全ページ共通のヘッダーを 1 か所にまとめるには、ルート構成と `Layout` をどう作りますか。`<Outlet>` は何のために置きますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 共通の枠は「親ルート＝Layout」、各ページは「子ルート＝children」にする
+- `Layout` に共通ナビと `<Outlet />` を置く。`<Outlet>` の場所に子ページが入る
+- 親と同じ URL で出す子は `{ index: true }`
+
+</SummaryBox>

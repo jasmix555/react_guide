@@ -1,0 +1,223 @@
+---
+title: map / filter / find
+minutes: 10
+slug: array-methods
+section: javascript
+description: 配列を回す3つの道具。変換の map、絞り込みの filter、1件探す find。for ループはもう要らない。
+level: beginner
+prerequisites: ['javascript/arrow-functions']
+---
+
+<LearnBox>
+
+- `map`：各要素を変換して新しい配列を作る
+- `filter`：条件に合う要素だけ残す
+- `find`：条件に合う最初の 1 件を見つける
+- `map` のコールバックで `return` を忘れると何が起きるか
+
+</LearnBox>
+
+## for ループを卒業する {#why}
+
+「配列の中身を 1 つずつ処理する」のは、これまで `for` 文でやっていました。React では代わりに **`map` / `filter` / `find`** という 3 つの道具を使います。とくに `map` は、リストを画面に並べるときに必ず出てきます。ここで慣れておくと、後がとても楽になります。
+
+このページでは、こんな配列を例に使います。
+
+```js
+const products = [
+  { name: 'トマト', price: 320, inStock: true },
+  { name: 'たまご', price: 280, inStock: false },
+  { name: '牛乳', price: 200, inStock: true },
+]
+```
+
+<Callout type="analogy">
+
+jQuery の `$.each()` で要素を 1 つずつ処理していたのに近いです。違いは、`map` などは「**新しい配列を返す**」こと。元の配列は触らず、結果を受け取って使います。
+
+</Callout>
+
+## map：全部を変換する {#map}
+
+`map` は、配列の**各要素を変換して、同じ長さの新しい配列**を返します。「全部に同じ処理をかける」道具です。
+
+```js
+const names = products.map(p => p.name)
+
+console.log(names) // ['トマト', 'たまご', '牛乳']
+```
+
+この 1 行を、部品に分けて名前を付けます。
+
+```js
+   products.map(p => p.name)
+// ↑        ↑   ↑    ↑
+// │        │   │    └─ 返す値。これを集めて新しい配列になる
+// │        │   └─ コールバックの引数。要素 1 個ぶん
+// │        └─ map。各要素を変換する道具
+// └─ 元の配列
+```
+
+- **`products`** … 元の配列（`map` される側）
+- **`.map(...)`** … 各要素を順に変換して、**同じ長さの新しい配列**を返す
+- **`p`** … コールバックの引数。要素 1 個ぶんが順に入る（名前は自由）
+- **`p.name`** … 返す値。波かっこが無いので自動で返り、集めたものが結果の配列になる
+
+`products.map(p => p.name)` は「各要素 `p` について `p.name` を取り出し、それを並べた新しい配列を作る」という意味です。`p` は 1 件ずつの商品で、名前は自由に付けられます。価格を税込みに変換するなら、こうです。
+
+```js
+const withTax = products.map(p => p.price * 1.1)
+console.log(withTax) // [352.00000000000006, 308.00000000000006, 220.00000000000003]
+```
+
+<JsNote feature="map のコールバックは「1件ぶんの処理」">
+
+`map(p => …)` の `p => …` の部分を**コールバック**と呼びます。「1 件ぶんに対して何をするか」を書いた関数です。`map` はこれを、配列の要素の数だけ順番に呼び出し、返ってきた値を集めて新しい配列にします。
+
+</JsNote>
+
+## filter：条件で絞り込む {#filter}
+
+`filter` は、**条件に合う要素だけを残した**新しい配列を返します。コールバックが `true` を返した要素だけが残ります。
+
+```js
+const inStockOnly = products.filter(p => p.inStock)
+
+console.log(inStockOnly) // トマトと牛乳の2件（たまごは inStock: false なので除外）
+```
+
+`p => p.inStock` が `true` の要素だけ残るので、在庫のある商品だけが返ります。「300 円未満だけ」なら `p => p.price < 300` です。
+
+## find：最初の1件を見つける {#find}
+
+`find` は、条件に合う**最初の 1 件だけ**を返します（配列ではなく、その要素そのもの）。見つからなければ `undefined` を返します。
+
+```js
+const milk = products.find(p => p.name === '牛乳')
+
+console.log(milk) // { name: '牛乳', price: 200, inStock: true }
+```
+
+`filter` が「合うもの全部（配列）」、`find` が「最初の 1 件（要素そのもの）」です。ID から 1 件を探すときなどに使います。
+
+## わざと壊す：map で return を忘れる {#break-no-return}
+
+`map` で一番ハマるのが、コールバックに波かっこ `{}` を付けて **`return` を書き忘れる**ことです。アロー関数のページでやった落とし穴が、そのまま出ます。
+
+```js
+const names = products.map(p => {
+  p.name // return を書いていない
+})
+
+console.log(names) // [undefined, undefined, undefined]
+```
+
+`['トマト', ...]` を期待したのに、`undefined` が 3 つ並びました。エラーは出ません。原因は、波かっこ `{}` を付けたのに `return` が無いことです。`map` は「コールバックが返した値」を集めますが、何も返していないので `undefined` が集まりました。
+
+直し方は、波かっこを消して一行にするか、`return` を足すかです。
+
+```js
+const names = products.map(p => p.name) // 波かっこを消す（自動で返る）
+```
+
+<Callout type="warn">
+
+`map` の結果が `undefined` だらけになったら、**コールバックの波かっこの中で `return` を忘れていないか**を疑ってください。リストが真っ白になる React のバグの、かなりの割合がこれです。
+
+</Callout>
+
+<Together
+  task="上の products から、在庫がある商品の「名前」だけを並べた配列を作ってみてください。（ヒント：filter で絞ってから map で名前を取り出す、と2段階で考えます）"
+  hint="products.filter(...).map(...) のように、filter の結果にそのまま map をつなげられます。"
+>
+
+```js
+const inStockNames = products
+  .filter(p => p.inStock)
+  .map(p => p.name)
+
+console.log(inStockNames) // ['トマト', '牛乳']
+```
+
+まず `filter(p => p.inStock)` で在庫ありの 2 件に絞り、その結果に `.map(p => p.name)` をつなげて名前だけ取り出します。`filter` も `map` も新しい配列を返すので、こうしてつなげて書けます。
+
+</Together>
+
+## わざと壊す：配列じゃないものに map {#break-not-array}
+
+`map` は配列専用です。うっかり配列でないもの（`undefined` など）に使うと、はっきりエラーになります。
+
+```js
+const data = undefined
+data.map(p => p.name)
+// Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+```
+
+「`undefined` の `map` は読めない」というエラーです。React では「データがまだ届いていない（`undefined`）のに `map` しようとした」ときに、これがよく出ます。**この形のエラーが出たら、`map` する相手が本当に配列になっているか**を確認してください（対処は後のパートで詳しくやります）。
+
+## 書き方カタログ：map / filter / find のいろいろ {#catalog}
+
+「変換したい → `map`」「絞りたい → `filter`」「1 件見つけたい → `find`」。目的で道具を選びます。
+
+```js
+const products = [
+  { name: 'トマト', price: 320, inStock: true },
+  { name: 'たまご', price: 280, inStock: false },
+]
+
+products.map(p => p.name)                        // 変換：名前だけの配列
+products.map(p => p.price * 1.1)                 // 変換：税込み価格の配列
+products.filter(p => p.inStock)                  // 絞り込み：在庫ありだけ
+products.filter(p => p.price < 300)              // 絞り込み：300円未満だけ
+products.find(p => p.name === '牛乳')            // 1件：最初に合った要素
+products.filter(p => p.inStock).map(p => p.name) // つなげて使う（絞って→変換）
+```
+
+3 つとも元の配列を壊さず、結果を返します。`filter` も `map` も新しい配列を返すので、`.filter(...).map(...)` のようにつなげられます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="products.map(p => { p.name })"
+  good="products.map(p => p.name)"
+  note="波かっこを付けたら return が要る。返すだけなら波かっこごと消す。忘れると undefined の配列になる。"
+/>
+
+<Diff
+  bad="for ループで新しい配列に push していく"
+  good="map / filter で新しい配列を受け取る"
+  note="やりたいことが『変換』や『絞り込み』なら、専用の道具のほうが短く読みやすい。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="配列の処理は for ではなく map / filter / find を使う"
+  alt="複雑な集計（合計を出しながら条件分岐、など）は reduce や for-of のほうが読みやすいこともあります。まずは map / filter / find の3つで十分です。"
+>
+
+「変換したい → `map`」「絞りたい → `filter`」「1 件見つけたい → `find`」と、目的で道具を選びます。3 つとも元の配列を壊さず、新しい結果を返すのが共通点です。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`map` の結果が `undefined` だらけ** … コールバックの波かっこの中で `return` を忘れています。一行にするか `return` を足します。
+- **`Cannot read properties of undefined (reading 'map')`** … `map` する相手が配列になっていません。データが届いているかを確認します。
+- **`find` の結果が `undefined`** … 条件に合う要素が 1 つも無いか、条件（`===` の比較など）が間違っています。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="products.filter(p => p.price < 300) と書きます。filter は条件が true の要素だけを集めた新しい配列を返すので、300 円未満の商品だけが残ります。">
+
+上の `products` から、価格が 300 円未満の商品だけを取り出すには、どう書けばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- `map`＝各要素を変換して新しい配列、`filter`＝条件で絞った新しい配列、`find`＝最初の 1 件
+- 3 つとも元の配列を壊さず、結果を返す。`for` ループの代わりに使う
+- `map` のコールバックで波かっこを使うなら `return` が必要。忘れると `undefined` の配列になる
+
+</SummaryBox>

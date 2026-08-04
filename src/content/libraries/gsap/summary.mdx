@@ -1,0 +1,60 @@
+---
+title: まとめと練習
+minutes: 6
+slug: gsap-summary
+section: gsap
+description: "GSAP のまとめ。useGSAP・timeline・ScrollTrigger・matchMedia を振り返り、理解度チェックで自己確認する。次に読むライブラリへの案内も。"
+level: beginner
+prerequisites: ['libraries/gsap/goal']
+---
+
+<LearnBox>
+
+- GSAP で身についた「凝った動きを設計する」力の総復習
+- 理解度チェック（つまずきやすい所を自己確認）
+- 次に読むと良いライブラリへの案内
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+GSAP で、スクロール連動や順番のある演出を作れるようになりました。要点を並べます。
+
+- **useGSAP** … `useGSAP(() => { ... }, { scope })` の中に `gsap.to` / `from` / `fromTo` を書く。後片付けと StrictMode は自動、`scope` でセレクタを箱の中に限定。
+- **timeline** … `gsap.timeline()` に繋げて順番に再生。position パラメータ（`'-=0.2'` / `'+=0.1'`）で重なりと間を作る。`ref` に覚えれば `restart` などで操作できる。
+- **ScrollTrigger** … `registerPlugin` してから `scrollTrigger` を足す。`start` / `end` の読み方、`scrub`（同期）・`toggleActions`（見えたら再生）・`pin`（固定）・`markers`（デバッグ）。
+- **matchMedia** … `gsap.matchMedia()` で reduced-motion に配慮。動きだけ消し、情報は残す。
+
+## 理解度チェック {#quiz}
+
+<Exercise answer="useGSAP(() => { gsap.from('.item', { opacity: 0, y: 16, stagger: 0.1 }) }, { scope: container }) と書き、親に ref={container} を付けます。scope があるので .item はその箱の中だけが対象。後片付けと StrictMode は useGSAP が引き受けます。">
+
+一覧を「少しずつフワッと出す」GSAP のコードを、`useGSAP` と `scope` を使って書いてください。
+
+</Exercise>
+
+<Exercise answer="gsap.timeline() に .from()/.to() を繋げます。デフォルトは順番に再生。position パラメータ（例 '-=0.2'）を足すと、前の動きに重ねて始められます。バラバラの gsap.to だと全部同時に始まります。">
+
+複数の動きを「順番に、少し重ねて」再生するには、何を使い、重なりはどう作りますか。
+
+</Exercise>
+
+<Exercise answer="gsap.registerPlugin(ScrollTrigger) で登録してから、設定に scrollTrigger を足します。scrub: true で進み具合に同期、toggleActions: 'play none none reverse' で見えたら再生・戻ったら戻す。start/end で開始・終了位置を決めます。">
+
+スクロールに動きを連動させるには、まず何をして、`scrub` と `toggleActions` はどう使い分けますか。
+
+</Exercise>
+
+## 次に読むと良いもの {#next}
+
+これで **GSAP** は一通りです。`useGSAP` の基本から、タイムライン、ScrollTrigger まで、スクロール連動の演出を自分で組めるようになりました。
+
+同じ **ライブラリ編** には、**Swiper**（スライダー / カルーセル）、**Tailwind**（ユーティリティ CSS）、**React Icons**（アイコン）、**Lenis**（スムーススクロール、GSAP と相性◎）などを、順次追加していきます。作りたい UI が先にあるなら、**[レシピ](/recipes/modal)** からの逆引きも近道です。
+
+<SummaryBox>
+
+- `useGSAP` に書く／`timeline` で順番と重なり／`ScrollTrigger` でスクロール連動／`matchMedia` で配慮
+- 単純な動きは Framer Motion、スクロール連動や込み入った演出は GSAP
+- 次は Swiper・Tailwind など、必要なライブラリを引きながら
+
+</SummaryBox>

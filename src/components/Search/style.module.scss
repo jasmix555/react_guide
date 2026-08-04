@@ -1,0 +1,126 @@
+@use 'styles/mixins' as *;
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 34px;
+  padding: 0 var(--sp-2) 0 var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-sunk);
+  color: var(--c-muted);
+  font-size: var(--fs-small);
+
+  &:hover {
+    border-color: var(--c-muted);
+  }
+}
+
+.triggerIcon {
+  font-size: 14px;
+}
+
+.triggerText {
+  @include down($bp-sidebar) {
+    display: none;
+  }
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border: 1px solid var(--c-line);
+  border-radius: 5px;
+  padding: 1px 5px;
+  background: var(--c-surface);
+
+  @include down($bp-sidebar) {
+    display: none;
+  }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(9, 10, 15, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh var(--sp-4) var(--sp-4);
+}
+
+.modal {
+  width: min(600px, 100%);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+
+.input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--c-line);
+  background: transparent;
+  color: var(--c-text);
+  font: inherit;
+  font-size: 1.05rem;
+  padding: var(--sp-4);
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.results {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-2);
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.row {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--c-text);
+}
+
+.activeRow {
+  background: var(--c-accent-tint);
+}
+
+.crumb {
+  font-size: 11.5px;
+  color: var(--c-muted);
+}
+
+.rowTitle {
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+.empty {
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--c-muted);
+  font-size: var(--fs-small);
+}
+
+.hint {
+  border-top: 1px solid var(--c-line);
+  padding: var(--sp-2) var(--sp-4);
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--c-muted);
+}

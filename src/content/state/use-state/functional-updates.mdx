@@ -1,0 +1,190 @@
+---
+title: 前の値をもとに更新する
+minutes: 9
+slug: functional-updates
+section: state
+description: setCount(count + 1) を3回呼んでも1しか増えない理由（バッチ処理と古い値）。setCount(c => c + 1) の関数形を全文で書き、構文を分解し、書き方カタログで前の値からの更新を整理する。
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { TripleClickDemo } from '@/demos/TripleClick'
+
+<LearnBox>
+
+- `setCount(count + 1)` を 3 回呼んでも 1 しか増えない理由
+- 「前の値」をもとに更新する関数形 `setCount(c => c + 1)`
+- どんなときに関数形を使うか（書き方カタログ）
+
+</LearnBox>
+
+## ＋3 のつもりが＋1 になるコード {#problem}
+
+まず、不思議な現象を起こすコードを全文で見ます。`src/components/TripleClick/TripleClick.tsx` を新規作成してください。左のボタンは 1 回で `setStale(stale + 1)` を **3 回**呼んでいます。
+
+```tsx title="src/components/TripleClick/TripleClick.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+export function TripleClick() {
+  const [stale, setStale] = useState(0)
+  const [fresh, setFresh] = useState(0)
+
+  function addThreeStale() {
+    setStale(stale + 1) // ← 3 回呼ぶ
+    setStale(stale + 1)
+    setStale(stale + 1)
+  }
+
+  function addThreeFresh() {
+    setFresh((c) => c + 1) // ← 関数形で 3 回呼ぶ
+    setFresh((c) => c + 1)
+    setFresh((c) => c + 1)
+  }
+
+  return (
+    <div>
+      <p>stale：{stale}</p>
+      <button type="button" onClick={addThreeStale}>＋3 のつもり</button>
+
+      <p>fresh：{fresh}</p>
+      <button type="button" onClick={addThreeFresh}>＋3</button>
+    </div>
+  )
+}
+```
+
+## 保存すると何が起きるか {#result}
+
+左（`addThreeStale`）を 1 回押すと、3 回呼んだのに **1 しか増えません**。右（`addThreeFresh`）は同じく 3 回呼んで、ちゃんと **3 増えます**。違いは `setState` に渡すものだけです。
+
+## 実際の動き {#demo}
+
+上のコードがそのまま動いています。左右のボタンを 1 回ずつ押して、増え方を比べてください。
+
+<Demo title="＋3 のつもり vs 本当に＋3">
+  <TripleClickDemo />
+</Demo>
+
+## なぜ 1 しか増えないのか {#why}
+
+ポイントは 2 つです。1 つは、React が複数の `setState` を**まとめて処理する**（バッチ処理）こと。もう 1 つは、`addThreeStale` の中の `stale` が**すべて同じ古い値**だということです。
+
+今 `stale` が `0` なら、3 行は実際にはこう動きます。
+
+```tsx
+setStale(0 + 1) // 1
+setStale(0 + 1) // 1（stale はまだ 0 のまま）
+setStale(0 + 1) // 1（やっぱり 0 のまま）
+```
+
+`stale` は、この関数が動いている間ずっと `0`（再描画は関数が終わったあと）。だから 3 回とも「`0 + 1`」で、結果は `1` です。
+
+## 直し方：前の値を受け取る関数を渡す {#fix}
+
+`setState` には、値の代わりに**「前の値を受け取って新しい値を返す関数」**を渡せます。構文を分解します。
+
+```tsx
+setFresh((c) => c + 1)
+//        ↑     ↑
+//        │     └─ 新しい値（前の値 + 1）を返す
+//        └─ React が渡してくれる「今の最新の値」
+```
+
+`(c) => c + 1` の `c` には、React が**その時点の最新の値**を入れてくれます。1 回目で `0 → 1`、2 回目は最新の `1` を受け取って `1 → 2`、3 回目は `2 → 3`。だから、ちゃんと 3 増えます。**「新しい値が、前の値から決まる」ときは関数形を使う**——これが結論です。
+
+<Callout type="note">
+
+前のページで出た `setFavorite((prev) => !prev)` も、この関数形です。「前の値を反転する」＝新しい値が前の値から決まるので、関数形が安心なのでした。連続してすばやく切り替える場面でも取りこぼしません。
+
+</Callout>
+
+## 書き方カタログ：前の値からの更新 {#catalog}
+
+「前の値をもとに更新する」場面は、数値だけではありません。よく使う形をまとめます。
+
+```tsx
+// 数を増やす
+setCount((c) => c + 1)
+
+// 真偽を反転（トグル）
+setOpen((o) => !o)
+
+// 配列に足す（次のページ）
+setItems((prev) => [...prev, newItem])
+
+// オブジェクトの1か所を変える（次のページ）
+setForm((prev) => ({ ...prev, name: '新しい名前' }))
+```
+
+共通するのは「`(前の値) => 新しい値`」という形。配列やオブジェクトも同じ考え方で更新します（次のページ以降で実際に書きます）。
+
+<Together
+  task="1 回のクリックで 2 増やしたいのに、setCount(count + 1) を 2 回書いたら 1 しか増えませんでした。2 増えるように直してみてください。"
+  hint="値ではなく関数を渡します。setCount((c) => c + 1) を 2 回。"
+>
+
+```tsx
+function addTwo() {
+  setCount((c) => c + 1)
+  setCount((c) => c + 1)
+}
+```
+
+`setCount((c) => c + 1)` を 2 回にすれば、2 増えます。React が 1 回目の結果（最新値）を 2 回目の `c` に渡してくれるからです。`setCount(count + 1)` を 2 回だと、両方とも同じ古い `count` を見るので 1 しか増えません。
+
+</Together>
+
+## いつ関数形を使うか {#when}
+
+毎回この形にする必要はありません。目安はシンプルです。
+
+- **新しい値が「前の値」から決まる**（1 増やす、反転する、配列に足す）→ **関数形** `set(prev => ...)`
+- **前の値と関係なく、新しい値をそのまま入れる**（入力欄の値をそのまま入れる）→ そのまま `set(値)` でよい
+
+迷ったら関数形にしておくと安全です。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="setCount(count + 1) を続けて何度も呼ぶ（古い値のまま）"
+  good="setCount((c) => c + 1)"
+  note="同じ関数内で複数回更新するなら関数形。値渡しは古い count を見て取りこぼす。"
+/>
+
+<Diff
+  bad="setItems([...items, x]) を連続で呼ぶ"
+  good="setItems((prev) => [...prev, x])"
+  note="配列・オブジェクトも同じ。前の値から作るときは prev を受け取る。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="新しい値が前の値から決まるときは、必ず関数形 set(prev => ...) を使う"
+  alt="入力欄の値をそのまま入れるなど、前の値に一切依存しない更新は set(値) で十分です。前の値を足す・反転する・配列に加えるときだけ関数形を徹底します。"
+>
+
+「前の値 → 新しい値」の更新はすべて関数形。`setCount((c) => c + 1)`、`setItems((prev) => [...prev, x])`、`setOpen((o) => !o)`。この形にしておけば、バッチ処理や連続更新で値を取りこぼしません。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **複数回更新したのに 1 回分しか反映されない** … 値渡し（`set(count + 1)`）を続けて呼んでいます。関数形 `set(c => c + 1)` にします。
+- **すばやく連打すると数がずれる** … 同じく関数形にすると、最新の値をもとに更新されます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="3 つの setStale(stale + 1) がすべて同じ古い stale（例：0）を見ているためです。setStale((c) => c + 1) の関数形にすると、React が最新値を渡すので 3 増えます。">
+
+`setStale(stale + 1)` を 3 回呼んでも 1 しか増えないのはなぜでしょう。どう直せば 3 増えますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `set(値)` を同じ関数内で連続して呼ぶと、すべて同じ古い値を見て取りこぼす
+- 新しい値が前の値から決まるときは、関数形 `set(prev => ...)` を使う
+- 数値・真偽値・配列・オブジェクト、どれも「前の値 → 新しい値」は関数形で
+
+</SummaryBox>

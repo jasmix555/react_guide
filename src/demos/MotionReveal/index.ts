@@ -1,0 +1,1 @@
+export { MotionRevealDemo } from './MotionReveal'

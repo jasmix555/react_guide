@@ -1,0 +1,146 @@
+---
+title: 消す・入れ替える・上げる
+minutes: 7
+slug: managing-packages
+section: libraries
+description: 入れた後の管理。npm uninstall で消す、@バージョン指定で入れ替える、npm outdated / update で上げる。使っている部品を消すと何が起きるかも体験する。
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- 部品を消す（`npm uninstall`）
+- バージョンを指定して入れ替える（`@` 指定）
+- 古くなった部品を調べて上げる（`npm outdated` / `npm update`）
+
+</LearnBox>
+
+## 入れた後の面倒を見る {#why}
+
+部品は入れて終わりではありません。要らなくなったら消し、古くなったら上げ、バージョンを変えたくなったら入れ替える——この「後の管理」も、`npm` のコマンドで完結します。難しくはないので、ひととおり触っておきます。管理対象を増やしすぎないためにも、**要らないものを消せる**ことは大事です。
+
+## 消す：npm uninstall {#uninstall}
+
+要らなくなった部品は `npm uninstall` で消します。`package.json` の記録も、`node_modules` の本体も、両方きれいに消えます。
+
+```bash
+npm uninstall clsx
+```
+
+実行すると `package.json` の `dependencies` から `clsx` の行が消えます。「試しに入れたけど使わなかった」部品は、こまめに消しておくと台帳がすっきり保てます。
+
+## わざと壊す：使っている部品を消す {#break-used}
+
+消すときの注意点を体感します。**まだ `import` して使っている部品**を消すとどうなるか。前のページで `clsx` を使うコードを書いた状態で、`clsx` を消してみます。
+
+```bash
+npm uninstall clsx
+```
+
+その状態で `npm run dev`（またはビルド）すると、こう出ます。
+
+```
+Failed to resolve import "clsx" from "src/App.tsx".
+Does the file exist?
+```
+
+「`src/App.tsx` が読み込もうとしている `clsx` が見つからない」というエラーです。**本体を消したのに、コードはまだ呼んでいる**ので、当然たどれません。直し方は 2 つ——**使うなら入れ直す**（`npm install clsx`）、**使わないなら `import` とコードも消す**。消すときは「本当にどこからも使っていないか」を先に確かめる、と覚えておいてください。
+
+<Callout type="note">
+
+「どこで使っているか」は、エディタの検索（VS Code なら `Ctrl+Shift+F`）で部品名（`clsx` など）を全ファイル検索すると分かります。1 件も出てこなければ、安心して消せます。
+
+</Callout>
+
+## 入れ替える：@ でバージョンを指定 {#replace}
+
+「特定のバージョンにしたい」ときは、部品名のうしろに `@バージョン` を付けて入れ直します。
+
+```bash
+npm install clsx@2.0.0   # 2.0.0 を指定して入れる
+npm install clsx@latest  # 最新を入れる
+```
+
+`@latest` は「今の最新」を、`@2.0.0` のような数字は「その版ぴったり」を入れます。基本は `create vite` が付けた `^` 指定のままで困りませんが、「この版で不具合が出たので 1 つ戻したい」といったときに使います。
+
+## 上げる：npm outdated と npm update {#update}
+
+しばらく経つと、部品に新しい版が出ます。**何が古くなっているか**は `npm outdated` で一覧できます。
+
+```bash
+npm outdated
+```
+
+`Current`（今の版）・`Wanted`（`^` の範囲で上げられる版）・`Latest`（世に出ている最新）が並びます。`^` の範囲内で安全に上げるだけなら、`npm update` を使います。
+
+```bash
+npm update
+```
+
+<Callout type="warn">
+
+`Latest` がメジャー違い（例：今が `2.x` で最新が `3.0`）のときは、`npm update` では上がりません。メジャーを上げるには `npm install clsx@latest` のように明示します。ただし**メジャー更新は壊れる変更を含みうる**ので、1 つずつ・動作を確認しながら上げます。まとめて一気に上げないのが安全です。
+
+</Callout>
+
+<Together
+  task="試しに要らない部品を 1 つ入れて、また消す練習をしてみてください。例：npm install dayjs で入れて package.json を確認し、npm uninstall dayjs で消して、行が消えることを見ましょう。"
+  hint="install → package.json の dependencies に増える、uninstall → 消える、を目で確認します。"
+>
+
+```bash
+npm install dayjs     # dependencies に "dayjs": "^..." が増える
+npm uninstall dayjs   # その行が消える
+```
+
+`npm install` で `package.json` に行が増え、`npm uninstall` で消える——この対応を目で見ておくと、台帳（`package.json`）と実際のコマンドが結びつきます。`dayjs` はどこからも `import` していないので、消してもエラーは出ません。「使っていない部品はこう消す」の練習です。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="import して使っている部品を uninstall する"
+  good="消す前に、その部品を全ファイル検索して使用箇所が無いか確かめる"
+  note="使用中に消すと Failed to resolve import で落ちる。使うなら入れ直す、使わないなら import も消す。"
+/>
+
+<Diff
+  bad="npm update で全部を一気にメジャー更新しようとする"
+  good="メジャー更新は npm install ○○@latest で 1 つずつ、動作確認しながら"
+  note="npm update は ^ の範囲内だけ。メジャー更新は壊れる変更を含みうるので慎重に。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="使わない部品はこまめに uninstall する。更新は npm outdated で確認し、範囲内は npm update、メジャー更新は 1 つずつ動作確認しながら上げる"
+  alt="更新を急ぐ必要はありません。動いているなら無理に最新へ追う必要はなく、不具合修正やセキュリティ更新があるときに上げれば十分です。"
+>
+
+台帳を小さく保つため、要らない部品は消します。更新は `npm outdated` で状況を見てから。安全な範囲は `npm update`、メジャーは明示して 1 つずつ。「動いているものを、理由なく一気に上げない」のが安全策です。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Failed to resolve import "○○"`** … 使っている部品を消しました。入れ直すか、`import` とコードを消します。
+- **`npm update` しても最新にならない** … `^` の範囲外（メジャー違い）です。`npm install ○○@latest` で明示します。
+- **更新したら動かなくなった** … メジャー更新で壊れる変更が入った可能性があります。`npm install ○○@前の版` で戻し、変更点を確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="消す前に、その部品名を全ファイル検索して import が残っていないか確かめます。残っていれば、使い続けるなら消さない、やめるなら import とコードも一緒に消します。">
+
+ある部品を `npm uninstall` する前に、確認しておくべきことは何でしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- 要らない部品は `npm uninstall` で消す（台帳と本体の両方が消える）
+- バージョン指定は `○○@2.0.0` や `○○@latest`。使用中の部品を消すと `Failed to resolve import` で落ちる
+- `npm outdated` で古い部品を確認し、範囲内は `npm update`、メジャー更新は 1 つずつ慎重に
+
+</SummaryBox>

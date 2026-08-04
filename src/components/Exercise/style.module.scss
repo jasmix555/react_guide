@@ -1,0 +1,105 @@
+.exercise {
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-6);
+  border-left: 3px solid var(--c-warn);
+  margin-top: var(--sp-6);
+}
+
+.head {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  color: var(--c-warn);
+  margin: 0 0 var(--sp-2);
+}
+
+.task > * + * {
+  margin-top: var(--sp-2);
+}
+
+.answer {
+  margin-top: var(--sp-3);
+  border-top: 1px dashed var(--c-line);
+  padding-top: var(--sp-2);
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: var(--c-accent);
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::before {
+      content: '▸ ';
+    }
+  }
+
+  &[open] summary::before {
+    content: '▾ ';
+  }
+}
+
+.answerBody {
+  margin-top: var(--sp-2);
+
+  > * + * {
+    margin-top: var(--sp-2);
+  }
+}
+
+// ── 一緒にやってみよう (inline, mid-page) ──
+.together {
+  border: 1px solid var(--c-line);
+  border-left: 3px solid var(--c-accent);
+  border-radius: var(--radius);
+  background: var(--c-accent-tint);
+  padding: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+
+.togetherHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  color: var(--c-accent);
+  margin: 0 0 var(--sp-2);
+}
+
+.fold {
+  margin-top: var(--sp-2);
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: var(--c-accent);
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::before {
+      content: '▸ ';
+    }
+  }
+
+  &[open] summary::before {
+    content: '▾ ';
+  }
+}
+
+.foldBody {
+  margin-top: var(--sp-2);
+
+  > * + * {
+    margin-top: var(--sp-2);
+  }
+}

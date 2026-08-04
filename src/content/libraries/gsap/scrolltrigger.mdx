@@ -1,0 +1,176 @@
+---
+title: ScrollTrigger でスクロールに連動させる
+minutes: 12
+slug: gsap-scrolltrigger
+section: gsap
+description: "ScrollTrigger で、スクロール位置に動きを連動させる。見えたら出す・scrub で進み具合に合わせる・pin で固定。start/end の読み方と markers デバッグも。"
+level: intermediate
+prerequisites: ['libraries/gsap/usegsap']
+---
+
+import { GsapScroll } from '@/demos/GsapScroll'
+
+<LearnBox>
+
+- `ScrollTrigger` で、スクロールに動きを連動させる
+- `start` / `end` の読み方と、`scrub`（進み具合に合わせる）
+- `toggleActions`（見えたら出す）・`pin`（固定）・`markers`（デバッグ）
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+下のバーと四角は、**この箱が画面を通り過ぎる進み具合**に連動します。スクロールを進めるとバーが伸びて四角が回り、**戻すと戻ります**（`scrub`）。スクロールを止めれば、動きも止まります。
+
+<Demo title="ScrollTrigger（scrub でスクロールに連動）">
+  <GsapScroll />
+</Demo>
+
+LP でよく見る「スクロールで出てくる」「スクロール量に合わせて動く」は、これで作ります。素の JavaScript なら `scroll` イベントや `IntersectionObserver` を書くところを、ScrollTrigger が引き受けます（[レシピのスクロールで出現](/recipes/scroll-reveal)は素の実装、こちらは GSAP 版）。
+
+## まず登録する {#register}
+
+ScrollTrigger は**別プラグイン**なので、[install のページ](/libraries/gsap/install)で見たとおり、使う前に 1 度登録します。
+
+```tsx
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
+```
+
+## scrollTrigger を付ける {#attach}
+
+アニメーションの設定に **`scrollTrigger`** を足すだけです。「どの要素が」「どこに来たら」始まり・終わるかを書きます。
+
+```tsx
+gsap.to('.box', {
+  x: 300,
+  ease: 'none',
+  scrollTrigger: {
+    trigger: '.box', // これが基準の要素
+    start: 'top 85%', // 要素の上端が、画面の 85% の位置に来たら開始
+    end: 'bottom 45%', // 要素の下端が、画面の 45% の位置に来たら終了
+    scrub: true, // スクロールの進み具合に動きを同期
+  },
+})
+```
+
+**`start` / `end` の読み方**が肝です。`'top 85%'` は「**要素の top** が、**ビューポートの上から 85%** の位置に来たとき」。数字を小さくすると早く、大きくすると遅く始まります。
+
+## scrub と toggleActions {#scrub}
+
+スクロール連動には、大きく 2 通りあります。
+
+```tsx
+// ① scrub：スクロールの進み具合に動きを「同期」（戻すと戻る）
+scrollTrigger: { trigger: '.box', start: 'top 80%', end: 'bottom 40%', scrub: true }
+
+// ② toggleActions：見えたら「1 回再生」する（戻しても戻さない）
+scrollTrigger: { trigger: '.box', start: 'top 80%', toggleActions: 'play none none reverse' }
+```
+
+- **`scrub: true`** … スクロール量にぴったり同期。プログレスバーや、スクロールで進む演出に。
+- **`toggleActions`** … `'onEnter onLeave onEnterBack onLeaveBack'` の 4 つを指定。`'play none none reverse'` は「入ったら再生・戻ったら逆再生」で、いわゆる**スクロールで出現**です。
+
+## 完成コード {#full}
+
+デモは `scrub` で、バーの幅と四角の回転をスクロールに同期しています。トリガーは箱自身（`container.current`）です。
+
+```tsx title="src/demos/GsapScroll/GsapScroll.tsx（全文）"
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useRef } from 'react'
+
+import styles from './GsapScroll.module.scss'
+
+// ScrollTrigger は別プラグイン。使う前に 1 度だけ登録する。
+gsap.registerPlugin(ScrollTrigger)
+
+export function GsapScroll() {
+  const container = useRef<HTMLDivElement>(null)
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia()
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        const scrollTrigger = {
+          trigger: container.current,
+          start: 'top 85%',
+          end: 'bottom 45%',
+          scrub: true,
+        }
+        gsap.to(`.${styles.fill}`, { width: '100%', ease: 'none', scrollTrigger })
+        gsap.to(`.${styles.square}`, { rotate: 360, ease: 'none', scrollTrigger })
+      })
+    },
+    { scope: container },
+  )
+
+  return (
+    <div className={styles.wrap} ref={container}>
+      <p className={styles.hint}>↓ ページをスクロールすると、進み具合に合わせて動きます</p>
+      <div className={styles.track}>
+        <div className={styles.fill} />
+      </div>
+      <div className={styles.squareRow}>
+        <div className={styles.square} />
+      </div>
+    </div>
+  )
+}
+```
+
+同じ `scrollTrigger` 設定を 2 つの `gsap.to` で使い回して、バーと四角を**同じスクロール範囲**に連動させています。`ease: 'none'`（等速）は scrub と相性が良い指定です。
+
+## pin：スクロール中に固定する {#pin}
+
+もう 1 つ LP でよく使うのが **`pin`** です。ある区間だけ要素を**画面に固定**して、その間に中身を動かします（横スクロール風の演出など）。
+
+```tsx
+scrollTrigger: {
+  trigger: '.section',
+  start: 'top top',
+  end: '+=1000', // 1000px 分スクロールする間ずっと固定
+  pin: true,
+}
+```
+
+まずは `scrub` と `toggleActions` を押さえ、`pin` は「固定したい区間が出てきたら使う」でよいです。
+
+## デバッグは markers {#markers}
+
+「いつ始まるか分からない」ときは、**`markers: true`** を足します。start / end の位置が画面に線で表示されるので、数字を合わせやすくなります。**確認できたら消します**（本番に残さない）。
+
+```tsx
+scrollTrigger: { trigger: '.box', start: 'top 85%', markers: true }
+```
+
+<Callout type="note" title="配慮も忘れずに">
+
+ScrollTrigger も動きです。デモのように **`gsap.matchMedia()`** で `(prefers-reduced-motion: no-preference)` のときだけ登録し、[動きを減らす設定](/libraries/framer-motion/reduced-motion)の人には効かせないようにします。
+
+</Callout>
+
+## うまくいかないとき {#trouble}
+
+- **動かない／警告が出る** … `gsap.registerPlugin(ScrollTrigger)` を書いたか確認します。
+- **始まるタイミングが変** … `markers: true` で start / end の線を見ながら、`'top 85%'` の数字を調整します。
+- **レイアウトが後から変わってズレる** … 画像やフォントの読み込みで高さが変わると位置がずれます。`ScrollTrigger.refresh()` で測り直せます（多くは自動）。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="アニメーションの設定に scrollTrigger を足し、scrub: true を付けます。例：gsap.to('.bar', { width: '100%', ease: 'none', scrollTrigger: { trigger: '.bar', start: 'top 80%', end: 'bottom 40%', scrub: true } })。scrub がスクロールの進み具合に動きを同期させます。事前に registerPlugin(ScrollTrigger) が必要です。">
+
+「スクロールの進み具合に合わせてバーを伸ばす」には、設定に何を足し、どのオプションを付けますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `gsap.registerPlugin(ScrollTrigger)` してから、設定に `scrollTrigger` を足す
+- `start` / `end` は「要素のどこが・画面のどこに来たら」。`scrub` は進み具合に同期、`toggleActions` は見えたら再生
+- `pin` で固定、`markers: true` でデバッグ。reduced-motion は `matchMedia` で配慮
+
+</SummaryBox>

@@ -1,0 +1,62 @@
+---
+title: まとめと練習
+minutes: 6
+slug: framer-motion-summary
+section: framer-motion
+description: Framer Motion のまとめ。motion の基本・ホバー・reduced-motion・stagger・AnimatePresence を振り返り、理解度チェックで自己確認する。
+level: beginner
+prerequisites: ['libraries/framer-motion/goal']
+---
+
+<LearnBox>
+
+- Framer Motion で身についた「動きを付ける」力の総復習
+- 理解度チェック（つまずきやすい所を自己確認）
+- 次に読むと良いライブラリへの案内
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+一覧に「気持ちよさ」を足しました。要点を並べます。
+
+- **motion の基本** … `<motion.div>` に `initial`（最初）→ `animate`（目指す状態）→ `transition`（動き方）。UI は `spring` が自然。
+- **ホバー・タップ** … `whileHover` / `whileTap` で操作に反応。控えめ（数%）に。
+- **reduced-motion** … `useReducedMotion` で配慮。**動きだけ消し、情報は残す**。
+- **スクロール・stagger** … `whileInView`（見えたら・`once`）、`staggerChildren` ＋ `variants`（少しずつ）。
+- **出入り** … `AnimatePresence` ＋ `exit` ＋ 固有の `key`。消えるときも滑らかに。
+
+そして全体を貫く原則は 1 つ、**「動きには理由を持たせる」**。注目・状態変化・操作への反応。なんとなくで動かさない、が完成度の分かれ目です。
+
+## 理解度チェック {#quiz}
+
+<Exercise answer="initial（最初の状態）→ animate（目指す状態）へ、transition の決め方で動きます。例：initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} で「下から透明→不透明」。transition は spring だと自然です。">
+
+`<motion.div>` で「マウント時にフワッと出す」には、どの props をどう使いますか。
+
+</Exercise>
+
+<Exercise answer="useReducedMotion が true のとき、initial を false（最初から表示）にして動きを消します。opacity: 0 のままにすると中身ごと見えなくなるので、動きだけ消して情報は残すのが原則です。">
+
+「動きを減らす」設定の人に配慮するには何を使い、何に気をつけますか。
+
+</Exercise>
+
+<Exercise answer="消える要素を <AnimatePresence> で囲み、各要素に exit と固有の key（item.id）を付けます。AnimatePresence が exit のアニメが終わるまで DOM に残すので、消える動きが見えます。key に index は使いません。">
+
+リストの削除で「スッと閉じてから消える」を作るには、何が必要ですか。
+
+</Exercise>
+
+## 次に読むと良いもの {#next}
+
+これで **Framer Motion** は一通りです。`initial`→`animate` の基本から、ホバー・reduced-motion・stagger・出入りまで、「気持ちよく動く」UI を自分で付けられるようになりました。
+
+この先は、同じ **ライブラリ編** の他のパートへ。**GSAP**（タイムラインやスクロール連動の凝った演出）、**Swiper**（スライダー / カルーセル）などを、順次このタブに追加していきます。作りたい UI が先にあるなら、**[レシピ](/recipes/modal)** から逆引きするのも近道です。
+
+<SummaryBox>
+
+- `initial` → `animate` → `transition` が基本。ホバーは `whileHover`/`whileTap`
+- reduced-motion は必須配慮（動きだけ消す）。stagger は `variants`、出入りは `AnimatePresence`
+- 動きには理由を。次は GSAP・Swiper など、必要なライブラリを引きながら
+</SummaryBox>

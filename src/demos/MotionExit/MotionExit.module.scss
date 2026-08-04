@@ -1,0 +1,44 @@
+.wrap {
+  width: 100%;
+}
+
+.add {
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden; // height アニメ中にはみ出さないように
+  padding: var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+
+  & + & {
+    margin-top: var(--sp-2);
+  }
+}
+
+.del {
+  border: none;
+  background: transparent;
+  color: var(--c-danger);
+  font: inherit;
+  cursor: pointer;
+}

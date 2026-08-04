@@ -1,0 +1,123 @@
+---
+title: 値と型
+minutes: 8
+slug: values-and-types
+section: javascript
+description: 文字列・数値・真偽値・null・undefined という値の種類を知る。typeof で型を調べ、文字列と数値を混ぜたときの落とし穴も見る。
+level: beginner
+prerequisites: ['javascript/const-let']
+---
+
+<LearnBox>
+
+- JavaScript の主な値の種類（型）— 文字列・数値・真偽値・`null`・`undefined`
+- `typeof` で「これは何型か」を調べる
+- 文字列と数値を混ぜると起きること（型を意識する理由）
+
+</LearnBox>
+
+## 値には「種類（型）」がある {#types}
+
+`const price = 100` の `100`、`const name = '佐藤'` の `'佐藤'`。どちらも「値」ですが、**種類が違います**。この種類を **型（かた／type）** と呼びます。型を意識できると、「なぜか計算がおかしい」の多くを自分で説明できるようになります。
+
+まず、よく使う 5 つを 1 つずつ見ます。
+
+```js
+const name = '佐藤' // 文字列（string）：クオートで囲む
+const price = 100 // 数値（number）：クオートで囲まない
+const inStock = true // 真偽値（boolean）：true か false
+const memo = null // null：意図的に「空」だと示す値
+let notSet // undefined：まだ何も入っていない
+```
+
+- **文字列（string）** … 文字の並び。`'...'` か `"..."` で囲みます。
+- **数値（number）** … 数。整数も小数も同じ number 型です（`100` も `9.5` も number）。
+- **真偽値（boolean）** … `true` か `false` の 2 つだけ。条件に使います。
+- **`null`** … 「ここは空です」と**自分で入れた**空の値。
+- **`undefined`** … まだ何も入れていない状態。JavaScript が勝手に入れます。
+
+## typeof で型を調べる {#typeof}
+
+「この値は何型？」は、`typeof` で調べられます。結果は**文字列**で返ってきます。コンソールで試してください。
+
+```js
+typeof '佐藤' // 'string'
+typeof 100 // 'number'
+typeof true // 'boolean'
+typeof undefined // 'undefined'
+```
+
+```js
+typeof price
+//  ↑      ↑
+//  │      └─ 調べたい値（や変数）
+//  └─ 「これは何型？」を文字列で返す演算子
+```
+
+## null と undefined の違い {#null-undefined}
+
+どちらも「空っぽ」を表しますが、**由来が違います**。
+
+- **`undefined`** … まだ入れていない。変数を作っただけ、渡し忘れた引数、などで自然に生まれます。
+- **`null`** … 「空です」と**あなたが意図して**入れた値。「あえて無し」を表したいときに使います。
+
+<JsNote feature="typeof null は 'object' になる（有名な罠）">
+
+`typeof null` を調べると、なぜか `'object'` と出ます。これは JavaScript の古くからのバグで、直すと既存のコードが壊れるため残されています。**「null かどうか」は `typeof` ではなく `value === null` で判定する**、と覚えておけば大丈夫です。
+
+</JsNote>
+
+## わざと確かめる：文字列 + 数値 {#break-coerce}
+
+型を意識する理由を、コンソールで体感します。次を打ってみてください。
+
+```js
+'5' + 3 // '53'（文字列の連結になる）
+'5' * 2 // 10（こちらは数値として計算される）
+```
+
+`'5'` は文字列、`3` は数値です。`+` は「文字列があれば連結」なので `'53'` になります。一方 `*` は数値の計算しかないので、`'5'` を数値に直して `10` になります。**同じ見た目の 5 でも、型が違えば結果が変わる**——これが型を意識する理由です。`<input>` の値が常に文字列で来る（[レンジスライダー](/recipes/range-slider)）のも、同じ話です。
+
+## 書き方カタログ：型ごとのリテラル {#catalog}
+
+「そのまま書いた値」をリテラルと言います。型ごとの書き方を並べます。
+
+```js
+const s = 'テキスト' // string（'...' か "..."）
+const n = 100 // number（整数）
+const f = 9.5 // number（小数も同じ number）
+const b = false // boolean（true / false）
+const empty = null // null（意図的な空）
+let later // undefined（まだ入れていない）
+const arr = [1, 2, 3] // 配列（次のページで詳しく）
+const obj = { name: '佐藤' } // オブジェクト（次のページで詳しく）
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="数量を '3' のように文字列で持ち、そのまま足し算する"
+  good="数量は 3 のように数値で持つ。文字列で来たら Number(...) で直す"
+  note="文字列のまま + すると連結（'3' + '1' → '31'）。計算する値は number にする。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **足し算したのに数字がつながる** … どちらかが文字列です。`typeof` で確かめ、`Number(...)` で数値に直します。
+- **`undefined` と出る** … 値を入れる前に使っているか、渡し忘れです。使う前に代入されているか確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="typeof は文字列を返すので、typeof age は 'number'（文字列の number）になります。値そのものの 20 ではありません。">
+
+`const age = 20` のとき、`typeof age` の結果は何になるでしょう。値と型のどちらが返るか、考えてみてください。
+
+</Exercise>
+
+<SummaryBox>
+
+- 主な型は 文字列 / 数値 / 真偽値 / `null` / `undefined`。整数も小数も同じ number
+- 型は `typeof` で調べられる（ただし `typeof null` は `'object'`。null 判定は `=== null`）
+- 文字列と数値を混ぜると結果が変わる。計算する値は number で持つ
+
+</SummaryBox>

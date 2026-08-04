@@ -1,0 +1,204 @@
+---
+title: スプレッドと rest
+minutes: 9
+slug: spread-rest
+section: javascript
+description: ... の2つの顔。配列やオブジェクトを広げるスプレッドと、残りをまとめる rest。上書きの順番に注意。
+level: beginner
+prerequisites: ['javascript/destructuring']
+---
+
+<LearnBox>
+
+- `...` で配列・オブジェクトを「広げる」スプレッド
+- 残りをまとめて受け取る rest
+- オブジェクトを広げるときの「上書きの順番」
+
+</LearnBox>
+
+## ... には 2 つの顔がある {#why}
+
+React のコードでは `...`（ドット 3 つ）を毎日見ます。これは 1 つの記号なのに、使う場所で意味が 2 つに分かれます。
+
+- **スプレッド**：配列やオブジェクトを「**中身に広げる**」（開く側）
+- **rest**：余った要素を「**1 つにまとめる**」（受ける側）
+
+見た目は同じ `...` ですが、「広げる」のか「まとめる」のかで役割が反対です。順に見ます。
+
+## スプレッド①：配列を広げる {#spread-array}
+
+配列の前に `...` を付けると、その中身がその場に**バラバラに展開**されます。「元の配列を壊さずに、新しい配列を作る」ときの基本形です。
+
+```js
+const base = ['トマト', 'たまご']
+const added = [...base, '牛乳']
+
+console.log(added) // ['トマト', 'たまご', '牛乳']
+console.log(base) // ['トマト', 'たまご']  ← 元はそのまま
+```
+
+`[...base, '牛乳']` は「`base` の中身を全部広げて、その後ろに `'牛乳'` を足した**新しい配列**」です。`base` 自体は触っていません。React で配列の state を更新するとき、この形が主役になります（後のパートで効いてきます）。
+
+この `...` を、配列とオブジェクトそれぞれで部品に分けて名前を付けます。
+
+```js
+   [...base, '牛乳']
+// ↑        ↑
+// │        └─ 後ろに足したい要素（新しい配列に入る）
+// └─ ... で base の中身を「全部この場に広げる」
+```
+
+```js
+   { ...product, price: 80 }
+//   ↑           ↑
+//   │           └─ 上書き（差し替え）。... の「後ろ」に書くと勝つ
+//   └─ ... で product の中身を全部広げる
+```
+
+- **`...`（スプレッド）** … 配列やオブジェクトの中身を、その場に**全部広げる**
+- **`[...base, x]`** … `base` を広げた後ろに `x` を足した**新しい配列**
+- **`{ ...obj, key: v }`** … `obj` を広げて `key` だけ差し替えた**新しいオブジェクト**
+- 差し替えは必ず `...` の**後ろ**に書く（後に書いた方が勝つ）
+
+<JsNote feature="[...base] は中身を広げてから新しい配列に入れる">
+
+`[...base]` は「`base` の中身をここに全部広げる」という意味です。外側の `[]` が新しい配列で、その中に元の中身がコピーされて並びます。だから元の配列とは別物になります。
+
+</JsNote>
+
+## スプレッド②：オブジェクトを広げる {#spread-object}
+
+オブジェクトでも同じことができます。`{...obj}` で中身を広げ、一部だけ差し替えた新しいオブジェクトを作れます。
+
+```js
+const product = { name: 'トマト', price: 100, inStock: true }
+const cheaper = { ...product, price: 80 }
+
+console.log(cheaper) // { name: 'トマト', price: 100 だったものが price: 80 }
+console.log(product) // 元はそのまま
+```
+
+`{ ...product, price: 80 }` は「`product` の中身を全部広げて、そのうえで `price` だけ `80` に上書きした新しいオブジェクト」です。`name` と `inStock` は元のまま引き継がれます。
+
+## わざと壊す：上書きの順番を逆にする {#break-override-order}
+
+オブジェクトのスプレッドで一番ハマるのが、**書く順番**です。`...product` と差し替えたい値の順番を逆にすると、差し替えが効きません。
+
+```js
+const product = { name: 'トマト', price: 100 }
+
+// 逆にしてみる
+const result = { price: 80, ...product }
+
+console.log(result) // { price: 100, name: 'トマト' }  ← 80 が消えた
+```
+
+`price: 80` を先に書いても、後から `...product` が広がって `price: 100` で**上書きしてしまい**ました。エラーは出ませんが、狙いと違う結果になります。
+
+ルールは「**後に書いたものが勝つ**」です。差し替えたい値は、必ず `...product` の**後ろ**に書きます。
+
+```js
+const result = { ...product, price: 80 } // これで price は 80 になる
+```
+
+<Callout type="warn">
+
+「スプレッドで一部だけ変えたはずが、変わっていない」ときは、**`...` と差し替えの順番が逆**になっていないかを疑ってください。後に書いた方が勝ちます。
+
+</Callout>
+
+## rest：残りをまとめて受け取る {#rest}
+
+同じ `...` を、値を**受け取る側**に書くと、逆の働きになります。余った要素を 1 つにまとめます。分割代入と組み合わせると便利です。
+
+```js
+const product = { name: 'トマト', price: 100, category: 'kitchen' }
+
+const { name, ...others } = product
+
+console.log(name) // 'トマト'
+console.log(others) // { price: 100, category: 'kitchen' }
+```
+
+`name` だけ取り出し、**残り全部**を `others` にまとめました。これが rest です。「コンポーネントを作る」パートで、`onClick` などの残りの属性をまとめて渡すときに多用します。
+
+<Together
+  task="商品オブジェクト product（name / price / inStock を持つ）から、inStock だけ false に差し替えた新しいオブジェクト soldOut を、スプレッドで作ってみてください。元の product は変えないこと。"
+  hint="{ ...product, inStock: false } の形。差し替えは ...product の後ろに書きます。"
+>
+
+```js
+const product = { name: 'トマト', price: 100, inStock: true }
+const soldOut = { ...product, inStock: false }
+
+console.log(soldOut) // { name: 'トマト', price: 100, inStock: false }
+console.log(product) // { ... inStock: true }  ← 元はそのまま
+```
+
+`...product` を先に広げ、その後ろで `inStock: false` を上書きしています。順番が逆だと `...product` に負けて `true` に戻ってしまうので注意です。
+
+</Together>
+
+## 書き方カタログ：広げる・まとめるのいろいろ {#catalog}
+
+`...` は「広げる（スプレッド）」と「まとめる（rest）」の両方に使えます。よく使う形を並べます。
+
+```js
+const arr = ['a', 'b']
+const obj = { name: 'トマト', price: 100 }
+
+const added = [...arr, 'c']            // 末尾に足す
+const prepended = ['z', ...arr]        // 先頭に足す
+const joined = [...arr, ...['c', 'd']] // 2 つの配列をつなぐ
+const cheaper = { ...obj, price: 80 }  // 一部を上書き
+const withTag = { ...obj, tag: 'sale' } // キーを足す
+const { name, ...others } = obj        // rest：残りをまとめて受け取る
+```
+
+上の 5 つは「広げる（スプレッド）」、最後の 1 つだけが「まとめる（rest）」です。同じ `...` でも、書く場所で役割が反対になります。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="{ price: 80, ...product }"
+  good="{ ...product, price: 80 }"
+  note="差し替えたい値は ...product の後ろ。後に書いた方が勝つ。"
+/>
+
+<Diff
+  bad="base.push('牛乳'); 使う"
+  good="const next = [...base, '牛乳']"
+  note="push は元の配列を書き換える。スプレッドは元を壊さず新しい配列を作る。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="配列・オブジェクトは「元を書き換えず、スプレッドで新しく作る」を基本にする"
+  alt="巨大なデータのコピーが実測で重いと分かった場合だけ、別の手を検討します。まずはスプレッドで十分です。"
+>
+
+React は「別物になったか」で画面を更新します。`push` や直接の書き換えではなく、`[...]` や `{...}` で**新しい入れ物**を作ると、更新が正しく伝わります。差し替えは必ず `...` の後ろ、と覚えておきます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **スプレッドで差し替えたのに変わらない** … `...` と差し替えの順番が逆です。差し替えは後ろに書きます。
+- **`...` を付けたら `Unexpected token`** … オブジェクトを広げるなら `{}` の中、配列なら `[]` の中で使います。外で単独では使えません。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="const next = [...items, newItem] と書きます。元の items を広げ、後ろに newItem を足した新しい配列を作ります。items 自体は変わりません。">
+
+配列 `items` の末尾に `newItem` を足した新しい配列 `next` を、元の `items` を壊さずに作るには、どう書けばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- スプレッド `...` は配列・オブジェクトを「広げて」新しい入れ物を作る（元は壊さない）
+- オブジェクトの上書きは「後に書いた方が勝つ」。差し替えは `...` の後ろに書く
+- 受け取る側に書く `...` は rest。残りを 1 つにまとめる
+
+</SummaryBox>

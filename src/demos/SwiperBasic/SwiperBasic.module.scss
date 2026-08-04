@@ -1,0 +1,19 @@
+.swiper {
+  width: 100%;
+  // Swiper のテーマ色をサイトのアクセントに合わせる
+  --swiper-theme-color: var(--c-accent);
+}
+
+.slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 1.1rem;
+}

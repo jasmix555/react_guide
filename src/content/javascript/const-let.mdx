@@ -1,0 +1,202 @@
+---
+title: const と let
+minutes: 7
+slug: const-let
+section: javascript
+description: var を卒業して const と let に。再代入できる/できないの違いと、なぜ const を既定にするのか。
+level: beginner
+prerequisites: ['setup/summary']
+---
+
+<PartIntro>
+
+このパートは **JavaScript の文法だけ**を扱います。React はまだ出てきません。ここで詰まると後が全部つらくなる場所なので、急がず 1 つずつ手を動かしてください。
+
+試すときは、`npm run dev` を動かしたまま、ブラウザで開いた画面の**コンソール（`F12` で開く）**に直接打ち込むのが一番手早いです。ファイルを触りたいときは `src/App.tsx` の中で `console.log(...)` して、コンソールに出た結果を見ます。
+
+Part 1 を終えた時点で、手元のプロジェクトはこの形のはずです。違っていたら Part 1 の最後のページに戻って揃えてください。
+
+```
+my-shop/
+├─ src/
+│  ├─ App.tsx      ← <h1>商品一覧アプリ</h1> だけ
+│  ├─ main.tsx     ← 触っていない（起動の起点）
+│  └─ index.css    ← 最小限
+├─ index.html
+└─ package.json
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- `const` と `let` の違い（再代入できるか・できないか）
+- なぜ `var` を使わず、`const` を既定にするのか
+- 「再代入」と「中身の書き換え」は別物だということ
+
+</LearnBox>
+
+## なぜ var をやめるのか {#why}
+
+jQuery 時代のコードは、変数をぜんぶ `var` で書いていました。React のコードでは `var` はまず出てきません。代わりに **`const`（定数）** と **`let`（変数）** の 2 つを使い分けます。
+
+理由はシンプルで、`var` は「うっかり上書き」や「思っていた範囲の外まで漏れる」といった事故が起きやすいからです。`const` / `let` はその事故を、書いた瞬間や実行した瞬間に止めてくれます。
+
+<Callout type="analogy">
+
+`var` は「鍵のかからない箱」、`const` は「封をした箱」です。封をしておけば、後で自分が間違えて中身を入れ替えようとしたときに「ここは封済みですよ」と教えてくれます。
+
+</Callout>
+
+## const — 再代入できない箱 {#const}
+
+`const` で作った変数には、**あとから別の値を入れ直せません**。コンソールで試してみましょう。
+
+```js
+const price = 100
+console.log(price) // 100
+```
+
+この 1 行を、部品ひとつひとつに分けて名前を付けます。
+
+```js
+const price = 100
+//    ↑     ↑ ↑
+//    │     │ └─ 入れる値（ここでは 100）
+//    │     └─ = は「右の値を左に入れる」記号（数学の等号ではない）
+//    └─ 封をした箱。あとで別の値を入れ直せない
+```
+
+- **`const`** … 封をした箱（定数）。あとで**別の値を入れ直せない**。入れ直したいときは `let` にする
+- **`price`** … 箱に付ける名前
+- **`=`** … 「右の値を、左の名前に入れる」記号。数学の「等しい」ではない
+- **`100`** … 最初に入れる値
+
+`let price = 100` で作れば、あとから `price = 200` のように**再代入**できます。「変わらない値は `const`、変わる値だけ `let`」が基本です。
+
+`price` はもう `100` で確定です。これが基本の形です。値に名前を付けたいときは、まず `const` を使う、と覚えてください。
+
+## let — 再代入できる箱 {#let}
+
+「あとで中身を変えたい」ときだけ `let` を使います。たとえばカウンターのように、値が増えていくものです。
+
+```js
+let count = 0
+count = count + 1
+console.log(count) // 1
+```
+
+`count = count + 1` で、`count` に新しい値を入れ直しています。これが**再代入**です。`let` はこれを許します。
+
+<JsNote feature="= は「等しい」ではなく「入れる」">
+
+プログラミングの `=` は、数学の「イコール（等しい）」ではありません。**右の値を、左の名前に入れる**という意味です。`count = count + 1` は「今の count に 1 を足したものを、count に入れ直す」と読みます。
+
+</JsNote>
+
+## わざと壊す：const に再代入すると止まる {#break-reassign}
+
+`const` が本当に「封をした箱」なのか、わざと破ってみます。コンソールに次を打ってください。
+
+```js
+const price = 100
+price = 200
+```
+
+すると、こう出て止まります。
+
+```
+Uncaught TypeError: Assignment to constant variable.
+```
+
+「定数（constant variable）への代入だよ」というエラーです。`const` で封をした `price` に、別の値を入れ直そうとしたので止められました。**値を入れ直したいなら `let` にする**——このエラーが出たら、そう考えれば直ります。
+
+## 「再代入」と「中身の書き換え」は別 {#mutation}
+
+ここが最初に混乱するところです。`const` が禁止するのは「**箱ごと入れ替えること**」だけで、「**箱の中身を書き換えること**」は止めません。配列やオブジェクトでは、この違いがはっきり出ます。
+
+```js
+const tags = ['調理器具']
+tags.push('IH対応') // これはOK（中身を足しただけ）
+console.log(tags) // ['調理器具', 'IH対応']
+
+tags = ['living'] // これはエラー（箱ごと入れ替え）
+```
+
+`tags.push(...)` は中身を足しているだけなので `const` でも通ります。`tags = [...]` は箱ごと別物に入れ替えようとするので止まります。**「中身を触る」のと「名前に別の値を入れ直す」のは別の操作**だと、いま押さえておいてください（詳しくは「参照とコピー」のページでやります）。
+
+<Together
+  task="コンソールで、const で name を作って '佐藤' を入れ、次の行で name に '田中' を入れ直そうとしてみてください。どんなエラーが出るか、自分の目で確認しましょう。"
+  hint="const name = '佐藤' の次の行に name = '田中' と書いて実行します。"
+>
+
+```js
+const name = '佐藤'
+name = '田中'
+// Uncaught TypeError: Assignment to constant variable.
+```
+
+`const` で作った `name` は封済みなので、`'田中'` を入れ直そうとすると `Assignment to constant variable.` で止まります。入れ直したいなら `let name = '佐藤'` にします。
+
+</Together>
+
+## 書き方カタログ：const と let の使い分け {#catalog}
+
+「あとで変わるか？」だけで決めます。変わらないなら `const`、変わるものだけ `let`。よく使う形を並べます。
+
+```js
+const price = 100             // 数値。あとで変えない → const
+const name = '佐藤'           // 文字列も基本は const
+let count = 0                 // 増えていく値だけ let
+count = count + 1             // let なら再代入できる
+const tags = ['調理器具']     // 配列も const（中身は push で足せる）
+const user = { name: '佐藤' } // オブジェクトも const（中身の書き換えは可）
+```
+
+数値でも文字列でも、まず `const` で書き始めます。`let` が出てくる箇所＝「ここで値が変わる」という目印になり、読みやすくなります。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="var price = 100"
+  good="const price = 100"
+  note="var は使わない。まず const、再代入が要るときだけ let。"
+/>
+
+<Diff
+  bad="変わらない値まで let にする"
+  good="変わらない値は const。変わるものだけ let"
+  note="既定は const。let が並んでいると『どこで値が変わるのか』が読みにくくなる。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="まず const で書く。再代入が本当に必要なところだけ let にする"
+  alt="ループのカウンタなど、値が変わることが目的の変数は最初から let で問題ありません。"
+>
+
+「この値、後で変わる？」と考えて、変わらないなら `const`。こうしておくと、`let` が出てきた箇所＝「ここで値が変わる」という目印になり、コードが読みやすくなります。`var` は使いません。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Assignment to constant variable.`** … `const` に再代入しています。その値を変える必要があるなら `let` にします。
+- **`Cannot access '○○' before initialization`** … 変数を作る前に使っています。使う行より上で `const` / `let` を書いてください。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="const total = price * count と書きます。合計は計算して一度決まればよく、後で入れ直す必要がないので const が適切です。">
+
+商品の価格 `price` と個数 `count` から合計 `total` を作るとき、`total` は `const` と `let` のどちらで書くべきでしょう。理由も考えてみてください。
+
+</Exercise>
+
+<SummaryBox>
+
+- `var` は使わない。値に名前を付けるときは `const`、再代入が要るときだけ `let`
+- `const` への再代入は `Assignment to constant variable.` で止まる
+- `const` が禁止するのは「箱ごとの入れ替え」だけ。配列やオブジェクトの中身の書き換えは止めない
+
+</SummaryBox>

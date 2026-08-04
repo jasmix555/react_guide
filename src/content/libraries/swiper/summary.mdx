@@ -1,0 +1,61 @@
+---
+title: まとめと練習
+minutes: 6
+slug: swiper-summary
+section: swiper
+description: "Swiper のまとめ。CSS 読み込み・Swiper/SwiperSlide・モジュール・breakpoints を振り返り、理解度チェックで自己確認する。次に読むライブラリへの案内も。"
+level: beginner
+prerequisites: ['libraries/swiper/goal']
+---
+
+<LearnBox>
+
+- Swiper で身についた「スライダーを組む」力の総復習
+- 理解度チェック（つまずきやすい所を自己確認）
+- 次に読むと良いライブラリへの案内
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+Swiper で、タッチ操作つきのスライダー・カルーセルを組めるようになりました。要点を並べます。
+
+- **セットアップ** … `npm install swiper` の後、**`import 'swiper/css'` を忘れない**（崩れて見える原因の第 1 位）。
+- **基本** … 外側 `Swiper` ＋ 中に `SwiperSlide`。`slidesPerView` / `spaceBetween` / `loop` が基本設定。一覧は `map` ＋ `key`。
+- **モジュール** … `swiper/modules` から読み込み `modules={[...]}` に渡す＋ CSS も足す。Navigation・Pagination・Autoplay・A11y。
+- **レスポンシブ** … `breakpoints`（min-width）で表示枚数を切り替える。
+- **配慮** … 自動再生は `useReducedMotion` で、減らす設定のとき止める。
+
+## 理解度チェック {#quiz}
+
+<Exercise answer="import 'swiper/css' の書き忘れです。Swiper は見た目の CSS が別なので、読み込まないとスライドが縦に積まれ、横に動きません。矢印やドットを使うなら swiper/css/navigation などの追加 CSS も要ります。">
+
+「スライドが縦に並んで横スワイプできない」。まず何を疑いますか。
+
+</Exercise>
+
+<Exercise answer="swiper/modules から Navigation などを読み込み、Swiper の modules に配列で渡します。さらに矢印・ドットは専用 CSS（swiper/css/navigation など）も読み込みます。navigation や pagination={{ clickable: true }} で設定します。">
+
+矢印とドットを出すには、何を読み込み、`Swiper` に何を渡しますか。
+
+</Exercise>
+
+<Exercise answer="breakpoints に { 幅: { slidesPerView: N } } を書きます。キーは px で「その幅以上」（min-width）。狭い画面の設定を既定に書き、広い画面を breakpoints で上書きします。">
+
+画面幅で表示枚数を変えるには、`Swiper` に何を書きますか。向き（min/max）にも触れて。
+
+</Exercise>
+
+## 次に読むと良いもの {#next}
+
+これで **Swiper** は一通りです。CSS の読み込みから、基本、モジュール、レスポンシブまで、実務のカルーセルを自分で組めるようになりました。
+
+同じ **ライブラリ編** には、**Tailwind**（ユーティリティ CSS）、**React Icons**（アイコン）、**Lenis**（スムーススクロール、GSAP と相性◎）などを、順次追加していきます。「まず自前で作れないか」を考えるなら、**[レシピのカルーセル](/recipes/carousel)** との読み比べも力になります。
+
+<SummaryBox>
+
+- `import 'swiper/css'` を忘れない／`Swiper` ＋ `SwiperSlide`／`modules` で機能を足す
+- `breakpoints`（min-width）でレスポンシブ、自動再生は reduced-motion に配慮
+- 単純な切り替えは自前（レシピ）、本格的なスライダーは Swiper
+
+</SummaryBox>

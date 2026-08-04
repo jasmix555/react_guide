@@ -1,0 +1,106 @@
+---
+title: 星評価
+minutes: 7
+slug: star-rating
+section: recipes
+description: クリックで星の数を選ぶ評価 UI。確定した値とホバー中のプレビューを 2 つの state で持つ。
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { StarRatingDemo } from '@/demos/StarRating'
+
+<LearnBox>
+
+- 星をクリックして評価を決める UI
+- 「確定した値」と「ホバー中のプレビュー」を 2 つの state で分ける
+- ボタンにして、キーボードと読み上げに対応する
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+星に乗せると、その位置まで先に光ります（プレビュー）。クリックで確定します。
+
+<Demo title="StarRating">
+  <StarRatingDemo />
+</Demo>
+
+## 状態は「確定」と「プレビュー」の 2 つ {#state}
+
+星評価のコツは、**表示する値を 2 つに分けて考える**ことです。
+
+- `value` … クリックで**確定した**評価。親が持ちます。
+- `hover` … いまマウスが乗っている位置の**一時プレビュー**。乗っていなければ `0`。
+
+そして表示は「ホバー中ならプレビュー、無ければ確定値」にします。この 1 行が肝です。
+
+```tsx
+const shown = hover || value
+```
+
+`hover` が `0`（falsy）のときは `value` が使われ、乗せている間は `hover` が優先されます（[短絡評価](/guide/javascript/ternary-short-circuit)）。
+
+## StarRating 本体 {#body}
+
+`src/components/StarRating/StarRating.tsx` を新規作成して、この全文を貼り付けてください。
+
+```tsx title="src/components/StarRating/StarRating.tsx（新規作成・全文）"
+import { useState } from 'react'
+
+interface StarRatingProps {
+  value: number
+  onChange: (value: number) => void
+  max?: number
+}
+
+export function StarRating({ value, onChange, max = 5 }: StarRatingProps) {
+  const [hover, setHover] = useState(0)
+  const shown = hover || value
+
+  return (
+    <div role="radiogroup" aria-label="評価">
+      {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={n === value}
+          aria-label={`星 ${n} つ`}
+          onClick={() => onChange(n)}
+          onMouseEnter={() => setHover(n)}
+          onMouseLeave={() => setHover(0)}
+        >
+          {n <= shown ? '★' : '☆'}
+        </button>
+      ))}
+    </div>
+  )
+}
+```
+
+読みどころは 2 つです。`Array.from({ length: max }, (_, i) => i + 1)` で `[1, 2, 3, 4, 5]` を作り、星を並べる。各星は `n <= shown` なら塗り（★）、そうでなければ空（☆）。
+
+<Callout type="mistake" title="星を div にしない">
+
+星を `<span>` や `<div>` で作って `onClick` だけ付けると、キーボードで選べません。**`<button>` にする**と、Tab で移動でき、Enter で押せます。`role="radio"` と `aria-checked` を足すと、読み上げにも「5 段階のどれを選んでいるか」が伝わります。
+
+</Callout>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="表示を value 1 つで作り、ホバーのプレビューを別で無理やり足す"
+  good="value（確定）と hover（プレビュー）に分け、shown = hover || value"
+  note="2 つに分けると、ホバー中の見え方と確定値がきれいに両立する。"
+/>
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 「確定した値」と「ホバー中のプレビュー」を別々の state に分ける
+- 表示は `shown = hover || value` の 1 行で切り替える
+- 星は `<button>` + `role="radio"` + `aria-checked`。キーボードと読み上げに対応
+
+</SummaryBox>

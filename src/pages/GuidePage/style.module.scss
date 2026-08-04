@@ -1,0 +1,106 @@
+@use 'styles/mixins' as *;
+
+.article {
+  max-width: var(--content-max);
+
+  // Once the sidebar collapses to a drawer, the content column spans the full
+  // width, so center the reading measure instead of pinning it hard left.
+  @include down($bp-sidebar) {
+    margin-inline: auto;
+  }
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-6);
+  border-bottom: 1px solid var(--c-line);
+  margin-bottom: var(--sp-2);
+}
+
+.title {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-tight);
+}
+
+.desc {
+  color: var(--c-muted);
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.minutes {
+  font-family: var(--font-head);
+  font-size: 12px;
+  color: var(--c-muted);
+  white-space: nowrap;
+
+  &::before {
+    content: '⏱ ';
+  }
+}
+
+.loading {
+  color: var(--c-muted);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--c-line);
+}
+
+.readBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-pill);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  padding: 7px 16px;
+
+  &:hover {
+    border-color: var(--c-accent);
+    color: var(--c-accent);
+  }
+}
+
+.readOn {
+  background: var(--c-success-tint);
+  border-color: var(--c-success);
+  color: var(--c-success);
+
+  &:hover {
+    border-color: var(--c-success);
+    color: var(--c-success);
+  }
+}
+
+.feedback {
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--c-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}

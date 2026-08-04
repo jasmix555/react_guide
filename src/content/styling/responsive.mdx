@@ -1,0 +1,129 @@
+---
+title: レスポンシブ
+minutes: 9
+slug: responsive
+section: styling
+description: モバイルファーストのメディアクエリと、grid で一覧を自動的に折り返す。flex の割合計算をやめて grid にする理由も。
+level: beginner
+prerequisites: ['styling/design-tokens-theming']
+---
+
+<LearnBox>
+
+- モバイルファースト（狭い画面を基本に、広い画面で足す）
+- メディアクエリ `@media (min-width: ...)` の書き方
+- `grid` で商品一覧を、画面幅に応じて自動で折り返す
+
+</LearnBox>
+
+このページは素の CSS でのレスポンシブの基本です。**うちの現場では、この後の[共通 mixin（`getVw`・`mq`）](/guide/styling/shared-mixin)** で、いつものやり方のまま組みます。まずは仕組みを押さえましょう。
+
+## モバイルファーストで考える {#mobile-first}
+
+レスポンシブは、**狭い画面（スマホ）を基本の見た目**として書き、**広くなったら足していく**のが定石です。基本を素直な 1 カラムにしておけば、スマホで崩れません。
+
+```scss
+.list {
+  /* 基本＝スマホ：1 カラム */
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .list {
+    /* 640px 以上で 2 カラム */
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .list {
+    grid-template-columns: repeat(3, 1fr); /* さらに広ければ 3 カラム */
+  }
+}
+```
+
+`@media (min-width: 640px)` は「画面幅が 640px 以上のときだけ、中の指定を適用する」という意味です。狭いときの指定を上書きしていきます。
+
+```scss
+@media (min-width: 640px) {
+//                 ↑
+//                 └─ この幅以上のときだけ、中の指定を適用
+```
+
+## grid で「自動で折り返す」 {#auto-grid}
+
+カラム数をブレークポイントごとに書くのも良いですが、**入る数だけ自動で並べて折り返す**書き方もあります。`auto-fill` と `minmax` の組み合わせです。
+
+```scss
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+```
+
+意味は「**最低 200px、余れば伸びる**カラムを、入るだけ並べる」。画面が広ければ自然に列が増え、狭ければ減ります。メディアクエリを書かなくても、これ 1 行で一覧がレスポンシブになります。
+
+<JsNote feature="minmax(200px, 1fr) は「最低 200px、余りは分け合う」">
+
+`minmax(最小, 最大)` は列の幅の範囲です。`minmax(200px, 1fr)` なら、各列は最低 200px を確保し、余ったスペースは `1fr`（等分）で分け合います。`auto-fill` が「入るだけ列を作る」ので、幅に応じて列数が変わります。
+
+</JsNote>
+
+## flex の割合計算をやめて grid にする {#grid-over-flex}
+
+一覧を `flex` で `width: calc(33% - ...)` のように割合計算するのは、`gap` との相性が悪く、崩れやすい書き方です。**並べて折り返すレイアウトは `grid`** にすると、計算なしで素直に決まります。
+
+<Diff
+  bad="display: flex; の子に width: calc(33.3% - 16px) を計算して指定"
+  good="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))"
+  note="flex の割合計算は gap と喧嘩して崩れやすい。折り返し一覧は grid が素直。"
+/>
+
+<Together
+  task="商品一覧の .list を、auto-fill と minmax(180px, 1fr) で自動折り返しにしてみてください。ブラウザの幅を変えて列数が変わるのを確認します。"
+  hint="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); の 1 行です。"
+>
+
+```scss title="一覧のスタイル"
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+```
+
+ウィンドウを広げると列が増え、狭めると減ります。1 枚あたり最低 180px を保ちながら、入るだけ並びます。メディアクエリ無しでこれだけ動きます。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="広い画面を基本に書き、スマホ用に max-width で打ち消す"
+  good="スマホを基本に書き、min-width で広い画面に足していく"
+  note="モバイルファーストの方が打ち消しが減り、スマホで崩れにくい。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **スマホで横スクロールが出る** … 固定幅（`width: 800px` など）が原因のことが多いです。`max-width` と `width: 100%` にします。
+- **列数が変わらない** … メディアクエリの `min-width` の値、または `auto-fill` / `minmax` の綴りを確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) を使います。各列は最低 200px を保ち、入るだけ並んで自動で折り返すので、メディアクエリ無しでレスポンシブになります。">
+
+一覧を「画面幅に応じて自動で列数が変わる」ようにするには、`grid-template-columns` にどう書きますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- モバイルファースト：狭い画面を基本に書き、`@media (min-width: ...)` で広い画面に足す
+- 折り返す一覧は `grid`。`repeat(auto-fill, minmax(200px, 1fr))` で自動レスポンシブ
+- `flex` の割合計算（`calc(33% - ...)`）はやめて `grid` にすると崩れにくい
+
+</SummaryBox>

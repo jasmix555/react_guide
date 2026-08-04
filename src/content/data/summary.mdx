@@ -1,0 +1,63 @@
+---
+title: まとめと練習
+minutes: 6
+slug: data-summary
+section: data
+description: データ取得のまとめ。fetch・res.ok・useEffect・3状態・カスタムフックを振り返り、理解度チェックで自己確認する。ここで React のコアは修了。次はライブラリ編。
+level: beginner
+prerequisites: ['data/goal']
+---
+
+<LearnBox>
+
+- このパートで身についた「通信でデータを取る」力の総復習
+- 理解度チェック（つまずきやすい所を自己確認）
+- 次に読むと良いもの（ライブラリ編）への橋渡し
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+直 import だった一覧を、本物の通信で動くようにしました。要点を並べます。
+
+- **import と fetch** … `import` は焼き込み（一瞬・固定）、`fetch` は通信（時間・失敗・最新）。
+- **fetch の骨格** … `await fetch(url)` → **`if (!res.ok) throw`** → `await res.json()`。404 でも fetch は失敗しないので `res.ok` を自分で見る。
+- **どこで呼ぶか** … render 本体は無限ループ。`useEffect(() => {...}, [])` で 1 回だけ。後片付けで `ignore = true`。
+- **3 状態** … `status` を `'loading' | 'error' | 'success'` の union で持ち、`try` / `catch` で振り分け、画面で出し分ける。
+- **カスタムフック** … 取得を `useProducts()`（`use` で始まる関数）にまとめ、`{ products, status }` を返して使い回す。
+
+「待つ・失敗する」を 3 状態で扱う——この形は、どんな通信でも同じです。
+
+## 理解度チェック {#quiz}
+
+<Exercise answer="fetch は 404/500 では失敗（reject）せず成功扱いになるためです。res.ok（200番台か）を確認し、false なら throw して失敗にします。これが無いと、エラーページを .json() して分かりにくいエラーになります。">
+
+`fetch` のあとに `if (!res.ok) throw ...` を書くのはなぜですか。
+
+</Exercise>
+
+<Exercise answer="無限ループになります。取得→setState→再描画→また本体で取得→…と止まりません。useEffect(() => { ... }, []) の中に入れると、最初の 1 回だけになります。">
+
+コンポーネント本体（return の手前）で直接 `fetch` して `setState` すると何が起きますか。どう直しますか。
+
+</Exercise>
+
+<Exercise answer="status を 'loading' | 'error' | 'success' の union で持ち、useEffect + try/catch で成功なら success・失敗なら error にします。画面は loading → error → 成功の中身、の順で出し分けます。union なので綴り間違いは型で止まります。">
+
+通信の 3 状態を、`status` でどう持ち、どう画面に出し分けますか。
+
+</Exercise>
+
+## ここまでで React のコアは修了 {#next}
+
+データも本物の通信で取れるようになりました。これで **React のコア**（環境構築 → JavaScript → コンポーネント → state → スタイリング → TypeScript → ルーティング → データ取得）を一通り終えました。`my-shop` は、**自分の手で組んだ・動く・型で守られた・複数ページの・通信するアプリ**です。「どう書くか」は、もう身についています。
+
+この先は **ライブラリ編**（別タブ）へ。よく使うライブラリを、実際のプロジェクトにどう入れて・どう使うかを、ライブラリごとに深掘りします。まずは **Framer Motion** で、カードがふわっと出る「気持ちよさ」を足すのがおすすめです。作りたい UI が先にあるなら、**[レシピ](/recipes/modal)** からの逆引きも近道です。
+
+<SummaryBox>
+
+- `fetch` は Promise。`res.ok` を自分で確認し、`.json()` で中身を取る
+- 取得は `useEffect(..., [])` で 1 回、後片付けは `ignore` フラグ
+- 3 状態は union の `status` ＋ `try`/`catch`。取得は `useProducts` にまとめて使い回す
+
+</SummaryBox>

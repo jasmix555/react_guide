@@ -1,0 +1,128 @@
+---
+title: useEffect で取得する
+minutes: 9
+slug: useeffect-fetch
+section: data
+description: fetch はどこで呼ぶか。render の中はダメで useEffect で1回だけ。途中で画面を離れたときの ignore フラグまで。
+level: beginner
+prerequisites: ['data/fetch-basics', 'state/use-effect/basics']
+---
+
+<LearnBox>
+
+- `fetch` を**どこで呼ぶか**（render の中はダメ）
+- `useEffect` で「画面が出たとき 1 回だけ」取る
+- 途中で画面を離れたときのための後片付け（`ignore` フラグ）
+
+</LearnBox>
+
+## render の中で fetch してはいけない {#not-render}
+
+コンポーネントの本体（return の手前）で直接 `fetch` して結果を state に入れると、**無限ループ**になります。
+
+理由はこうです。取得 → `setState` → **再描画** → また本体が動く → また取得 → また `setState` → … と止まりません。だから、取得は本体ではなく **`useEffect` の中**で呼びます（[useEffect の回](/guide/state/use-effect/basics)）。
+
+## useEffect で 1 回だけ取る {#useeffect}
+
+`useEffect` に**空の依存配列 `[]`** を渡すと、「最初に画面が出たとき 1 回だけ」実行されます。取得はここに置きます。
+
+```tsx
+useEffect(() => {
+  // 画面が出たときに 1 回、ここで取得する
+}, [])
+//  ↑
+//  └─ 空の依存配列 ＝ 最初の 1 回だけ
+```
+
+## 取得して state に入れる {#load}
+
+`useEffect` の中で、前ページの取得を呼び、結果を state に入れます。
+
+```tsx
+const [products, setProducts] = useState<Product[]>([])
+
+useEffect(() => {
+  fetch('/products.json')
+    .then((res) => res.json())
+    .then((data) => setProducts(data))
+}, [])
+```
+
+これで、画面が出た直後に商品を取りにいき、届いたら `setProducts` で state に入れて再描画します。
+
+## 後片付け：ignore フラグ {#cleanup}
+
+1 つ注意があります。**取得の途中で、ユーザーが別の画面に移る**ことがあります。そのとき、もう表示していないコンポーネントに `setState` しようとすると無駄（＆時に警告）です。そこで「離れたら結果を捨てる」印を付けます。
+
+```tsx
+useEffect(() => {
+  let ignore = false
+
+  fetch('/products.json')
+    .then((res) => res.json())
+    .then((data) => {
+      if (!ignore) setProducts(data) // 離れていなければ入れる
+    })
+
+  return () => {
+    ignore = true // 離れたら、以降の結果は捨てる
+  }
+}, [])
+```
+
+`useEffect` の `return`（後片付け）で `ignore = true` にします。取得が返ってきたとき `ignore` が `true` なら、`setState` しません。これで「離れたのに古いデータが入る」事故を防げます。
+
+<Callout type="note" title="AbortController という手もある">
+
+もっと本格的には、`AbortController` で**通信そのものを中断**する方法もあります。まずは `ignore` フラグで「結果を無視する」を覚えれば十分です。
+
+</Callout>
+
+## わざと壊す：本体で fetch して無限ループ {#break}
+
+`useEffect` を使わず、本体で直接取得してみます。
+
+```tsx title="わざと壊す：本体で fetch"
+export function ProductList() {
+  const [products, setProducts] = useState<Product[]>([])
+
+  // ❌ 本体で直接。setProducts → 再描画 → また実行 → …
+  fetch('/products.json')
+    .then((res) => res.json())
+    .then((data) => setProducts(data))
+
+  return <ul>{/* ... */}</ul>
+}
+```
+
+通信が延々と繰り返され、ブラウザのネットワークタブが `products.json` のリクエストで埋まります。`useEffect(() => { ... }, [])` で囲めば、**最初の 1 回だけ**になり、止まります。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="コンポーネント本体で fetch して setState する"
+  good="useEffect(() => { fetch... }, []) の中で取得する"
+  note="本体で setState すると再描画→再実行の無限ループ。取得は useEffect + 空配列で 1 回。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`products.json` を延々とリクエストしている** … 本体で `fetch` しています。`useEffect(..., [])` で囲みます。
+- **画面を離れたあとに警告が出る** … `ignore` フラグ（後片付けで `ignore = true`）を入れます。
+- **何度も取得してしまう** … 依存配列が空 `[]` になっているか確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="無限ループになります。取得→setProducts→再描画→また本体が動いて取得→… と止まりません。useEffect(() => { ... }, []) の中に入れると、最初の 1 回だけになります。">
+
+コンポーネント本体で直接 `fetch` して `setProducts` すると、何が起きますか。どう直しますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 本体で `fetch` + `setState` は無限ループ。取得は `useEffect(() => {...}, [])` で 1 回だけ
+- 途中で画面を離れたときのため、後片付けで `ignore = true`、結果は `if (!ignore)` で入れる
+- もっと本格的には `AbortController` で通信を中断する手もある
+
+</SummaryBox>

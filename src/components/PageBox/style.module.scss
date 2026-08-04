@@ -1,0 +1,48 @@
+.box {
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-6);
+  background: var(--c-surface);
+}
+
+.head {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  letter-spacing: 0.04em;
+  margin: 0 0 var(--sp-2);
+}
+
+.body {
+  font-size: var(--fs-body);
+
+  > * + * {
+    margin-top: var(--sp-2);
+  }
+
+  ul,
+  ol {
+    padding-left: 1.3em;
+    margin: 0;
+  }
+  li + li {
+    margin-top: var(--sp-1);
+  }
+}
+
+.learn {
+  border-left: 3px solid var(--c-accent);
+  background: var(--c-accent-tint);
+
+  .head {
+    color: var(--c-accent);
+  }
+}
+
+.summary {
+  border-left: 3px solid var(--c-teal);
+
+  .head {
+    color: var(--c-teal);
+  }
+}

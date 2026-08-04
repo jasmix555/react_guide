@@ -1,0 +1,100 @@
+---
+title: トースト通知
+minutes: 8
+slug: toast
+section: recipes
+description: 操作のあと少しだけ出て自動で消える通知。メッセージを配列で持ち、setTimeout で自分を消す。
+level: intermediate
+prerequisites: ['state/use-effect/basics']
+---
+
+import { ToastDemo } from '@/demos/Toast'
+
+<LearnBox>
+
+- 「保存しました」のような、出て自動で消える通知
+- メッセージを配列で持ち、`setTimeout` で自分を消す
+- 重複しない `id` の作り方と、読み上げへの伝え方
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+ボタンを押すと下に通知が出て、少し経つと自動で消えます。連打すると積み上がります。
+
+<Demo title="Toast">
+  <ToastDemo />
+</Demo>
+
+## メッセージを配列で持つ {#state}
+
+トーストは同時に複数出ることがあるので、**1 つの文字列ではなく配列**で持ちます。出すときに 1 つ足し、消えるときにその 1 つだけ取り除きます。「どれを消すか」を見分けるために、それぞれに `id` を付けます。
+
+```tsx
+const [toasts, setToasts] = useState([]) // { id, msg } の配列
+const idRef = useRef(0) // 重複しない id を作るカウンター
+
+function notify(msg) {
+  const id = idRef.current++
+  setToasts((list) => [...list, { id, msg }]) // 1 つ足す
+  window.setTimeout(() => {
+    setToasts((list) => list.filter((t) => t.id !== id)) // その id だけ消す
+  }, 2500)
+}
+```
+
+<JsNote feature="id は useRef のカウンターで作る">
+
+`id` に配列の長さを使うと、消したり足したりで**重複**します。`useRef(0)` のカウンターを `idRef.current++` で増やせば、必ず違う番号になります。`ref` は再描画を起こさないので、こういう「裏方の値」に向いています。
+
+</JsNote>
+
+## 表示と自動消去 {#render}
+
+出す場所は画面下に固定します。`setTimeout` で 2.5 秒後に自分を消し、`role="status"` と `aria-live="polite"` を付けて、読み上げソフトにも新しい通知を伝えます。
+
+```tsx title="src/components/Toaster/Toaster.tsx（要点）"
+<div className={styles.toaster} role="status" aria-live="polite">
+  {toasts.map((t) => (
+    <div key={t.id} className={styles.toast}>
+      {t.msg}
+    </div>
+  ))}
+</div>
+```
+
+```scss title="Toaster.module.scss（要点）"
+.toaster {
+  position: fixed;
+  bottom: var(--sp-6);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column-reverse; // 新しいものが下から積み上がる
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="id に toasts.length や index を使う"
+  good="useRef のカウンターで、必ず違う id を作る"
+  note="length や index は削除で重複し、消したい通知と別のものが消える。カウンターなら安全。"
+/>
+
+## 実務での注意点 {#notes}
+
+- **消し忘れ防止**：`setTimeout` は自分の `id` だけを消します。全部消すのではありません。
+- **`aria-live`**：`polite` は「読み上げ中の邪魔をせず、切れ目で伝える」。エラーなど急ぎのものは `assertive` にします。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 複数同時に出るので、メッセージは配列で持つ
+- `id` は `useRef` のカウンターで作り、消すときはその `id` だけ `filter` で除く
+- 画面下に固定し、`role="status"` / `aria-live="polite"` で読み上げにも伝える
+
+</SummaryBox>

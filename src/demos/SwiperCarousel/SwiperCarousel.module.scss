@@ -1,0 +1,31 @@
+.swiper {
+  width: 100%;
+  // Swiper のテーマ色（矢印・アクティブなドット）をサイトのアクセントに
+  --swiper-theme-color: var(--c-accent);
+  --swiper-navigation-size: 26px;
+  // 下のドット（ページネーション）と左右の矢印のための余白
+  padding: 0 var(--sp-1) var(--sp-8);
+}
+
+.slide {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--sp-1);
+  height: 130px;
+  padding: var(--sp-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  box-sizing: border-box;
+}
+
+.name {
+  font-weight: 600;
+  line-height: var(--lh-tight);
+}
+
+.price {
+  color: var(--c-accent);
+  font-weight: 700;
+}

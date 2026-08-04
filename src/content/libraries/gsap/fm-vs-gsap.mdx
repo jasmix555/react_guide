@@ -1,0 +1,74 @@
+---
+title: Framer Motion と GSAP、どちらを使う？
+minutes: 7
+slug: gsap-fm-vs-gsap
+section: gsap
+description: "Framer Motion と GSAP の使い分け。状態・ジェスチャー・出入りは Framer Motion、込み入ったタイムラインやスクロール連動は GSAP。うちの標準も。"
+level: beginner
+prerequisites: ['libraries/gsap/goal', 'libraries/framer-motion/goal']
+---
+
+<LearnBox>
+
+- 2 つの得意分野の違い
+- 「これを作りたい」→ どちらを選ぶかの目安
+- うちの標準（両方あるときの選び方）
+
+</LearnBox>
+
+## 一言でいうと {#tldr}
+
+- **Framer Motion** … **React の状態に寄り添う**アニメーション。マウント・ホバー・タップ・出入り（`AnimatePresence`）を、コンポーネントに宣言的に書く。
+- **GSAP** … **動きそのものを設計する**アニメーション。込み入ったタイムライン、スクロール連動（ScrollTrigger の scrub / pin）、細かい制御。
+
+どちらも優秀で、**片方で全部やろうとしない**のがコツです。作りたいものに近いほうを選びます。
+
+## 目安の早見表 {#table}
+
+| 作りたいもの | 向いているのは |
+| --- | --- |
+| 一覧がフワッと出る・ホバーで持ち上がる | Framer Motion |
+| 追加・削除で滑らかに出入りさせる | Framer Motion（`AnimatePresence`） |
+| ボタンやカードの操作フィードバック | Framer Motion（`whileHover` / `whileTap`） |
+| 複数の動きを順番・重なりで流す | GSAP（`timeline`） |
+| スクロール量に合わせて動かす・固定する | GSAP（`ScrollTrigger` の scrub / pin） |
+| 凝った LP のキービジュアル演出 | GSAP |
+
+## 選び方のコツ {#how-to-choose}
+
+1. **まず「本当に動かす必要があるか」** … 単純な色や大きさの変化は、CSS の `transition` で足りることも多いです（[Framer Motion のゴール](/libraries/framer-motion/goal)でも触れた「動きには理由を」）。
+2. **React の状態に紐づくなら Framer Motion** … 「開いた／閉じた」「お気に入りにした」など、`state` の変化に合わせる動きは Framer Motion が素直です。
+3. **スクロールや込み入った順番なら GSAP** … スクロール連動、タイムライン、細かい再生制御が要るなら GSAP。
+
+<Callout type="note" title="混ぜてもいい">
+
+1 つのアプリで両方使って構いません。**コンポーネントの見た目の動きは Framer Motion、ページ全体のスクロール演出は GSAP**、のように役割で分けるのが自然です。ただし、同じ 1 つの要素を両方で同時に動かすと取り合いになるので、そこだけ避けます。
+
+</Callout>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="コンポーネント単位の動き（マウント・ホバー・出入り）は Framer Motion。スクロール連動や込み入ったタイムラインは GSAP"
+  alt="小規模で動きが少ないなら Framer Motion だけでも回ります。逆に、スクロール主体の派手な LP なら GSAP 中心になります。案件の性格で寄せます。"
+>
+
+どちらも入れておき、**作りたい動きに近いほう**を選びます。迷ったら、状態に紐づく UI の動きは Framer Motion、スクロールや演出は GSAP、と考えると決めやすいです。
+
+</Std>
+
+## まとめと練習 {#summary}
+
+<Exercise answer="Framer Motion が向いています。お気に入りのオン・オフは React の state の変化で、AnimatePresence や whileTap など、状態・操作に寄り添う Framer Motion が素直だからです。スクロール連動や込み入ったタイムラインなら GSAP を選びます。">
+
+「お気に入りボタンを押したら、ハートが弾んで色が変わる」——Framer Motion と GSAP、どちらが向いていますか。理由も。
+
+</Exercise>
+
+<SummaryBox>
+
+- Framer Motion＝状態・ジェスチャー・出入り（React に寄り添う）。GSAP＝タイムライン・スクロール連動（動きを設計する）
+- まず「動かす必要があるか」。状態に紐づくなら Framer Motion、スクロール／込み入った順番なら GSAP
+- 両方使ってよい。役割で分け、同じ要素を同時に取り合わせない
+
+</SummaryBox>

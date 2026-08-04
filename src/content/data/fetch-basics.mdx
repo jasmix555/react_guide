@@ -1,0 +1,130 @@
+---
+title: fetch の基本
+minutes: 9
+slug: fetch-basics
+section: data
+description: fetch は Promise を返す。async/await で待ち、.json() で中身を取り出す。404 でも reject しない罠と res.ok チェックまで。
+level: beginner
+prerequisites: ['data/from-json-to-fetch', 'javascript/promise-async-await']
+---
+
+<LearnBox>
+
+- `fetch` は Promise を返す。`async` / `await` で待つ
+- `.json()` で返事の中身を取り出す（これも Promise）
+- **404 でも `fetch` は失敗しない**罠と、`res.ok` チェック
+
+</LearnBox>
+
+## fetch は「返事」を Promise で返す {#promise}
+
+`fetch(url)` は、通信の結果を **Promise** で返します（[Promise と async/await](/guide/javascript/promise-async-await) の回です）。だから `await` で完了を待ちます。
+
+```ts
+const res = await fetch('/products.json')
+```
+
+```ts
+const res = await fetch('/products.json')
+//    ↑       ↑     ↑
+//    │       │     └─ 取りにいく URL
+//    │       └─ Promise の完了を待つ（async 関数の中で）
+//    └─ 返事（Response）。※まだ中身（商品データ）ではない
+```
+
+ここで返る `res` は **Response（返事そのもの）**で、まだ商品データではありません。中身は次の `.json()` で取り出します。
+
+## .json() で中身を取り出す {#json}
+
+`res.json()` で、返事の本文を JSON として取り出します。これも**時間がかかる**ので Promise。やはり `await` します。
+
+```ts
+const data = await res.json()
+//    ↑            ↑
+//    │            └─ 返事の本文を JSON として取り出す（Promise）
+//    └─ ここでようやく商品データ（配列）が手に入る
+```
+
+## 404 でも fetch は失敗しない（罠） {#ok}
+
+ここが一番ハマるところです。**`fetch` は、404 や 500 が返ってきても「失敗（reject）」しません。** ネットワーク自体が切れたときだけ失敗します。つまり「サーバーは返事したが、それがエラーページだった」ときも、`fetch` は成功扱いです。
+
+だから、返事が正常だったかを **`res.ok`** で自分で確認します。
+
+```ts
+const res = await fetch('/products.json')
+if (!res.ok) {
+  throw new Error('取得に失敗しました') // 404/500 はここで自分で失敗にする
+}
+const data = await res.json()
+```
+
+`res.ok` は「ステータスが 200 番台か」を表す `true` / `false`。`false` なら自分で `throw` して、失敗として扱います。
+
+## まとめて 1 つの関数に {#function}
+
+ここまでを、取得用の関数にまとめます。
+
+```ts title="商品を取ってくる関数"
+async function loadProducts() {
+  const res = await fetch('/products.json')
+  if (!res.ok) {
+    throw new Error('取得に失敗しました')
+  }
+  const data = await res.json()
+  return data
+}
+```
+
+`fetch` → `res.ok` チェック → `.json()`。この 3 ステップが、どんな取得でも共通の骨格です。
+
+## わざと壊す：res.ok チェックを消す {#break}
+
+`res.ok` の確認を消して、わざと無い URL を取ってみます。
+
+```ts title="わざと壊す：チェックなしで無い URL"
+const res = await fetch('/nothing.json') // 存在しない → 404
+const data = await res.json() // 404 のページ（HTMLなど）を JSON として読もうとする
+```
+
+`fetch` は 404 でも成功扱いなので、そのまま `.json()` に進みます。そして「JSON ではないもの」を JSON として読もうとして、**`Unexpected token '<'`** のような分かりにくいエラーになります。`if (!res.ok) throw ...` を入れておけば、**その手前で「取得に失敗」とはっきり分かります**。
+
+## 書き方カタログ：fetch の骨格 {#catalog}
+
+```ts
+async function load(url) {
+  const res = await fetch(url) // ① 通信して返事を待つ
+  if (!res.ok) throw new Error() // ② 404/500 を自分で失敗にする
+  return await res.json() // ③ 中身を JSON で取り出す
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="const data = await fetch(url) で、すぐ中身が来ると思う"
+  good="const res = await fetch(url); const data = await res.json()"
+  note="fetch が返すのは Response。中身は .json() でもう一度 await して取り出す。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`res` が商品データにならない** … `fetch` の返り値は Response です。`await res.json()` で中身を取り出します。
+- **404 なのに成功してしまう** … `fetch` は 404 で失敗しません。`if (!res.ok) throw ...` を入れます。
+- **`Unexpected token '<'`** … エラーページ（HTML）を JSON として読んでいます。URL と `res.ok` を確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="fetch は 404/500 では reject せず成功扱いになるためです。res.ok（200番台か）を自分で確認し、false なら throw して失敗として扱います。これが無いと、エラーページを .json() しようとして分かりにくいエラーになります。">
+
+`fetch` のあとに `if (!res.ok) throw ...` を書くのはなぜですか。書かないと何が起きますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `fetch` は Promise を返す。`await fetch(url)` で Response、`await res.json()` で中身
+- **`fetch` は 404/500 で失敗しない**。`if (!res.ok) throw ...` で自分で失敗にする
+- 骨格は「`fetch` → `res.ok` チェック → `.json()`」の 3 ステップ
+
+</SummaryBox>

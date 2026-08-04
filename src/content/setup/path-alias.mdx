@@ -1,0 +1,179 @@
+---
+title: パスエイリアス @/ で相対パスを短くする
+minutes: 9
+slug: path-alias
+section: setup
+description: "@/ を src の別名にして ../../.. を無くす。最初に設定すれば、この先の import がずっと短い。tsconfig と vite の両方に書く理由まで。"
+level: beginner
+prerequisites: ['setup/generated-files']
+---
+
+<LearnBox>
+
+- `@/components/Button` のように、`../../` を書かずに import する
+- なぜ **tsconfig と vite の両方**に設定が要るのか
+- 最初に 1 回設定しておくと、この先ずっと import が短くなる
+
+</LearnBox>
+
+## なぜ最初に設定するのか {#why}
+
+これから `src/` の中に、`components/`・`styles/`・`pages/` などを作っていきます。フォルダが深くなると、こういう import が増えます。
+
+```tsx
+import { Button } from '../../../components/Button/Button'
+```
+
+`../../../` は「**そのファイルの場所からの相対**」です。だから **ファイルを別フォルダに移すと全部ズレて壊れます**し、見ても「どこを指しているのか」が一目で分かりません。
+
+そこで、**`@/` を「`src/` の別名」**にしておきます。プロジェクトの**最初に 1 回**設定すれば、この先どのファイルからでも、同じ短い書き方で import できます。
+
+```tsx
+import { Button } from '@/components/Button/Button'
+```
+
+`@/components/Button/Button` は「`src/components/Button/Button`」の意味。ファイルをどこに移しても、`@/` からのパスは変わりません。設定は前ページで見た **`vite.config.ts` と `tsconfig` の 2 つ**を触ります。
+
+## 大事：2 か所に書く（両方必要） {#two-places}
+
+ここが一番のポイントです。Vite のプロジェクトでは、`@/` を効かせるのに **2 つの設定が両方**要ります。役割が違います。
+
+- **tsconfig** … **エディタと型チェック**に「`@/` は `src/` のこと」と教える。これが無いと、赤い波線＆補完なし。
+- **vite** … **実際のビルド・開発サーバー**が `@/` を解決できるようにする。これが無いと、`npm run dev` で読み込みに失敗する。
+
+<Callout type="warn" title="片方だけだと「動くのに動かない」">
+
+**tsconfig だけ**書くと、エディタは緑なのに `npm run dev` が `Failed to resolve import "@/..."` で落ちます。**vite だけ**書くと、動くのにエディタが赤い波線だらけ（`tsc` も失敗）。Next.js は tsconfig だけで効くので「前は動いた」となりがちですが、**Vite は両方**が要ります。
+
+</Callout>
+
+## 1. tsconfig に書く {#tsconfig}
+
+`tsconfig.app.json`（Vite テンプレの型設定ファイル）の `compilerOptions` に `paths` を足します。
+
+```json title="tsconfig.app.json"
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+
+```json
+"@/*": ["./src/*"]
+//  ↑        ↑
+//  │        └─ その続きを src/ 以下に対応させる（@/components → src/components）
+//  └─ @/ で始まり、そのあとに何か続く import を…
+```
+
+<Callout type="note" title="baseUrl は要る？">
+
+いまの Vite テンプレは `moduleResolution: "bundler"` なので、`baseUrl` は要りません（`paths` はこの tsconfig からの相対で解決されます）。古い `"moduleResolution": "node"` の設定では `"baseUrl": "."` も足す必要があります。
+
+</Callout>
+
+## 2. vite に書く {#vite}
+
+`vite.config.ts` の `resolve.alias` に、`@` を `src` フォルダの絶対パスとして登録します。
+
+```ts title="vite.config.ts"
+import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite'
+
+const src = fileURLToPath(new URL('./src', import.meta.url))
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': src, // "@/components/X" → "<プロジェクト>/src/components/X"
+    },
+  },
+})
+```
+
+`fileURLToPath(new URL('./src', import.meta.url))` の 1 行は、**「この設定ファイルから見た `src` の絶対パス」**を求めているだけです。それを `@` に割り当てています。tsconfig と vite で**同じ `src` を指す**のが大事です。
+
+## SCSS の @use も短くする {#scss}
+
+（この先 **Part 5 で SCSS を書くようになったとき**の話ですが、設定は同じ `vite.config.ts` なので、いっしょに入れておきます。）
+
+JS/TS の `@/` は、実は **SCSS の `@use` には効きません**（`@/` は Vite の JS 用エイリアスなので）。SCSS には別の仕組みがあります。`loadPaths` に `src` を渡すと、`@use` を **`src` 起点**で書けます。
+
+```ts title="vite.config.ts（css の設定を追加）"
+export default defineConfig({
+  resolve: {
+    alias: { '@': src },
+  },
+  css: {
+    preprocessorOptions: {
+      scss: { loadPaths: [src] }, // @use を src 起点で探せるようにする
+    },
+  },
+})
+```
+
+これで、SCSS を書くとき `../../styles/mixin` の代わりに、こう書けます。
+
+```scss title="どの .module.scss からでも同じ"
+@use 'styles/mixin' as *; // ../../styles/mixin ではなく src 起点
+```
+
+JS/TS は `@/`、SCSS は `loadPaths` ＋ 起点からのパス。**別々の仕組み**だと覚えてください（SCSS の使い方は [Part 5](/guide/styling/shared-mixin) で扱います）。
+
+## わざと壊す：tsconfig だけにする {#break}
+
+vite の設定を消して、tsconfig だけにしてみます。エディタは緑のままですが、`npm run dev` するとこう出ます。
+
+```
+[plugin:vite:import-analysis] Failed to resolve import "@/components/Button"
+from "src/...". Does the file exist?
+```
+
+「`@/components/Button` を解決できない」。エディタ（tsconfig）は分かっていても、**ビルド係（vite）が `@/` を知らない**からです。vite の `resolve.alias` を戻せば直ります。**「エディタは緑なのに dev が落ちる」なら vite 側の書き忘れ**——これで切り分けられます。
+
+## 書き方カタログ：before / after {#catalog}
+
+```tsx
+// before（相対パス）
+import { Button } from '../../../components/Button/Button'
+import { formatPrice } from '../../lib/format'
+
+// after（エイリアス）
+import { Button } from '@/components/Button/Button'
+import { formatPrice } from '@/lib/format'
+import styles from './Card.module.scss' // 同じフォルダは相対のままでOK
+```
+
+同じフォルダや 1 個上（`./`, `../`）は相対のままで十分です。**深くなる（`../../` 以上）ときにエイリアス**にすると読みやすくなります。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="tsconfig の paths だけ書いて満足する（Vite）"
+  good="tsconfig（型）と vite の alias（解決）の両方を書く"
+  note="Vite は片方だけでは動かない。エディタ用と実行用、2 か所に同じ src を指す。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **`Failed to resolve import "@/..."`（dev/build）** … vite の `resolve.alias` の書き忘れです。
+- **エディタが赤い波線・`tsc` が失敗** … tsconfig の `paths` の書き忘れです。
+- **SCSS の `@use '@/styles/...'` が効かない** … SCSS に `@/` は使えません。`loadPaths` を設定し、`@use 'styles/...'` と書きます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="Vite だからです。tsconfig の paths はエディタ・型チェック用で、実際のビルド解決には vite.config.ts の resolve.alias が別に要ります。両方に同じ src を指すと動きます（Next.js は tsconfig だけで効くので混同しがち）。">
+
+「tsconfig に `paths` を書いたのに `npm run dev` が `Failed to resolve import "@/..."` で落ちる」。なぜでしょう。どう直しますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- `@/` を `src/` の別名にすると、`../../` が消えてファイル移動にも強くなる
+- Vite では **tsconfig の `paths`（エディタ）と vite の `resolve.alias`（実行）の両方**が必要
+- SCSS は別枠。`css.preprocessorOptions.scss.loadPaths` で `@use 'styles/...'` にできる
+
+</SummaryBox>

@@ -1,0 +1,87 @@
+.demo {
+  width: 100%;
+  display: flex;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.label {
+  display: block;
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--c-muted);
+}
+
+.nativeWrap {
+  display: block;
+}
+
+.native {
+  width: 220px;
+  max-width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+}
+
+.wrap {
+  position: relative;
+  width: 220px;
+  max-width: 100%;
+}
+
+// 選ぶ値で幅が変わらないよう、trigger は wrap の幅いっぱいに固定する。
+.trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.caret {
+  flex: none;
+  color: var(--c-muted);
+}
+
+.list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 0;
+  padding: var(--sp-1);
+  list-style: none;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-1);
+}
+
+.option {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--c-sunk);
+  }
+}
+
+.active {
+  color: var(--c-accent);
+  font-weight: 600;
+}

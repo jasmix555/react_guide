@@ -1,0 +1,159 @@
+---
+title: モーダル
+minutes: 10
+slug: modal
+section: recipes
+description: 開閉できるモーダルダイアログ。開閉状態の持ち方から、Esc・背景クリックで閉じる仕組みまで作る。
+level: beginner
+prerequisites: ['components/button-variants']
+---
+
+import { ModalDemo } from '@/demos/ModalDemo'
+
+<LearnBox>
+
+- 開閉状態を `useState` で持つモーダルの作り方
+- Esc とオーバーレイクリックで閉じる
+- 開いたらフォーカスを中へ、閉じたら元へ戻す
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+作るのはこれです。ボタンで開き、Esc・背景クリック・✕ で閉じます。触ってみてください。
+
+<Demo title="Modal">
+  <ModalDemo />
+</Demo>
+
+## なぜ「開閉フラグは親が持つ」のか {#why}
+
+モーダルで最初に迷うのが「開いているかどうかを、どこで管理するか」です。答えは**呼び出す側（親）が `useState` で持つ**、です。モーダル本体は「今、表示すべきか」を `props` で受け取るだけにします。こうすると、どのボタンから開くか・閉じたら何をするかを、使う側が自由に決められます。
+
+## ステップ 1：使う側で開閉フラグを持つ {#open-state}
+
+まず、使う側の形を決めます。開いているかを `open` という state に持ち、ボタンで `true`、閉じる操作で `false` にします。
+
+```tsx title="使い方"
+const [open, setOpen] = useState(false)
+
+<Button onClick={() => setOpen(true)}>モーダルを開く</Button>
+<Modal open={open} onClose={() => setOpen(false)} title="購入の確認">
+  <p>この商品をカートに追加しますか？</p>
+</Modal>
+```
+
+`Modal` には「開いているか（`open`）」と「閉じるとき呼ぶ関数（`onClose`）」を渡します。次に、この `Modal` 本体を作ります。
+
+## ステップ 2：Modal 本体 {#modal-body}
+
+これが `Modal` の全文です。少し長いですが、上から順に読めば難しくありません。
+
+```tsx title="src/demos/ModalDemo/Modal.tsx（全文）"
+import { type ReactNode, useEffect, useRef } from 'react'
+
+import styles from './Modal.module.scss'
+
+interface ModalProps {
+  open: boolean
+  onClose: () => void
+  title: string
+  children: ReactNode
+}
+
+export function Modal({ open, onClose, title, children }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    panelRef.current?.focus()
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      previouslyFocused?.focus?.() // 閉じたら元の位置へフォーカスを戻す
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+```
+
+読みどころは 3 つです。`if (!open) return null` で、閉じているときは**何も描かない**（画面から消える）。`useEffect` の中で Esc キーの監視を始め、開いたらパネルへフォーカスを移す。そして一番のポイントが、次のステップで説明する `onClick` の 2 か所です。
+
+## ステップ 3：背景で閉じ、中身では閉じない {#overlay-close}
+
+`return` の中に `onClick` が 2 つあります。役割が正反対です。
+
+- **オーバーレイ（背景）** の `onClick={onClose}` … 背景をクリックしたら閉じる。
+- **パネル（中身）** の `onClick={(e) => e.stopPropagation()}` … 中身のクリックが背景まで伝わるのを**止める**。
+
+この 2 つがセットで「背景クリックでは閉じるが、中身をクリックしても閉じない」を実現しています。
+
+<JsNote feature="e.stopPropagation() はイベントの伝播を止める">
+
+クリックは、押した要素から親へ親へと伝わっていきます（伝播）。パネルで `stopPropagation()` を呼ぶと、そのクリックが背景（オーバーレイ）まで伝わらなくなり、背景の `onClose` が誤って呼ばれずに済みます。
+
+</JsNote>
+
+## わざと壊す：stopPropagation を消すと中身クリックで閉じる {#break-propagation}
+
+`stopPropagation` の役割を、消して確かめます。パネルの `onClick={(e) => e.stopPropagation()}` を消して保存します。
+
+```tsx title="Modal.tsx（わざと壊す：stopPropagation を消す）"
+<div ref={panelRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+  {children}
+</div>
+```
+
+モーダルを開いて、**中身のテキストをクリック**してみてください。モーダルが閉じてしまいます。エラーは出ませんが、明らかに邪魔な挙動です。
+
+理由は、中身のクリックが親のオーバーレイまで伝わり、オーバーレイの `onClick={onClose}` が呼ばれてしまうからです。`stopPropagation()` を戻せば、中身のクリックはそこで止まり、閉じなくなります。
+
+## 実務での注意点 {#notes}
+
+- **Esc で閉じる**：`keydown` を監視し、`useEffect` の後片付け（`return () => …`）で必ず解除します。解除を忘れると、閉じたあともイベントが残り続けます。
+- **フォーカス管理**：開いたらパネルへ、閉じたら元のボタンへフォーカスを戻します。キーボードだけで操作する人のために必須です。
+- **背景スクロール**：本格的に作るなら、開いている間は `document.body` のスクロールを止めると親切です。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="モーダルを常に描画して display:none で隠す"
+  good="open が false のときは return null で描画しない"
+  note="隠すだけだと中の state やイベントが残り続ける。閉じたら消すのが素直。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **中身をクリックしただけで閉じる** … パネルの `onClick={(e) => e.stopPropagation()}` が抜けています。
+- **Esc で閉じない** … `keydown` の登録・解除を `useEffect` の中で正しく行っているか確認します。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 開閉フラグは親が `useState` で持ち、`open` / `onClose` を props で渡す
+- 背景の `onClose` と、パネルの `stopPropagation` をセットにする
+- 閉じているときは `return null` で描かない。開いたらフォーカスを中へ、閉じたら元へ
+
+</SummaryBox>

@@ -1,0 +1,181 @@
+---
+title: 生成ファイルを1つずつ読む
+minutes: 10
+slug: setup-generated-files
+section: setup
+description: Vite が作ったファイルを1つずつ開いて役割を知る。index.html / main.tsx / App.tsx / 設定ファイル。
+level: beginner
+prerequisites: ['setup/npm-run-dev']
+---
+
+<LearnBox>
+
+- Vite が作った各ファイルの役割
+- HTML → main.tsx → App.tsx という「画面が出るまでの流れ」
+- `public` と `src/assets` の違い、設定ファイルたちの分担
+
+</LearnBox>
+
+「知らないファイルが並んでいる」状態が、React を怖く感じる大きな原因です。ここで 1 つずつ開いて、正体を確かめます。全部を今すぐ理解する必要はありません。**どれが何担当か**が分かれば十分です。
+
+## 全体像 {#tree}
+
+エクスプローラを見ると、だいたいこうなっています（`node_modules` は省略）。
+
+```
+my-shop/
+├─ index.html          ← 唯一の HTML。ここが入口
+├─ package.json        ← 欲しいものリスト＋コマンド集
+├─ package-lock.json   ← 入れた正確なバージョンの記録
+├─ vite.config.ts      ← Vite の設定
+├─ tsconfig.json       ← TypeScript の設定（まとめ役）
+├─ tsconfig.app.json   ← src 用の TS 設定
+├─ tsconfig.node.json  ← 設定ファイル用の TS 設定
+├─ .gitignore          ← git に含めないものリスト
+├─ .oxlintrc.json      ← 自動チェックの設定
+├─ public/             ← そのまま配信されるファイル
+└─ src/                ← 自分のコードを書く場所
+   ├─ main.tsx         ← 起動の起点
+   ├─ App.tsx          ← 最初のコンポーネント（サンプル）
+   ├─ App.css
+   ├─ index.css
+   └─ assets/          ← import して使う画像など
+```
+
+## index.html — 入口 {#index-html}
+
+意外に思うかもしれませんが、React でも**入口は 1 枚の HTML**です。開いてみましょう。
+
+```html title="index.html"
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>reftest</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+```
+
+注目は `<body>` の中の 2 行だけです。`<div id="root"></div>` は**空っぽの箱**。React は、この箱の中に画面を描きます。そして `<script type="module" src="/src/main.tsx">` が、次の `main.tsx` を読み込んでいます。
+
+<Callout type="analogy">
+
+LP は HTML の中に直接コンテンツを書きました。React の HTML は**空の箱を 1 つ置くだけ**で、中身は JavaScript（`main.tsx`）が後から流し込みます。ここが発想の切り替えどころです。
+
+</Callout>
+
+## src/main.tsx — 起動の起点 {#main}
+
+`main.tsx` が、React を起動する最初の 1 手です。全文でも短いので、まるごと見ます。
+
+```tsx title="src/main.tsx"
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+```
+
+読み解くとこうです。`document.getElementById('root')` で、さっきの**空の箱**を見つけ、`createRoot(...).render(...)` で、その中に `<App />` を描きます。`<App />` が、次に見るあなたのアプリ本体です。`StrictMode` は開発中のチェックを厳しくする囲いで、今は気にしなくて大丈夫です。
+
+## src/App.tsx — 最初のコンポーネント {#app}
+
+`App.tsx` が、画面に出ていたサンプルの正体です。create-vite が作る App.tsx は**それなりに長い**（ロゴやリンクの飾りが入った紹介ページ）ので、ここでは骨格だけ抜き出します。
+
+```tsx title="src/App.tsx（骨格）"
+import { useState } from 'react'
+import './App.css'
+
+function App() {
+  const [count, setCount] = useState(0)
+
+  return (
+    <>
+      <h1>Get started</h1>
+      <button onClick={() => setCount((count) => count + 1)}>
+        Count is {count}
+      </button>
+      {/* …この下にロゴやリンクの飾りが続く… */}
+    </>
+  )
+}
+
+export default App
+```
+
+これが「**コンポーネント**」です。`function App()` という関数が、見た目（`return` の中の JSX）を返しています。あのボタンを押すと数字が増えたのは、この `useState` と `onClick` の働きです。仕組みは後のパートでみっちりやります。**このファイルは後のページで全部消して、白紙にします。**
+
+## vite.config.ts — Vite の設定 {#vite-config}
+
+Vite の設定ファイルです。これも短いです。
+
+```ts title="vite.config.ts"
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+```
+
+`plugins: [react()]` の 1 行が「このプロジェクトは React を使う」という宣言です。今はこれ以上いじりません。後のパートで SCSS のエイリアスなどを足すとき、またここに戻ってきます。
+
+## package.json の scripts {#scripts}
+
+`package.json` の中の `scripts` が、`npm run ○○` で打てるコマンドの一覧です。
+
+```json title="package.json（scripts 部分）"
+"scripts": {
+  "dev": "vite",
+  "build": "tsc -b && vite build",
+  "lint": "oxlint",
+  "preview": "vite preview"
+}
+```
+
+- `npm run dev` … 開発サーバを起動（ずっと使う）
+- `npm run build` … 本番用ファイルを書き出す（公開のとき）
+- `npm run lint` … コードの自動チェック（`oxlint` という道具。後のパートで扱います）
+- `npm run preview` … build した結果を確認用に表示する
+
+## 3 つの tsconfig {#tsconfig}
+
+TypeScript の設定が 3 ファイルに分かれています。役割はこうです。
+
+- **`tsconfig.json`** … まとめ役。中身はほぼ空で、下の 2 つを束ねているだけ。
+- **`tsconfig.app.json`** … `src` の中（あなたが書くアプリのコード）用の設定。
+- **`tsconfig.node.json`** … `vite.config.ts` など、設定ファイル側の TS 設定。
+
+今は「アプリ用と設定ファイル用で分かれている」とだけ知っていれば十分です。中身は後のパートで必要になったとき触ります。
+
+## public と src/assets の違い {#public-assets}
+
+画像などの置き場が 2 つあり、ここは混乱しやすいので押さえておきます。
+
+- **`public/`** … 中身が**そのままの URL で配信**されます。`public/favicon.svg` は `/favicon.svg` でアクセスできます。ファビコンや `robots.txt` のような「加工されたくないもの」を置きます。
+- **`src/assets/`** … コードから **`import` して使う**画像などを置きます。ビルド時にファイル名にハッシュが付くなど、最適化されます。コンポーネントの中で使う画像は基本こちらです。
+
+## .gitignore と .oxlintrc.json {#others}
+
+- **`.gitignore`** … git に含めないもののリスト。`node_modules` と `dist`（build の出力）が最初から書いてあります。
+- **`.oxlintrc.json`** … `npm run lint` が使う自動チェックの設定です。create-vite 9 はこの **oxlint** という新しいチェッカーを既定で入れます。ただし**うちの標準は ESLint + Prettier**なので、Part 4「コード品質の仕組み」で oxlint を ESLint に置き換えます（理由もそこで説明します）。今はこのまま触りません。
+
+<SummaryBox>
+
+- 画面が出る流れは **index.html（空の箱）→ main.tsx（箱に描く）→ App.tsx（中身）**
+- `vite.config.ts` は Vite の設定、`package.json` の scripts は `npm run` で打てるコマンド集
+- 画像は「そのまま配信の `public`」と「import して使う `src/assets`」で使い分ける
+
+</SummaryBox>

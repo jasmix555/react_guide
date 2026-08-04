@@ -1,0 +1,64 @@
+---
+title: まとめと練習
+minutes: 6
+slug: styling-summary
+section: styling
+description: スタイリングのまとめ。SCSS Modules・入れ子・トークン・テーマ・レスポンシブ・条件付きクラスを振り返り、理解度チェックで自己確認する。次は React 用の TypeScript へ。
+level: beginner
+prerequisites: ['styling/goal']
+---
+
+<LearnBox>
+
+- このパートで身についた「見た目を付ける」力の総復習
+- 理解度チェック（つまずきやすい所を自己確認）
+- 次のパート（React 用の TypeScript）への橋渡し
+
+</LearnBox>
+
+## このパートの総復習 {#recap}
+
+素の一覧を、状態表示付きのレスポンシブなカード一覧まで仕上げました。要点を並べます。
+
+- **SCSS Modules** … `.module.scss` にすると、クラス名がビルド時に固有化され、部品ごとに閉じる（衝突しない）。`import styles` して `className={styles.card}`。
+- **SCSS の機能** … 入れ子でまとめ、`&` で自分を指し、`$` 変数と `@mixin` で再利用する。
+- **デザイントークン** … 色は `:root` の `--変数` に集約し、`var()` で参照。`$` と違い実行中に変えられるので、テーマ切り替えに強い。
+- **テーマ** … `@media (prefers-color-scheme: dark)` で同じトークン名を上書きするだけでダーク対応。
+- **レスポンシブ** … モバイルファースト＋`grid` の `auto-fill` / `minmax` で自動折り返し。
+- **条件付きクラス** … `clsx(styles.card, 条件 && styles.状態)` で、状態に応じてクラスを安全に足す。
+
+「見た目は SCSS Modules に閉じ込め、色はトークンに集約する」——この 2 つが、これからの土台です。
+
+## 理解度チェック {#quiz}
+
+<Exercise answer="ファイル名を .module.scss にします。すると中のクラス名がビルド時に固有名へ変換され、他ファイルの同名クラスと衝突しません。import styles して className={styles.クラス名} で当てます。">
+
+2 つの部品がどちらも `.card` を使っても衝突させないために、CSS ファイルをどうしますか。当て方も説明してください。
+
+</Exercise>
+
+<Exercise answer="CSS の --変数（カスタムプロパティ）です。$ 変数はビルド時に焼き込まれて実行中に変えられませんが、--変数は実行時に生きているので、ダーク切り替えのように値を差し替えられます。">
+
+ライト／ダークを切り替えるための色は、SCSS の `$` 変数と CSS の `--変数` のどちらで持つべきですか。理由も。
+
+</Exercise>
+
+<Exercise answer="clsx(styles.card, !inStock && styles.sold) と書きます。!inStock が true のときだけ styles.sold が足され、false なら clsx が捨てます。文字列連結より空白や false 混入が起きにくく安全です。">
+
+`ProductCard` に、在庫切れ（`!inStock`）のときだけ `styles.sold` を足すには、`clsx` でどう書きますか。
+
+</Exercise>
+
+## 次のパートへ {#next}
+
+見た目は整いました。ただ、`ProductCard` の props は毎回 `name` `price` `category`… と 1 つずつ書いていて、少し面倒です。商品は `Product` という「決まった形」を持っているのに、それを型として表せていません。
+
+次のパートは **React 用の TypeScript**。`Product` 型を定義して、props やデータを**型で守る**書き方に進みます。ここまで作ってきた `ProductCard` が、より安全で書きやすくなります。
+
+<SummaryBox>
+
+- スタイルは `.module.scss` に閉じ込め、`import styles` して当てる（衝突しない）
+- 色はトークン（`--変数`）に集約し、`var()` で参照。ダークは値の差し替えだけ
+- レスポンシブは `grid` の `auto-fill`/`minmax`、状態は `clsx` の条件付きクラス
+
+</SummaryBox>

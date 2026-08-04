@@ -1,0 +1,66 @@
+---
+title: motion を入れる
+minutes: 4
+slug: motion
+section: libraries
+description: アニメーションの部品 motion を入れる。何のためのものかと入れ方まで。実際の使い方は Framer Motion のパートで扱う。
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- アニメーション部品 `motion` は何のためのものか
+- `motion` を入れる
+- 使い方は Framer Motion のパートでやる、という見通し
+
+</LearnBox>
+
+## アニメーションを React らしく付ける {#why}
+
+LP 制作では、ふわっと出す・スクロールで動かす、といったアニメーションをよく使ってきたと思います。CSS の `transition` や `@keyframes` でも書けますが、「**表示された瞬間・消える瞬間**」や「一覧の要素が順番に出てくる」といった、React の表示の切り替わりに合わせた動きは、専用の部品があると格段にラクになります。
+
+うちで使うのが **`motion`** です。「この要素を、こう動かす」を宣言的に書けます。
+
+<Callout type="analogy">
+
+CSS のアニメーションが「手でストップウォッチを見ながら動かす」なら、`motion` は「開始と終了の状態を伝えると、間をなめらかにつないでくれる」係です。細かいタイミング計算を任せられます。
+
+</Callout>
+
+## 入れる {#install}
+
+画面の動作に関わるので `dependencies`（`-D` なし）で入れます。
+
+```bash
+npm install motion
+```
+
+`package.json` の `dependencies` に `motion` が増えます。型は本体に同梱されています。
+
+## 使い方は Framer Motion のパートで {#later}
+
+`motion` の使い方は、コンポーネントや state（画面の状態）を理解してからのほうが腑に落ちます。「ボタンを押したら開く」「一覧が順に現れる」といった動きは、React の状態と結びついているからです。なので **ここでは入れるところまで**にして、実際の書き方は[Framer Motion のパート](/libraries/framer-motion/goal)で詳しくやります。
+
+ここでは「アニメーションを付けたくなったら `motion`」とだけ覚えておけば十分です。
+
+## うちの標準 {#standard}
+
+<Std
+  decision="アニメーションは motion を使う。ただし、単純な hover やフェードは CSS の transition で足りることも多い"
+  alt="ちょっとした色や大きさの変化は、CSS の transition だけで済みます。表示・非表示の切り替えや連続した動きなど、CSS だと面倒な場面で motion を使います。"
+>
+
+アニメーションの定番として `motion` を用意しておきます。とはいえ、まず CSS で足りないかを考えるのは他のライブラリと同じ。凝った動きが要るときに `motion`、という順で判断します。使い方は Framer Motion のパートで。
+
+</Std>
+
+## まとめと練習 {#summary}
+
+<SummaryBox>
+
+- `motion` は React の表示切り替えに合わせたアニメーションを書くための部品
+- `npm install motion`（dependencies）で入れる。型は同梱
+- 使い方は Framer Motion のパートで。単純な動きは CSS の transition で足りることも多い
+
+</SummaryBox>

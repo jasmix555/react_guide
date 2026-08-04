@@ -1,0 +1,80 @@
+---
+title: このパートのゴール
+minutes: 5
+slug: typescript-goal
+section: typescript
+description: React 用の TypeScript を体系的に。props やデータの「形」を型で表し、実行前にミスを止める。ProductCard の props を Product 型 1 つにまとめるのがゴール。
+level: beginner
+prerequisites: ['styling/summary']
+---
+
+import { ProductCardDemo } from '@/demos/ProductCard'
+
+<PartIntro>
+
+Parts 3〜5 で、型を少しずつ使ってきました（`interface Props`、`variant?: 'primary' | ...`）。このパートでは、それを**体系的に**します。「実行する前にミスを止める」力を、本物にします。
+
+手元の `ProductCard` は、見た目は完成しましたが、props はまだ 1 つずつ受け取っています。
+
+```tsx
+// いまの ProductCard：props を 1 個ずつ
+function ProductCard({ name, price, category, imageUrl, inStock }: ProductCardProps) { ... }
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- このパートで身につく「型で守る」書き方の全体像
+- 型は「実行前にミスを止める」ものだという再確認
+- このパートの進み方
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+見た目は Part 5 のこのカードのままです。**変わるのは見た目ではなく、コードの安全性**です。
+
+<Demo title="見た目は同じ。中身を型で守る">
+  <ProductCardDemo />
+</Demo>
+
+このパートを終えると、`ProductCard` の props は、バラバラの 5 つではなく **`Product` という 1 つの型**にまとまります。
+
+```tsx
+// ゴール：props を Product 型 1 つに
+function ProductCard({ product }: { product: Product }) { ... }
+```
+
+商品が持つべき形（`Product`）を 1 か所で決め、props もデータも**その形からズレたら赤い波線で止まる**——それがこのパートのゴールです。
+
+## なぜ「型」を 1 つのパートにするのか {#why}
+
+型の**ありがたみ**は、Part 1 の[「TypeScript とは」](/guide/setup/typescript-intro)で見ました（`greet(123)` が実行前に止まるやつです）。このパートは、その**書き方**をまとめて身につけます。
+
+React では、型がとくに効くのが次の 2 か所です。
+
+- **props** … 「この部品は何を受け取るか」を型で決める。渡し忘れ・型違いが即分かる。
+- **データ** … `products.json` のような「決まった形のデータ」を型で表す。プロパティ名の打ち間違いが止まる。
+
+この 2 つを型で固めるだけで、コードは一気に壊れにくくなります。
+
+## このパートの進み方 {#roadmap}
+
+1. **基本の型** — `string` `number` `boolean` と配列。型推論に任せる所。
+2. **interface** — オブジェクトの「形」を表す。
+3. **props に型を付ける** — `interface Props`、任意の props（`?`）、`children`。
+4. **union とリテラル型** — `'primary' | 'secondary'` のような「どれか 1 つ」。
+5. **Product 型とデータ** — 商品の形を作り、`products.json` を型付きで読む。
+6. **state とイベントの型** — `useState<T>`、イベントの型。
+7. **通し課題** — `ProductCard` を `Product` 型で守る。
+
+各ページに**コード全文**と、型が効く様子を見る**わざと壊す**を用意しています。エディタの赤い波線を、実際に自分の目で見てください。
+
+<SummaryBox>
+
+- 型は「実行前にミスを止める」もの。このパートでその書き方をまとめて学ぶ
+- React では props とデータの「形」を型で固めると、一気に壊れにくくなる
+- ゴールは `ProductCard` の props を `Product` 型 1 つにまとめること
+
+</SummaryBox>

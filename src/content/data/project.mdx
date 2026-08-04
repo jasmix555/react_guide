@@ -1,0 +1,102 @@
+---
+title: 通し課題：一覧を fetch にする
+minutes: 9
+slug: data-project
+section: data
+description: ProductListPage の直 import を useProducts に置き換え、3状態を画面に出す。products.json を public に置いて本物の通信にする。
+level: beginner
+prerequisites: ['data/custom-hook']
+---
+
+<LearnBox>
+
+- `products.json` を `public/` に置いて、`fetch` で取れるようにする
+- `ProductListPage` の直 import を `useProducts()` に置き換える
+- 読み込み中・失敗・成功の 3 状態を、一覧ページで出し分ける
+
+</LearnBox>
+
+## 1. products.json を public に移す {#public}
+
+いままで `src/data/products.json` を直 import していました。`fetch` で取るために、`public/` に移します。`public/` のファイルは、`/ファイル名` の URL で配信されます。
+
+```
+my-shop/
+├─ public/
+│  └─ products.json    ← ここに移す（/products.json で取れる）
+└─ src/
+   ├─ hooks/useProducts.ts
+   └─ pages/ProductListPage.tsx
+```
+
+これで `fetch('/products.json')` が、この JSON を取りにいきます。本物の API に変えるときは、`useProducts` の中の URL を差し替えるだけです。
+
+## 2. before：直 import {#before}
+
+Part 7 までの `ProductListPage` は、こうでした。データが一瞬で手に入る前提です。
+
+```tsx title="src/pages/ProductListPage.tsx（before）"
+import products from '../data/products.json'
+
+export function ProductListPage() {
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+## 3. after：useProducts で取得 {#after}
+
+直 import をやめ、`useProducts()` で取得します。そして **3 状態を出し分け**ます。
+
+```tsx title="src/pages/ProductListPage.tsx（after・全文）"
+import { ProductCard } from '@/components/ProductCard/ProductCard'
+import { useProducts } from '@/hooks/useProducts'
+
+import styles from './ProductListPage.module.scss'
+
+export function ProductListPage() {
+  const { products, status } = useProducts()
+
+  if (status === 'loading') {
+    return <p className={styles.msg}>読み込み中…</p>
+  }
+  if (status === 'error') {
+    return <p className={styles.error}>読み込みに失敗しました。時間をおいて再度お試しください。</p>
+  }
+
+  return (
+    <div className={styles.list}>
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  )
+}
+```
+
+`import` が `@/hooks/useProducts` と `@/components/...` になっているのも、[Part 1 の `@/` 設定](/guide/setup/path-alias)のおかげです。`../../` がありません。
+
+## 4. 動かす {#run}
+
+`npm run dev` で開くと、一覧ページは一瞬「読み込み中…」を出し、`products.json` が届くとカードが並びます（速すぎて見えないときは、ブラウザの開発者ツールで通信を遅くすると確認できます）。`public/products.json` の名前をわざと変えれば、`res.ok` が `false` になり「読み込みに失敗しました」が出ます。**直 import だった一覧が、本物の通信で動くようになりました。**
+
+<Callout type="note" title="詳細ページも同じ考え方">
+
+商品詳細（`/product/:id`）も、本来は「その id の 1 件を `fetch` する」形にできます。やることは同じ（`useEffect` + 3 状態）なので、まずは一覧で流れを掴めば応用できます。
+
+</Callout>
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- `products.json` を `public/` に置くと `/products.json` で `fetch` できる
+- `ProductListPage` は `useProducts()` で取得し、`loading` / `error` / 成功を出し分ける
+- 本物の API にするときは、`useProducts` の中の URL を差し替えるだけ
+
+</SummaryBox>

@@ -1,0 +1,158 @@
+---
+title: レンジスライダー
+minutes: 8
+slug: range-slider
+section: recipes
+description: ネイティブの range 入力で作るスライダー。値を state に読み取り、色は accent-color で着ける。文字列→数値の変換に注意。
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { SliderDemo } from '@/demos/RangeSlider'
+
+<LearnBox>
+
+- `<input type="range">` だけで作るスライダー（自作のドラッグ処理は不要）
+- 選んだ値を `useState` に読み取って画面に反映する
+- `e.target.value` が**文字列**で来る落とし穴と、`accent-color` での色付け
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+作るのはこれです。つまみを動かすと、選んだ値がすぐ上に反映されます。
+
+<Demo title="RangeSlider">
+  <SliderDemo />
+</Demo>
+
+## つまみは自作しない {#native-first}
+
+スライダーを「`div` を並べてドラッグ位置を計算して……」と自作すると、地獄です。ブラウザには**最初からスライダーが入っています**。`<input type="range">` と書くだけで、ドラッグもキーボード操作（矢印キー）も付いてきます。
+
+```tsx title="いちばん短いスライダー"
+<input type="range" min={0} max={100} />
+```
+
+必要なのは「いまいくつか」を受け取って使うこと。そこだけ React でやります。
+
+## 値を state に読み取る {#read-value}
+
+スライダーの値を使うには、`useState` に読み取ります。ポイントは 1 つだけ、**`e.target.value` は文字列で来る**ことです。
+
+```tsx
+const [max, setMax] = useState(5000)
+
+<input
+  type="range"
+  min={0}
+  max={10000}
+  step={500}
+  value={max}
+  onChange={(e) => setMax(Number(e.target.value))}
+/>
+```
+
+- **`min` / `max`** … 動かせる範囲。ここでは `0`〜`10000`。
+- **`step`** … 刻み幅。`500` なら 500 ずつ動きます。
+- **`value={max}`** … いまの値（state）をスライダーに反映。
+- **`onChange`** … 動かすたびに呼ばれる。`e.target.value` は `"5000"` のような**文字列**なので、`Number(...)` で数値に直してから `setMax` に渡します。
+
+<JsNote feature="e.target.value は文字列で来る">
+
+`<input>` の値は、`type="range"` でも `type="number"` でも、**常に文字列**として渡されます。`Number(e.target.value)` で数値にしないと、`+` が足し算ではなく文字列連結になり、計算が狂います。
+
+</JsNote>
+
+## 再利用できる形にする {#reusable}
+
+毎回この `<input>` を書くのは面倒なので、ラベルと値表示をまとめた小さな部品にします。`src/components/RangeSlider/RangeSlider.tsx` を新規作成してください。
+
+```tsx title="src/components/RangeSlider/RangeSlider.tsx（新規作成・全文）"
+interface RangeSliderProps {
+  label: string
+  min: number
+  max: number
+  step?: number
+  value: number
+  onChange: (value: number) => void
+  format?: (value: number) => string
+}
+
+export function RangeSlider({
+  label,
+  min,
+  max,
+  step = 1,
+  value,
+  onChange,
+  format,
+}: RangeSliderProps) {
+  return (
+    <label>
+      <span>
+        {label}
+        <span>{format ? format(value) : value}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </label>
+  )
+}
+```
+
+使う側は、値の state と「どう表示するか（`format`）」だけ渡します。
+
+```tsx title="使う側"
+const [max, setMax] = useState(5000)
+
+<RangeSlider
+  label="価格の上限"
+  min={0}
+  max={10000}
+  step={500}
+  value={max}
+  onChange={setMax}
+  format={(v) => `${v.toLocaleString()} 円以下`}
+/>
+```
+
+## 色を着ける {#styling}
+
+つまみやバーの色は、CSS 一行で変えられます。`::-webkit-slider-thumb` のようなブラウザごとの指定を書かなくても、`accent-color` が効きます。
+
+```scss title="RangeSlider.module.scss"
+.range {
+  width: 100%;
+  accent-color: var(--c-accent);
+}
+```
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="div を並べて自前でドラッグ位置を計算する"
+  good="<input type='range'> を使い、値だけ state に読む"
+  note="自作はキーボード操作・アクセシビリティまで作り直しになる。ネイティブなら最初から付いてくる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **数字がおかしい・連結される** … `Number(e.target.value)` を忘れています。値は文字列で来ます。
+- **つまみが動かない** … `value` を渡しているのに `onChange` が無いと固定されます。両方セットで書きます。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- スライダーは自作せず `<input type="range">`。ドラッグもキーボードも付いてくる
+- `value` と `onChange` をセットで書き、`e.target.value` は `Number(...)` で数値に直す
+- 色は `accent-color` 一行。ブラウザごとの thumb 指定は要らない
+
+</SummaryBox>

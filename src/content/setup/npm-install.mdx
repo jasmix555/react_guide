@@ -1,0 +1,107 @@
+---
+title: npm install は何をしているのか
+minutes: 8
+slug: setup-npm-install
+section: setup
+description: node_modules と package-lock.json の正体、そしてロックファイルを必ず commit する理由。
+level: beginner
+prerequisites: ['setup/open-vscode']
+---
+
+<LearnBox>
+
+- `npm install` を実行すると、何がダウンロードされるのか
+- `node_modules` と `package-lock.json` の役割
+- ロックファイルを必ず git に commit する理由
+
+</LearnBox>
+
+`create vite` でできたフォルダは、実はまだ動きません。**プロジェクトが必要とするライブラリがダウンロードされていない**からです。それを入れるのが `npm install` です。
+
+## ステップ 1：実行する {#step-run}
+
+VS Code の統合ターミナル（行頭が `...\my-shop>`）で、次を打ちます。
+
+```bash
+npm install
+```
+
+しばらくすると、こういう出力が出て終わります（数字は環境で変わります）。
+
+```
+added 187 packages, and audited 188 packages in 12s
+
+43 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+```
+
+`added 187 packages`（187 個のライブラリを入れました）と出れば成功です。`found 0 vulnerabilities`（脆弱性なし）も確認できれば安心です。
+
+## node_modules — ダウンロード先 {#node-modules}
+
+`npm install` が終わると、`node_modules` という**巨大なフォルダ**ができます。中には、React 本体も、Vite も、それらが内部で使う何百個ものライブラリも入っています。
+
+このフォルダは非常に大きく、しかも `npm install` でいつでも作り直せます。だから、**git には含めません**（`.gitignore` に最初から書いてあります）。人に渡すときも `node_modules` は渡さず、相手が自分の環境で `npm install` すれば同じものが再現されます。
+
+<Callout type="analogy">
+
+`node_modules` は「レシピ通りに買ってきた材料の山」です。かさばるし、レシピ（後述の設定ファイル）があればいつでも買い直せるので、保存はしません。
+
+</Callout>
+
+## package.json と package-lock.json {#lock}
+
+材料を管理しているのが、この 2 つのファイルです。役割がはっきり違います。
+
+- **`package.json`** … 「**欲しいものリスト**」。`react` が欲しい、`vite` が欲しい、とだいたいのバージョンで書いてあります。
+- **`package-lock.json`** … 「**実際に入れた、正確なバージョンの記録**」。`react` の `19.2.8` を入れた、という一点まで固定します。
+
+## なぜロックファイルを commit するのか {#why-commit}
+
+`package.json` には「`^19.2.0` 以上」のように**幅**で書かれています。この幅のままだと、人によって入るバージョンが微妙にズレて、「自分の PC では動くのに、同僚の PC では動かない」が起きます。
+
+`package-lock.json` は、その幅を**一点に固定**します。これを git に commit しておけば、チーム全員が `npm install` したときに**寸分たがわず同じバージョン**が入ります。だから、**ロックファイルは必ず commit する**。これは鉄則です。
+
+<Callout type="warn">
+
+`package-lock.json` を「よく分からないから」と `.gitignore` に入れてはいけません。再現性が崩れ、「私の環境では動く」問題の温床になります。
+
+</Callout>
+
+## わざと壊す：node_modules を消すと動かない {#break-no-modules}
+
+`node_modules` が無いと動かないことを、体で確認しておきましょう。VS Code の左のエクスプローラで `node_modules` フォルダを右クリック → 削除します。その状態で起動してみます。
+
+```bash
+npm run dev
+```
+
+すると、こう怒られます。
+
+```
+'vite' は、内部コマンドまたは外部コマンド、
+操作可能なプログラムまたはバッチ ファイルとして認識されていません。
+```
+
+「`vite` という道具が見つからない」＝ライブラリが消えている、という意味です。あわてず、もう一度入れ直せば直ります。
+
+```bash
+npm install
+```
+
+材料（`node_modules`）が復活し、また `npm run dev` できるようになります。**消えても `package.json` と `package-lock.json` さえあれば復元できる**——これが「`node_modules` を保存しない」で成り立つ理由です。
+
+## うまくいかないとき {#trouble}
+
+- **`npm ERR! code ERESOLVE`** … ライブラリ同士のバージョンの相性が合っていません。エラー本文にどのパッケージが原因か書いてあります。詳しい対処はページ 20 にまとめます。
+- **途中で止まる／遅い** … ネットワークかプロキシが原因のことがあります。別のネットワークで試すと切り分けられます。
+
+<SummaryBox>
+
+- `npm install` は、プロジェクトが必要とするライブラリを `node_modules` にダウンロードする
+- `node_modules` は巨大で作り直せるので git に含めない（`.gitignore` 済み）
+- `package.json`＝欲しいものリスト、`package-lock.json`＝入れた正確なバージョン。ロックは必ず commit する
+
+</SummaryBox>

@@ -1,0 +1,189 @@
+---
+title: import と export
+minutes: 8
+slug: import-export
+section: javascript
+description: ファイルを分けてコードを共有する仕組み。名前付き export と default export、そして名前が食い違ったときのエラー。
+level: beginner
+prerequisites: ['javascript/arrow-functions']
+---
+
+<LearnBox>
+
+- ファイルの中身を外へ出す `export`、取り込む `import`
+- 名前付き export と default export の違い
+- 取り込む名前が食い違ったときに出るエラーの読み方
+
+</LearnBox>
+
+## なぜファイルを分けるのか {#why}
+
+React のアプリは、1 つの巨大なファイルではなく、**たくさんの小さなファイル**でできています。ボタンはボタンのファイル、商品カードはカードのファイル、というように分けます。そのファイル同士で部品を貸し借りする仕組みが、**`export`（貸し出す）** と **`import`（借りる）** です。Part 1 で `main.tsx` が `App` を `import` していたのも、これでした。
+
+## 名前付き export {#named}
+
+ファイルの中で作った関数や値を、名前を付けたまま外へ出すのが**名前付き export** です。`export` を頭に付けるだけです。
+
+```ts title="src/utils/price.ts（新規作成）"
+export const withTax = (price: number) => price * 1.1
+
+export const format = (price: number) => `${price.toLocaleString()}円`
+```
+
+これを別のファイルで使うときは、**同じ名前**を波かっこで囲んで `import` します。
+
+```ts title="使う側"
+import { withTax, format } from '@/utils/price'
+
+console.log(format(withTax(1000)))
+```
+
+`{ withTax, format }` のように、**中かっこ＋同じ名前**で取り込むのが名前付き export の特徴です。1 つのファイルから何個でも export できます。
+
+`import` 文を、部品に分けて名前を付けます。中かっこの有無で意味が変わります。
+
+```ts
+import { withTax } from '@/utils/price'
+//     ↑           ↑
+//     │           └─ どのファイルから取り込むか（パス）
+//     └─ 中かっこ有り＝名前付き import。出した名前と同じにする
+
+import App from './App'
+//     ↑
+//     └─ 中かっこ無し＝default import。名前は自由に付けられる
+```
+
+- **`import { x } from '...'`** … **中かっこ有り**＝名前付き import。出した名前と**同じ**にする
+- **`import x from '...'`** … **中かっこ無し**＝default import。名前は**自由**
+- **`from '...'`** … どのファイルから取り込むか（パス）
+- 出し方（`export` / `export default`）と取り込み方（`{ }` の有無）が食い違うとエラーになる
+
+<JsNote feature="import の { } は分割代入に似ている">
+
+名前付き import の `import { withTax } from ...` は、分割代入で `const { withTax } = ...` と取り出すのに似た見た目です。「このファイルが出しているもののうち、この名前のものをください」という意味です。
+
+</JsNote>
+
+## default export {#default}
+
+1 ファイルにつき 1 つだけ、「このファイルの**代表**」を出せるのが **default export** です。Part 1 の `App.tsx` がこれでした。
+
+```tsx title="src/App.tsx"
+function App() {
+  return <h1>商品一覧アプリ</h1>
+}
+
+export default App
+```
+
+`export default` で出したものは、取り込む側が**中かっこなし・好きな名前**で受け取れます。
+
+```tsx title="src/main.tsx"
+import App from './App.tsx' // 中かっこ無し。名前は自由
+```
+
+## わざと壊す：名前付きと default を取り違える {#break-mismatch}
+
+一番ハマるのが、**出し方と取り込み方の食い違い**です。`export default` したものを、名前付きのつもりで `{ }` で取り込むと落ちます。上の `App.tsx`（default export）を、こう取り込んでみます。
+
+```tsx
+import { App } from './App.tsx' // { } で取り込んでしまった
+```
+
+すると、こう出ます。
+
+```
+The requested module './App.tsx' does not provide
+an export named 'App'
+```
+
+「`App` という**名前付き**の export は無いよ」というエラーです。`App.tsx` は `export default` で出しているので、`{ App }` ではなく `import App from './App.tsx'`（中かっこ無し）で受け取るのが正解です。逆に、名前付き export を中かっこ無しで取り込んでも、同じ種類のエラーになります。
+
+**「`does not provide an export named ○○`」が出たら、出し方（default か名前付きか）と取り込み方（`{ }` の有無）が合っているかを確認**してください。
+
+<Callout type="note">
+
+`does not provide an export named 'default'` は、`export default` を書き忘れたときに出ます（Part 1 でやりました）。`does not provide an export named 'App'` は、名前付きのつもりで取り込んだが、その名前で出していないときです。どちらも「出し方と取り込み方のズレ」です。
+
+</Callout>
+
+<Together
+  task="src/utils/greet.ts に、名前 name を受け取って挨拶文を返す関数 greet を名前付き export で作り、別のファイルからどう import するかも書いてみてください。"
+  hint="export const greet = ... で出し、import { greet } from '@/utils/greet' で取り込みます。"
+>
+
+```ts title="src/utils/greet.ts（新規作成）"
+export const greet = (name: string) => `こんにちは、${name} さん`
+```
+
+```ts title="使う側"
+import { greet } from '@/utils/greet'
+
+console.log(greet('佐藤')) // こんにちは、佐藤 さん
+```
+
+`export const greet` で名前付き export し、取り込む側は同じ名前を `{ greet }` で受け取ります。名前が 1 文字でも違うと `does not provide an export named ...` になります。
+
+</Together>
+
+## 書き方カタログ：import のいろいろ {#catalog}
+
+取り込み方は、中かっこの有無を中心にいくつかの形があります。よく見る形を並べます。
+
+```ts
+import { Button } from '@/components/Button'    // 名前付き（1つ）
+import { withTax, format } from '@/utils/price' // 名前付き（複数）
+import App from './App'                          // default（中かっこ無し・名前自由）
+import { Card as ProductCard } from './Card'     // 別名を付ける（as）
+import Default, { helper } from './mod'          // default と名前付きを同時に
+import * as utils from '@/utils/price'           // まとめて取り込む
+```
+
+`{ }` があれば名前付き、無ければ default。うちでは原則「名前付き export」で統一するので、多くは `{ }` 付きになります。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="import { App } from './App'（App は default export）"
+  good="import App from './App'"
+  note="default export は中かっこ無しで受け取る。{ } は名前付き用。"
+/>
+
+<Diff
+  bad="import Button from '@/components/Button'（Button は名前付き export）"
+  good="import { Button } from '@/components/Button'"
+  note="名前付き export は { } で、同じ名前で取り込む。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="コンポーネントも関数も、原則「名前付き export」で統一する"
+  alt="ページ単位のトップ（ルーティングの遅延読み込み対象など）は default export が必要な場面もあります。そこだけ default、他は名前付き、と決めておきます。"
+>
+
+名前付きで統一すると、`import { Button }` のように**中身の名前がそのまま見える**ので、取り違えが減り、エディタの補完も効きます。`{ }` を付けるか付けないかで毎回迷わなくて済みます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`does not provide an export named '○○'`** … 名前付きのつもりで取り込んだが、その名前で export していません。`{ }` の有無と名前を確認します。
+- **`does not provide an export named 'default'`** … `export default` を書き忘れているか、default 無しのファイルを default として取り込んでいます。
+- **`Failed to resolve import`** … パスが間違っています。`@/` エイリアスやファイル名の綴りを確認します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="export const ProductCard = ... で名前付き export し、使う側は import { ProductCard } from '@/components/ProductCard' と、中かっこ＋同じ名前で取り込みます。">
+
+`ProductCard` というコンポーネントを名前付き export したとき、別ファイルからの `import` 文はどう書くでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- `export` で外へ出し、`import` で取り込む。React アプリは小さなファイルの貸し借りでできている
+- 名前付き export は `{ 同じ名前 }` で、default export は中かっこ無し・好きな名前で取り込む
+- `does not provide an export named ○○` は、出し方と取り込み方（`{ }` の有無）のズレの合図
+
+</SummaryBox>

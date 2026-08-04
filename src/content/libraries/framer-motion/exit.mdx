@@ -1,0 +1,100 @@
+---
+title: 出入りのアニメ（AnimatePresence）
+minutes: 9
+slug: exit-animation
+section: framer-motion
+description: AnimatePresence で、消えるときも滑らかに。追加・削除を、パッではなくスッと見せる。key と exit の役割。
+level: intermediate
+prerequisites: ['libraries/framer-motion/motion-basics']
+---
+
+import { MotionExitDemo } from '@/demos/MotionExit'
+
+<LearnBox>
+
+- なぜ「消えるとき」のアニメには一工夫が要るのか
+- `AnimatePresence` と `exit` で、消える動きを付ける
+- `key` が正しく付いていることの大切さ
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+「追加」でスッと開き、「削除」でスッと閉じます。パッと消えないのがポイントです。
+
+<Demo title="AnimatePresence（出入り）">
+  <MotionExitDemo />
+</Demo>
+
+## 「消えるとき」は難しい {#why}
+
+`initial` / `animate` は「出てくるとき」の動きでした。でも、**消えるときのアニメ**は普通にはできません。理由はこうです。リストから要素を消すと、React は**即座に DOM から取り除いて**しまうので、「消えていくアニメ」を見せる**間がない**のです。
+
+そこで **`AnimatePresence`** の出番です。これは「**消える要素を、アニメが終わるまで DOM に残しておく**」係です。
+
+## AnimatePresence と exit {#animate-presence}
+
+消える可能性のある要素を `<AnimatePresence>` で囲み、各要素に **`exit`**（消えるときの状態）を書きます。
+
+```tsx
+import { AnimatePresence, motion } from 'motion/react'
+
+<AnimatePresence>
+  {items.map((item) => (
+    <motion.li
+      key={item.id} // ← これが超重要（下で説明）
+      initial={{ opacity: 0, height: 0 }} // 出るとき
+      animate={{ opacity: 1, height: 'auto' }} // 表示中
+      exit={{ opacity: 0, height: 0 }} // 消えるとき
+      transition={{ duration: 0.25 }}
+    >
+      {item.name}
+    </motion.li>
+  ))}
+</AnimatePresence>
+```
+
+- **`AnimatePresence`** … 消える要素を、`exit` のアニメが終わるまで残す。
+- **`exit`** … 消えるときに目指す状態（透明・高さ 0 でスッと閉じる）。
+
+これで、`items` から 1 つ消したとき、その要素は**すぐには消えず、`exit` の動きを見せてから**居なくなります。
+
+## key が命 {#key}
+
+`AnimatePresence` が「どれが消えたか」を見分けるのは、**`key`** です（[一覧の key](/guide/components/rendering-lists) と同じ話ですが、ここではさらに重要です）。`key` が正しく**要素ごとに固有**でないと、消えたのに別の要素が消えたように見えたり、`exit` が動かなかったりします。
+
+<Callout type="warn" title="key に index を使わない">
+
+`key={index}` は避けます。削除で番号がズレて、`AnimatePresence` が別物と勘違いします。`key={item.id}` のように、**要素そのものに紐づく固有の値**を使います。
+
+</Callout>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="exit を書いたが AnimatePresence で囲んでいない"
+  good="消える要素を <AnimatePresence> で囲み、各要素に exit を書く"
+  note="AnimatePresence が無いと、React が即 DOM から消して exit が見えない。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **削除がパッと消える（exit が効かない）** … `<AnimatePresence>` で囲んでいるか、各要素に `key` と `exit` があるか確認します。
+- **消えたのに変な動きになる** … `key` に index を使っていないか確認します。`item.id` など固有の値にします。
+- **高さアニメがガクつく** … 要素に `overflow: hidden` を付けます（高さ 0 のとき中身がはみ出さない）。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="消える要素を <AnimatePresence> で囲み、各要素に exit（消えるときの状態）と、固有の key（item.id など）を付けます。AnimatePresence が exit のアニメが終わるまで DOM に残してくれるので、消える動きが見えます。">
+
+リストから削除するとき「スッと閉じてから消える」を作るには、何で囲み、各要素に何を付けますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 消えるアニメは `AnimatePresence` が必要（要素を exit が終わるまで DOM に残す）
+- 各要素に `exit`（消えるときの状態）を書く
+- `key` は要素ごとに固有（`item.id`）。index は使わない
+
+</SummaryBox>

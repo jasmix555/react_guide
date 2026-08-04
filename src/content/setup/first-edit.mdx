@@ -1,0 +1,109 @@
+---
+title: 初めての編集（HMR）
+minutes: 8
+slug: setup-first-edit
+section: setup
+description: App.tsx を小さく書き換えて、保存した瞬間に画面が変わる HMR を体感する。わざと壊して直す。
+level: beginner
+prerequisites: ['setup/generated-files']
+---
+
+<LearnBox>
+
+- App.tsx を自分で書き換えて、画面が変わるのを体感する
+- HMR（保存した瞬間に反映される仕組み）とは何か
+- わざとエラーを出して、その読み方に慣れる
+
+</LearnBox>
+
+いよいよ自分でコードを触ります。サンプルの App.tsx は飾りが多くて全体を追いにくいので、**まず全部を短い内容に置き換えて**から、文字を変えて保存し、画面が変わる瞬間を見ます。`npm run dev` は起動したままにしておいてください。
+
+## ステップ 1：App.tsx を小さくする {#step-shrink}
+
+`src/App.tsx` を開き、**中身を丸ごと消して、この内容に置き換えます**。
+
+```tsx title="src/App.tsx（丸ごと置き換え・新規作成）"
+function App() {
+  return <h1>はじめての React</h1>
+}
+
+export default App
+```
+
+保存（`Ctrl` + `S`）してください。ブラウザを見ると、さっきまでの紫のサンプルが消え、**「はじめての React」という見出しだけ**の質素な画面になっているはずです。飾りが消えて驚くかもしれませんが、これで正常です。今はこの小さな状態が扱いやすくて良いのです。
+
+<Callout type="note">
+
+`App.css` を読み込む行を消したので、飾りの CSS も外れました。画面が地味になったのはそのためで、壊れたわけではありません。
+
+</Callout>
+
+## ステップ 2：文字を変えて保存する {#step-edit}
+
+次に、見出しの文字を変えてみます。`はじめての React` を `商品一覧アプリ` に書き換えます。
+
+```tsx title="src/App.tsx（追記・変更）"
+function App() {
+  return <h1>商品一覧アプリ</h1>
+}
+
+export default App
+```
+
+保存してください。**ブラウザに切り替える必要はありません。** 保存した瞬間に、ブラウザの見出しが「商品一覧アプリ」に切り替わります。リロードもしていないのに、変わります。
+
+## HMR とは {#hmr}
+
+この「保存した瞬間に、リロードなしで画面へ反映される」仕組みを **HMR（Hot Module Replacement）** と呼びます。Vite の目玉機能です。
+
+LP 制作では、CSS を直すたびにブラウザを手動でリロードしていました。HMR があると、**保存＝即反映**。さらに、入力途中のフォームの値などの状態も、できるだけ保ったまま差し替えてくれます。この速さが、React 開発の気持ちよさの大きな部分です。
+
+## わざと壊す：export を消すと画面が真っ白になる {#break-export}
+
+エラーは敵ではなく地図です。わざと出して、読み方に慣れておきましょう。最後の `export default App` の行を消して保存します。
+
+```tsx title="src/App.tsx（わざと壊す：export を消す）"
+function App() {
+  return <h1>商品一覧アプリ</h1>
+}
+
+// export default App  ← この行を消して保存
+```
+
+保存すると画面が真っ白になり、ブラウザのコンソール（`F12` で開く）にこう出ます。
+
+```
+Uncaught SyntaxError: The requested module '/src/App.tsx'
+does not provide an export named 'default'
+```
+
+意味はこうです。`main.tsx` は `import App from './App.tsx'` という書き方で App を受け取っています。この書き方は「**App.tsx が `export default` で送り出しているもの**」を受け取る約束です。その `export default` を消したので、「default という名前で送り出されたものが無い」と怒られました。
+
+消した行を戻して保存すれば、画面も戻ります。
+
+```tsx title="src/App.tsx（直す：export を戻す）"
+function App() {
+  return <h1>商品一覧アプリ</h1>
+}
+
+export default App
+```
+
+<Callout type="analogy">
+
+`export default` は「このファイルの代表選手はコレ」という指名です。`import App from ...` は「そのファイルの代表選手をください」という受け取り。指名を消すと、受け取る側が「代表がいない」と困る——それがさっきのエラーでした。
+
+</Callout>
+
+## うまくいかないとき {#trouble}
+
+- **保存しても変わらない** … 別のファイルを編集していないか、ファイルを保存できているか（タブに「●」が残っていないか）を確認します。`npm run dev` が止まっていないかも見てください。
+- **赤いエラー画面（オーバーレイ）が出た** … 文法ミスのことが多いです。エラーにファイル名と行番号が出ているので、その行を落ち着いて見ます。閉じずに 1 行目を読むのがコツです。
+
+<SummaryBox>
+
+- App.tsx を短く置き換え、文字を変えて保存すると、リロードなしで画面が変わる
+- この「保存＝即反映」が HMR。Vite の速さの正体
+- `export default` を消すと `does not provide an export named 'default'`。指名と受け取りの対応が崩れた合図
+
+</SummaryBox>

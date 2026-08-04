@@ -1,0 +1,186 @@
+---
+title: 初めてのコンポーネントを作る
+minutes: 8
+slug: first-component
+section: components
+description: JSX を返す関数がコンポーネント。PascalCase の名前、export と import、<自作タグ /> での呼び出し。小文字で書くと HTML 扱いになる罠。
+level: beginner
+prerequisites: ['components/jsx']
+---
+
+<LearnBox>
+
+- コンポーネント＝JSX を返す関数
+- 名前は大文字始まり（PascalCase）にする理由
+- 作った部品を別ファイルから使う（export / import）
+
+</LearnBox>
+
+## コンポーネントは「JSX を返す関数」 {#what}
+
+コンポーネントの正体は、とてもシンプルです。**JSX を返す関数**、それだけです。Part 2 で関数はさんざん書いたので、新しいのは「返すものが JSX」という点だけです。
+
+実際に、商品カードの部品を作ります。`my-shop` の中に、部品専用のファイルを新規作成します。**部品は 1 つ 1 つ、専用のフォルダとファイルに分ける**のがうちのやり方です（フォルダ構成の詳しい話は後のパートで）。
+
+```tsx title="src/components/ProductCard/ProductCard.tsx（新規作成・全文）"
+export function ProductCard() {
+  return (
+    <article>
+      <h3>ステンレス片手鍋 18cm</h3>
+      <p>3,200円</p>
+    </article>
+  )
+}
+```
+
+1 行目を分解します。
+
+```tsx
+export function ProductCard() {
+//     ↑        ↑
+//     │        └─ 部品の名前。必ず大文字始まり（PascalCase）
+//     └─ JSX を返す、ただの関数
+```
+
+先頭の `export` は「外のファイルから使えるようにする」印です（名前付き export、Part 2）。つまりコンポーネントは **「`export` した、JSX を返す関数」** というだけです。`ProductCard` という関数が、商品カードの JSX を返しています。これで「商品カード」という部品が 1 つできました。まだ中身は固定ですが、次のページで値を渡せるようにします。
+
+## 名前は大文字で始める（PascalCase） {#naming}
+
+コンポーネントの名前は、**必ず大文字で始めます**（`ProductCard` のように、単語の頭を大文字にする書き方を PascalCase と呼びます）。これは見た目の好みではなく、**React のルール**です。
+
+理由は、React が名前の 1 文字目で「これは自作の部品か、ただの HTML タグか」を見分けているからです。**大文字始まり＝自作のコンポーネント、小文字始まり＝HTML タグ**、と決まっています。
+
+## 作った部品を使う（import して `<タグ />` で呼び出す） {#use}
+
+作った部品は、使いたいファイルで **`import` して、`<タグ />` の形で呼び出します**。Part 2 の import / export がそのまま効きます。`App.tsx` で使ってみます。
+
+```tsx title="src/App.tsx"
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+function App() {
+  return (
+    <div>
+      <h1>商品一覧アプリ</h1>
+      <ProductCard />
+    </div>
+  )
+}
+
+export default App
+```
+
+`<ProductCard />` と書くだけで、さっき作ったカードが表示されます。しかも **何回でも並べられます**——`<ProductCard />` を 3 行書けば、カードが 3 枚出ます（中身は同じですが）。これが「部品を組み合わせる」ということです。
+
+<JsNote feature="<ProductCard /> は関数を呼び出しているのと同じ">
+
+`<ProductCard />` は、見た目こそ HTML タグ風ですが、実際には `ProductCard()` 関数を呼んで、その戻り値（JSX）をそこに差し込んでいます。だから中身を変えたいときは、関数に値を渡します（次のページの props）。
+
+</JsNote>
+
+## わざと壊す：小文字で書くと HTML 扱いになる {#break-lowercase}
+
+「大文字始まり」のルールを破るとどうなるか、見てみます。部品名を小文字の `productCard` にして呼び出してみます。
+
+```tsx
+function productCard() {
+  return <p>カード</p>
+}
+
+function App() {
+  return <productcard />
+}
+```
+
+エラーで止まりはしませんが、**画面には何も出ません**。エディタによっては、こんな警告が出ます。
+
+```
+The tag <productcard> is unrecognized in this browser.
+```
+
+React は `<productcard />` を「自作の部品」ではなく「`productcard` という名前の HTML タグ」だと解釈しました。そんな HTML タグは存在しないので、何も表示されないわけです。**「部品を置いたはずなのに真っ白」のときは、名前が小文字始まりになっていないか**を疑ってください。`ProductCard` に直せば表示されます。
+
+<Together
+  task="価格だけを表示する Price というコンポーネントを新規に作ってみてください。中身は <p>3,200円</p> のような固定でかまいません。名前の付け方に注意しましょう。"
+  hint="export function Price() { return <p>3,200円</p> } の形。名前は大文字始まり。"
+>
+
+```tsx title="src/components/Price/Price.tsx（新規作成）"
+export function Price() {
+  return <p>3,200円</p>
+}
+```
+
+`Price` は大文字始まりなので、React はこれを自作の部品と認識します。使う側は `import { Price } from './components/Price/Price'` してから `<Price />` で呼び出します。もし `price`（小文字）にすると、HTML タグ扱いになって表示されません。
+
+</Together>
+
+## 書き方カタログ：部品の使い方 {#catalog}
+
+作った部品の呼び出し方と取り込み方をまとめます。
+
+```tsx
+// 自分で閉じる（中身なし）
+<ProductCard />
+
+// 開いて閉じる（中身＝子要素を渡すとき）
+<Card>ここが中身</Card>
+
+// 何回でも並べられる
+<ProductCard />
+<ProductCard />
+
+// 名前付き export は { } 付きで import
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+// default export は { } なしで import（App.tsx がこれ）
+import App from './App'
+```
+
+大文字始まりのタグ＝自作の部品の呼び出し。中身が無ければ `<ProductCard />` と自分で閉じます。
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="function productCard() … を <productcard /> で使う"
+  good="function ProductCard() … を <ProductCard /> で使う"
+  note="コンポーネントは大文字始まり。小文字は HTML タグ扱いになり表示されない。"
+/>
+
+<Diff
+  bad="<ProductCard>（閉じ忘れ）"
+  good="<ProductCard />"
+  note="中身を持たない自作タグは、末尾を / で閉じる。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="コンポーネントは 1 つずつ専用フォルダに置き、名前付き export（export function Xxx）で書く"
+  alt="ページ全体のトップなど、ルーティングで default export が要る場面だけ default にします（App.tsx がその例）。それ以外は名前付きで統一します。"
+>
+
+`src/components/ProductCard/ProductCard.tsx` のように、部品ごとにフォルダを分けます。こうすると、後でスタイル（`.module.scss`）やテストを同じフォルダに置けます。export は名前付きで統一——`import { ProductCard }` と中身の名前がそのまま見えるので、取り違えが減ります。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **部品を置いたのに真っ白** … 名前が大文字始まりか（`ProductCard`）、`<ProductCard />` と閉じているかを確認します。
+- **`does not provide an export named 'ProductCard'`** … export / import のズレです（Part 2 の import と export 参照）。名前付きなら `{ }` 付きで取り込みます。
+- **`ProductCard is not defined`** … import を書き忘れています。使うファイルの先頭で import します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="名前を大文字始まり（ProductCard）にします。React は小文字始まりを HTML タグ、大文字始まりを自作コンポーネントと見分けるため、小文字だと表示されません。">
+
+自作した `productCard` を `<productcard />` で使ったら何も表示されません。何を直せばよいでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- コンポーネントは「JSX を返す関数」。名前は必ず大文字始まり（PascalCase）
+- 小文字始まりは HTML タグ扱いになり、表示されない
+- 作った部品は `import` して `<ProductCard />` の形で使う。何回でも並べられる
+
+</SummaryBox>

@@ -1,0 +1,57 @@
+@charset "UTF-8";
+@use "sass:math";
+@use "sass:map";
+
+//==============================================================================
+//  関数
+//==============================================================================
+
+// vw計算：px を、指定した基準幅（$viewport）での vw に変換する
+@function getVw($mySizePx, $viewport: 750) {
+  $rate: math.div(100, $viewport);
+  @return $rate * $mySizePx * 1vw;
+}
+
+// 比率(%)：子/親 のパーセントを求める
+@function getRatio($childPx, $parentPx) {
+  @return math.div($childPx, $parentPx) * 100%;
+}
+
+//==============================================================================
+//  ミックスイン
+//==============================================================================
+
+// フォントサイズ：px → vw（フォールバックに px も置く）
+@mixin fontSizeVw($fontSizePx, $viewport: 750) {
+  font-size: $fontSizePx * 1px;
+  font-size: getVw($fontSizePx, $viewport);
+}
+
+// フォントサイズ：px → rem
+@mixin fontSizeRem($size, $base: 16) {
+  font-size: $size + px;
+  font-size: math.div($size, $base) + rem;
+}
+
+// line-height：px → 比率
+@mixin lineHeight($fontSizePx, $lineHeightPx) {
+  line-height: math.div($lineHeightPx, $fontSizePx);
+}
+
+//==============================================================================
+//  メディアクエリ
+//==============================================================================
+
+$mq-breakpoints: (
+  'small': 576px,
+  'medium': 767px,
+  'large': 1200px,
+  'xlarge': 1920px,
+);
+
+// @include mq { ... } で「その幅以下」のスタイル。既定は medium(767px)＝SP。
+@mixin mq($breakpoint: medium) {
+  @media screen and (max-width: #{map.get($mq-breakpoints, $breakpoint)}) {
+    @content;
+  }
+}
