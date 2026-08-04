@@ -26,6 +26,18 @@ export function DocsLayout() {
 
   const [menuOpen, setMenuOpen] = useState(false)
 
+  // Below the sidebar breakpoint the sidebar is an off-canvas drawer. When it's
+  // closed, mark it inert so focus/screen readers can't reach the off-screen
+  // links. Desktop keeps the sidebar visible, so it's never inert there.
+  const [isDrawer, setIsDrawer] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 899.98px)')
+    const sync = () => setIsDrawer(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
   // Scroll to the anchor (or top) whenever the route changes. Drawer close is
   // handled by the navigation handlers (sidebar links, scrim, top-bar links).
   useEffect(() => {
@@ -41,7 +53,7 @@ export function DocsLayout() {
       }, 60)
       return () => window.clearTimeout(timer)
     }
-    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'auto' })
+    window.scrollTo({ top: 0, behavior: 'auto' })
   }, [location.pathname, location.hash])
 
   return (
@@ -54,7 +66,7 @@ export function DocsLayout() {
       <div className={styles.body}>
         <aside
           className={clsx(styles.sidebarCol, menuOpen && styles.drawerOpen)}
-          aria-hidden={undefined}
+          inert={isDrawer && !menuOpen}
         >
           <Sidebar
             tab={tab}
