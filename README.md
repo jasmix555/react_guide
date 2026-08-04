@@ -1,179 +1,141 @@
-# React Relearning (`react-touch`)
+# React 実践ガイド (`react_guide`)
 
-A hands-on playground for relearning core React. Each lesson page explains one
-idea, shows the syntax, then leaves the real code as guided `// 👉 TODO` tasks
-to fill in. A capstone shopping page ties the concepts together.
+A self-hosted, **react.dev-style Japanese documentation site** that teaches
+React + TypeScript to beginners — written for LP-production teammates who are
+new to JavaScript/React and want to apply it in our real coding setup.
 
-> This README documents **what the project is** (structure, lessons, setup).
-> The [**Progress**](#-progress) section at the bottom is the running journal —
-> what's been built so far.
+Content is authored in **MDX**; every interactive idea ships as a real,
+runnable **demo** embedded in the prose (not a fill-in-the-blank TODO). Each
+page reads: what it is → full copy-pasteable code → a live `<Demo>` →
+"syntax breakdown" → **うちの標準** (our-standard) decision card → practice.
 
----
-
-## 📁 Folder structure
-
-```
-react-touch/
-├─ index.html              # single HTML page; loads src/main.tsx
-├─ vite.config.ts          # Vite + Tailwind plugin + "@" path alias
-├─ tsconfig.app.json       # TS rules; defines "@/*" -> "src/*"
-├─ README.md               # this file (project docs + progress)
-├─ src/
-│  ├─ main.tsx             # entry — mounts React, wraps app in <BrowserRouter>
-│  ├─ App.tsx              # route table (which URL shows which page)
-│  ├─ index.css            # Tailwind import + brand color tokens (@theme)
-│  ├─ types/               # SHAPES of data (TS types only) — product.ts
-│  ├─ data/                # ACTUAL values, typed with src/types — products.ts
-│  ├─ components/          # reusable PARTS (no page-specific logic)
-│  │  ├─ ui/               #   Button, Card, CodeBlock, Modal
-│  │  ├─ layout/           #   RootLayout (+<Outlet/>), Navbar
-│  │  └─ lesson/           #   LessonShell, Tabs, Sandbox, ProjectHelp
-│  └─ pages/
-│     ├─ Home.tsx          # lessons index + capstone link
-│     ├─ Project.tsx       # 🛒 capstone shopping page (build it phase by phase)
-│     └─ lessons/          # one folder per concept: index.tsx (page) + content.tsx (explainer)
-│        ├─ index.ts       #   barrel re-exporting the four lessons
-│        ├─ useState/
-│        ├─ props/
-│        ├─ map/
-│        ├─ useEffect/
-│        ├─ useRef/
-│        ├─ liftingState/
-│        ├─ fetching/
-│        └─ forms/
-```
-
-**The pattern:** build small parts in `components/` → compose them into screens
-in `pages/` → connect screens to URLs in `App.tsx`.
-
-Each lesson lives in its own folder: `index.tsx` is the interactive page and
-`content.tsx` holds the static explanation, kept apart so the prose doesn't
-clutter the code you edit.
+> Repo: <https://github.com/jasmix555/react_guide>
 
 ---
 
-## 🎓 Lessons
+## 🛠️ Tech stack
 
-Routes are wired in `App.tsx`. Each lesson page reads top to bottom:
-
-1. **What it is** — plain-English explanation.
-2. **How to create it** — the syntax.
-3. **🛠️ Your turn** — guided TODO task.
-4. **🌍 Real-world practice** — concrete things real apps build (instructions only).
-5. **🏗️ Build zone** — a free area to experiment, no instructions.
-
-| Lesson            | Route                  | Build                                          |
-| ----------------- | ---------------------- | ---------------------------------------------- |
-| useState          | `/learn/usestate`      | a counter, then a to-do list                   |
-| props             | `/learn/props`         | a reusable `Greeting`, then a `ProductCard`    |
-| map               | `/learn/map`           | render a `<ul>`, then the product grid         |
-| useEffect         | `/learn/useeffect`     | change the browser tab title + cleanup         |
-| useRef            | `/learn/useref`        | focus an input; hold a value without re-render |
-| lifting state up  | `/learn/lifting-state` | share one state between two children           |
-| data fetching     | `/learn/fetching`      | loading / error / data from an API             |
-| controlled forms  | `/learn/forms`         | inputs driven by state, with submit handling   |
-
-The **🛠️ Your turn** practice in each Tutorial tab is left blank on purpose —
-it's a guided `// 👉` scaffold for you to fill in, not a finished answer.
-
-### 🛒 Connected mini-project (props + map + types/data)
-
-The props and map lessons build one thing together — a product list — so the
-folders' roles become concrete:
-
-1. `src/types/product.ts` — define the `Product` **type** (the shape).
-2. `src/components/ui/ProductCard.tsx` — a component that takes a `product` **prop**.
-3. `src/data/products.ts` — an array of products typed as `Product[]`.
-4. A page that imports `products` and **maps** them into `ProductCard`s.
-
-> Type = shape · Data = values · Component = how one item looks · Page = the list.
+- **React 19** + **TypeScript** (strict, no `any`)
+- **Vite 8** (dev + build)
+- **react-router v7** — `createBrowserRouter` (`src/routes/router.tsx`)
+- **MDX** (`@mdx-js/rollup`) for content · **SCSS Modules** (Sass) for styling
+  — Tailwind is intentionally *not* used
+- **Shiki** via `rehype-pretty-code` — build-time syntax highlighting
+- **Fuse.js** — client-side search across page headings
+- Library demos: **motion** (Framer Motion), **gsap** + `@gsap/react`, **swiper**
+- `clsx`; fonts via `@fontsource` (Zen Kaku Gothic New / Noto Sans JP / JetBrains Mono)
+- ESLint (flat) + Prettier + husky + lint-staged + commitlint
 
 ---
 
-## 🏁 Capstone — `/project`
-
-After the lessons, build the **shopping page** in `src/pages/Project.tsx`, one
-phase at a time (instructions are in the file):
-
-1. Phase 1 — show the products (map)
-2. Phase 2 — search box (useState + controlled input + filter)
-3. Phase 3 — filter by category (derived data)
-4. Phase 4 — open a product in a `Modal` (state + props + events)
-5. Phase 5 — bonus: a cart (arrays in state)
-
-`Modal` guide lives in `src/components/ui/Modal.tsx`.
-
----
-
-## 🛠️ Tech & setup
-
-- **Tailwind CSS v4** via `@tailwindcss/vite` — no config file, no PostCSS.
-  Brand color tokens live in `src/index.css` `@theme` (currently **blue**;
-  change `--color-brand-*` to recolor the whole app at once).
-- **React Router v7** — routes in `App.tsx`, shared shell in `RootLayout.tsx`.
-- **Path alias `@/`** — import as `@/components/ui/Button`. Wired in BOTH
-  `vite.config.ts` (`resolve.alias`) and `tsconfig.app.json` (`paths`).
-- Reusable parts ready to use: `Button`, `Card`, `CodeBlock`, `Modal`,
-  `Sandbox`, `LessonShell`.
+## 🚀 Quick start
 
 ```bash
-npm run dev      # start dev server (hot reload) — use this while learning
-npm run build    # type-check + production build
-npm run lint     # eslint
+npm install
+npm run dev        # dev server (hot reload) — open the URL Vite prints (default http://localhost:5173)
 ```
 
-### 📌 Notes / gotchas
+### Scripts
 
-- Editor may warn **"Unknown at rule @theme"** in `index.css` — that's just
-  VS Code's CSS linter not knowing Tailwind v4. It builds fine.
-- Remember to **import** a hook before using it (`import { useState } from 'react'`).
-  A missing import is a great error to learn to read.
-- `verbatimModuleSyntax` is on: import types with `import type { X } from '...'`.
+| command             | what it does                                              |
+| ------------------- | -------------------------------------------------------- |
+| `npm run dev`       | Vite dev server with hot reload                          |
+| `npm run build`     | `tsc -b` + `vite build` → outputs `dist/`                |
+| `npm run preview`   | serve the production build locally                       |
+| `npm run lint`      | ESLint                                                   |
+| `npm run lint:content` | validate MDX frontmatter + `## heading {#slug}` rules |
+| `npm run check:links`  | validate internal links + `prerequisites` resolve     |
+| `npm run check:contrast` | token + rendered color-contrast check               |
+| `npm run check:render`   | headless-Chrome render smoke-test across **every** route |
+| `npm run check`     | **the full gate** — all of the above + `tsc` + build     |
+| `npm run format`    | Prettier                                                 |
 
----
-
-## 📊 Progress
-
-A running journal of what's built so far.
-
-### Lessons
-
-- [x] **useState** — counter done; to-do list built in the build zone (add,
-  delete by `id`, keyboard focus + Delete/Backspace to remove).
-- [ ] **props** — reusable `Greeting`, then `ProductCard`.
-- [ ] **map** — render a `<ul>`, then the product grid.
-- [ ] **useEffect** — change the browser tab title + cleanup.
-- [ ] **useRef** — focus an input; hold a value without re-rendering.
-- [ ] **lifting state up** — share one state between two children.
-- [ ] **data fetching** — loading / error / data from an API.
-- [ ] **controlled forms** — inputs driven by state.
-
-### Mini-project (props + map)
-
-- [x] `src/types/product.ts` — `Product` type defined.
-- [ ] `src/components/ui/ProductCard.tsx`
-- [ ] `src/data/products.ts`
-- [ ] page that maps products into cards
-
-### Capstone — `/project`
-
-- [ ] Phase 1 — show the products (map)
-- [ ] Phase 2 — search box
-- [ ] Phase 3 — filter by category
-- [ ] Phase 4 — open a product in a `Modal`
-- [ ] Phase 5 — bonus: cart
-
-### Setup (done)
-
-- [x] Tailwind v4, React Router v7, `@/` path alias, base UI + lesson components.
-
-### Next ideas (future lessons)
-
-- [ ] `useReducer` — manage more complex state transitions.
-- [ ] `useContext` — share state app-wide without prop-drilling.
-- [ ] Custom hooks — extract reusable stateful logic.
-- [ ] `useMemo` / `useCallback` — skip unnecessary recomputation.
+Run `npm run check` before committing or deploying — it's the single command
+that proves the whole site still lints, links, renders, type-checks, and builds.
 
 ---
 
-_Last updated: 2026-06-04_
+## 📁 Project structure
+
+```
+react_guide/
+├─ index.html               # single page; loads src/main.tsx
+├─ vite.config.ts           # MDX + React plugins, "@" alias, SCSS loadPaths
+├─ tsconfig.*.json          # "@/*" -> "src/*"
+├─ plugins/                 # content pipeline (run before MDX)
+│  ├─ content-plugin.mjs    #   {#slug} bridge + virtual:content-index (build-time frontmatter/heading index)
+│  └─ remark-heading-id.mjs
+├─ scripts/                 # gate scripts (lint-content, check-links, check-contrast, check-render)
+├─ docs/                    # internal authoring standards (e.g. page-standard.md)
+├─ public/                  # static assets served as-is (e.g. downloads/_mixin.scss)
+└─ src/
+   ├─ main.tsx              # mounts <RouterProvider>
+   ├─ routes/router.tsx     # createBrowserRouter route table
+   ├─ config/navigation.ts  # ⭐ nav source of truth: tabs → parts → pages
+   ├─ content/              # ALL lessons as .mdx, one folder per part
+   ├─ demos/                # interactive examples embedded via <Demo> (35+)
+   ├─ components/           # MDX components (Callout, Std, Diff, Demo, Exercise, …) + UI (TopBar, Sidebar, Search, Toc)
+   ├─ layouts/DocsLayout/   # 3-column docs shell (sidebar · content · TOC)
+   ├─ pages/                # Home, GuidePage, NotFound
+   ├─ hooks/  lib/          # read-progress, last-read, scroll-spy, nav helpers
+   ├─ styles/               # design tokens, global.scss, mixins, house _mixin.scss (getVw/mq)
+   └─ data/products.json    # sample data used by demos + the running example
+```
+
+**Path alias:** import as `@/components/Button` (`@` → `src/`), wired in both
+`vite.config.ts` (`resolve.alias`) and `tsconfig.app.json` (`paths`).
+
+---
+
+## ✍️ Content model
+
+- Every page is an `.mdx` file under `src/content/<part>/` with frontmatter
+  (`title`, `minutes`, `slug`, `section`, `description`, `level`,
+  `prerequisites`) and `## Heading {#english-slug}`.
+- **To add a page:** create the `.mdx` and add one line to
+  `src/config/navigation.ts`. URLs are non-numbered and derive from the file
+  path (e.g. `src/content/state/use-state/basics.mdx` → `/guide/state/use-state/basics`).
+- **Interactive demos** live in `src/demos/<Name>/` (`<Name>.tsx` named export
+  + `.module.scss` + `index.ts` barrel) and are imported into MDX and shown
+  with `<Demo>`.
+
+### Tabs
+
+| Tab | Base | Contents |
+| --- | --- | --- |
+| **学ぶ** (learn) | `/guide` | setup · JavaScript · はじめての React · state & hooks · styling (SCSS Modules) · TypeScript · routing · data fetching |
+| **ライブラリ** (libraries) | `/libraries` | Framer Motion · GSAP · Swiper |
+| **レシピ** (recipes) | `/recipes` | copy-paste UI patterns (modal, tabs, carousel, …) |
+
+---
+
+## 🚢 Deploy
+
+Static SPA — `npm run build` outputs `dist/`, which you can serve from any
+static host (Apache/XAMPP, Nginx, etc.).
+
+Because routing uses `createBrowserRouter` (HTML5 history), the host **must
+serve `index.html` for unknown paths**, or deep links and page refreshes
+(e.g. `/libraries/swiper/goal`) will 404. On Apache/XAMPP, drop this into
+`dist/.htaccess`:
+
+```apache
+RewriteEngine On
+RewriteBase /
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+```
+
+If you serve it from a **subfolder** (not the document root), also set Vite
+`base` and a router `basename` to that path so assets and routes resolve.
+
+---
+
+## 📊 Status
+
+- ✅ **Core (学ぶ):** setup · JavaScript · はじめての React · state & hooks ·
+  styling (SCSS Modules) · TypeScript · routing · data fetching
+- ✅ **Libraries:** Framer Motion · GSAP · Swiper
+- ⏳ **Planned libraries:** Tailwind · React Icons · Lenis
+- ⏳ **Capstone** (通し課題: 商品一覧アプリ) + deploy lesson
