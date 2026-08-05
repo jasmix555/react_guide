@@ -23,7 +23,11 @@ const prettyCode = {
   keepBackground: false,
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Served from /study/react_guide/ on the site — production build only.
+  // Dev and the render gate stay at root ("/") so their URLs need no prefix.
+  // This is a PATH only (no domain), so it works under any site/host.
+  base: command === 'build' ? '/study/react_guide/' : '/',
   plugins: [
     // Runs before MDX: bridges `{#slug}` and serves virtual:content-index.
     contentPlugin({ contentDir }),
@@ -59,4 +63,4 @@ export default defineConfig({
       scss: { loadPaths: [src] },
     },
   },
-})
+}))

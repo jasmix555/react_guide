@@ -1,0 +1,8 @@
+# SPA deep-link fallback for Apache/XAMPP — path-agnostic.
+# Works in ANY folder unchanged: any request that isn't a real file or
+# directory is handed to *this folder's* index.html, so React Router can
+# resolve it. (No folder name hard-coded here.)
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]

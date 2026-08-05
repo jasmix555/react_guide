@@ -21,4 +21,8 @@ export const router = createBrowserRouter([
     ],
   },
   { path: '*', element: <NotFoundStandalone /> },
-])
+], {
+  // Matches Vite's `base`, so routes resolve whether served at "/" (dev) or the
+  // /study/react_guide/ subfolder (prod build). BASE_URL is set by Vite.
+  basename: import.meta.env.BASE_URL,
+})
