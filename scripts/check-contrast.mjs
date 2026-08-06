@@ -197,7 +197,9 @@ async function renderPass() {
     const page = await browser.newPage()
     await page.setViewport({ width: 1280, height: 900 })
     // A page dense with code surfaces: two Diffs, titled code blocks, copy buttons.
-    await page.goto(`${url}/guide/javascript/destructuring`, {
+    // Content lives under a locale prefix now (/{locale}/guide/…); "/" redirects
+    // to the default locale, so the page must be requested with it.
+    await page.goto(`${url}/ja/guide/javascript/destructuring`, {
       waitUntil: 'networkidle0',
     })
     await page.waitForSelector('[class*="diff"] code', { timeout: 10000 })
