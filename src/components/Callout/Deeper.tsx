@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { useStrings } from '@/hooks/useLocale'
+
 import styles from './style.module.scss'
 
 /**
@@ -8,10 +10,11 @@ import styles from './style.module.scss'
  * here so it never blocks the main read.
  */
 export function Deeper({ title, children }: { title: string; children: ReactNode }) {
+  const strings = useStrings()
   return (
     <details className={styles.deeper}>
       <summary>
-        <span className={styles.deeperTag}>深掘り</span>
+        <span className={styles.deeperTag}>{strings.callout.deeperTag}</span>
         <span>{title}</span>
       </summary>
       <div className={styles.deeperBody}>{children}</div>

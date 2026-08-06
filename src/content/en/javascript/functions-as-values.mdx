@@ -1,0 +1,212 @@
+---
+title: Passing functions as values
+minutes: 10
+slug: functions-as-values
+section: javascript
+description: "Functions are 'values'. You can store them in variables and carry them around, and pass them to other functions. The key is the difference between passing (just the name) and calling (())."
+level: beginner
+prerequisites: ['javascript/arrow-functions']
+---
+
+<LearnBox>
+
+- A function is a "value", just like a number or a string, and can be carried around
+- **Pass** a function to another function (a callback)
+- The decisive difference between "passing (just the name)" and "calling (adding `()`)"
+
+</LearnBox>
+
+## Why this is the most important thing {#why}
+
+In React, you **pass the function itself** to a button, saying "when I'm pressed, do this". It looks like `onClick={handleClick}`. If you mix up "passing a function" and "calling a function" here, you get a bug that every beginner hits at least once: it **runs on its own without being pressed**, or it **does nothing when pressed**.
+
+So you never step on that bug again, we'll take this page especially slowly. The starting point is one single fact: "**a function is also a value**".
+
+## A function is a value: you can store it in a variable {#value}
+
+Just as you can store a number in a variable, **you can store a function in a variable too**. Actually, we already did this on the arrow functions page.
+
+```js
+const greet = () => {
+  console.log('Hello')
+}
+
+console.log(typeof greet) // 'function'
+```
+
+The contents of the variable `greet` is a "function". Check with `typeof` and you get `'function'`. In other words, a function is, just like `100` or `'Tomato'`, a **value you can name and carry around**. Once this sinks in, everything after is straightforward.
+
+## To call it, add () {#call}
+
+To **execute (call)** a function stored in a variable, add `()` after the name.
+
+```js
+const greet = () => console.log('Hello')
+
+greet // this just points to "the function itself". It doesn't run
+greet() // only now does it run → Hello
+```
+
+`greet` just points to "the value that is a function", so **nothing happens**. Only when you add `()` and write `greet()` does the code inside run. **`()` is the signal for "run it right now"**. This distinction is the foundation of everything that follows.
+
+In React, this difference shows up directly in `onClick`. Let's break the two into parts and compare.
+
+```tsx
+onClick={fn}
+//       ↑
+//       └─ just the name = pass the function itself. Runs when pressed (○)
+
+onClick={fn()}
+//       ↑ ↑
+//       │ └─ () is the signal for "run it right now"
+//       └─ fn() runs the moment it renders, and its return value gets passed (✗)
+```
+
+- **`onClick={fn}`** … just the name. **Pass** it, saying "call this function when pressed" (○)
+- **`onClick={fn()}`** … with `()`. **Runs on the spot** and passes the return value. Runs the moment it renders (✗)
+- When you want to pass an argument, **wrap** it: `onClick={() => fn(arg)}`
+
+<JsNote feature="just the name = the function itself, with () = the result of running it">
+
+Writing `greet` points to "the function itself (not yet run)". Writing `greet()` points to "run the function, and its **result**". Whether you add `()` depends on whether what you want to pass is "the process itself" or "the result of the process".
+
+</JsNote>
+
+## Passing a function to another function (a callback) {#callback}
+
+Because a function is a value, **you can pass it as an argument to another function**. The side that receives it calls it whenever it likes. This is called a **callback**. Let's look at it with `setTimeout` (a tool that runs something after a delay).
+
+```js
+const sayHi = () => console.log('Hi')
+
+setTimeout(sayHi, 1000) // pass "please call sayHi after 1 second"
+```
+
+We're passing `sayHi` to `setTimeout` by **just the name** (without adding `()`). It means "**you** call this function after 1 second". Passing a callback to `map` or `filter` was exactly the same mechanism.
+
+## Break it on purpose: calling when you meant to pass {#break-call-vs-pass}
+
+Here's the main point. If you **accidentally add `()`** when passing `sayHi`, the behavior becomes completely different. Compare them.
+
+```js
+const sayHi = () => console.log('Hi')
+
+// ① Pass: just the name
+setTimeout(sayHi, 1000)
+// → "Hi" after 1 second. Correct.
+
+// ② Call: added ()
+setTimeout(sayHi(), 1000)
+// → "Hi" shows up right now, without waiting 1 second.
+```
+
+In ②, `sayHi()` **runs on the spot** and "Hi" appears in the console immediately. Then the **return value of `sayHi()` (`undefined`)** gets passed to `setTimeout`, so nothing happens after 1 second. "I wanted it to run after a delay, but it ran immediately, and then the second time it doesn't run" — the exact opposite of the intent.
+
+Translated to React, this becomes:
+
+```jsx
+<button onClick={handleClick}>  // ○ please call it when pressed (pass the function)
+<button onClick={handleClick()}> // ✗ runs the moment it renders (passes the result)
+```
+
+If you write `onClick={handleClick()}`, `handleClick` runs **the moment the button appears on screen**. It's a classic cause of glitches like "it runs without being pressed" or "it re-renders infinitely". **When passing, use just the name. Don't add `()`** — burn this into your muscle memory.
+
+<Callout type="warn">
+
+When passing a function to something like `onClick={...}`, the basic rule is to **not add `()`**. When "it runs without being pressed" or "the process runs the moment the page opens", first suspect that you've added `()`.
+
+</Callout>
+
+## When you want to pass an argument, wrap it {#wrap}
+
+"But I want to pass an argument to `handleClick`" — in that case, instead of calling it directly with `()`, **wrap that call in another function**.
+
+```js
+const remove = (id) => console.log(`removing ${id}`)
+
+// ✗ this runs on the spot
+// onClick={remove(5)}
+
+// ○ pass "a function that calls remove(5) when pressed"
+// onClick={() => remove(5)}
+```
+
+`() => remove(5)` is "a new function that calls `remove(5)` when it's executed". Pass this, and `remove(5)` runs **only when it's pressed**. Remember this "wrap" form for passing arguments — you'll use it every day in React.
+
+<Together
+  task="In the console, make a function done that outputs 'Done', and have setTimeout run it 'after 2 seconds'. Then deliberately add () and observe how it turns into immediate execution."
+  hint="setTimeout(done, 2000) is the correct form. setTimeout(done(), 2000) makes it run immediately."
+>
+
+```js
+const done = () => console.log('Done')
+
+setTimeout(done, 2000) // "Done" after 2 seconds (correct)
+
+setTimeout(done(), 2000) // "Done" appears right away, and nothing happens after 2 seconds
+```
+
+Passing `done` by just the name means "call it after 2 seconds". Adding `()` as `done()` runs it on the spot, and the return value `undefined` gets passed to `setTimeout`. What you pass is "the process itself" — just the name.
+
+</Together>
+
+## Writing catalog: ways to pass a function {#catalog}
+
+"Pass = just the name", "`()` = run it right now". Give handlers just the name, and only wrap with `() =>` when an argument is needed.
+
+```tsx
+onClick={handleClick}       // ○ pass just the name (called when pressed)
+onClick={() => remove(id)}  // ○ pass an argument → wrap with () =>
+onClick={() => setCount(0)} // ○ wrap on-the-spot work and pass it too
+setTimeout(sayHi, 1000)     // ○ pass a callback by just the name too
+onClick={handleClick()}     // ✗ runs the moment it renders
+onClick={remove(id)}        // ✗ this runs immediately too (the return value gets passed)
+```
+
+The top 4 "pass", and the bottom 2 "call (run immediately)". Just whether `()` is attached flips the behavior to the opposite.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="onClick={handleClick()}"
+  good="onClick={handleClick}"
+  note="When passing, use just the name. Adding () makes it run the moment it renders."
+/>
+
+<Diff
+  bad="onClick={remove(item.id)}"
+  good="onClick={() => remove(item.id)}"
+  note="When you want to pass an argument, wrap with () => to make 'a function that's called when pressed'."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="When passing a function to a handler, use just the name. Wrap with () => only when an argument is needed"
+  alt="In advanced situations where creating the wrapper function every time is measurably a problem, consider useCallback (Part 9). At first, the () => wrap form is fine."
+>
+
+`onClick={fn}` is the basic form. Only when you want to pass an argument, `onClick={() => fn(arg)}`. `onClick={fn()}` and `onClick={fn(arg)}` "run on the spot", so don't pass them to handlers. If you can distinguish "pass = just the name" from "`()` = run it right now", you won't stumble on React event handling.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **The process runs the moment the page opens / it runs without being pressed** … you're passing with `()` like `onClick={fn()}`. Use just the name, or wrap with `() => fn(arg)`.
+- **Nothing happens when pressed** … conversely, you may have failed to pass the function (wrong name, not wrapped in `{}`). Check the name you're passing.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write onClick={() => addToCart(product.id)}. Since you want to pass an argument, wrap with () => and pass 'a function that calls addToCart(product.id) when pressed'. onClick={addToCart(product.id)} would run at render time.">
+
+When you want to run `addToCart(product.id)` when a button is pressed, how would you write `onClick`?
+
+</Exercise>
+
+<SummaryBox>
+
+- A function is a value. You can store it in a variable and pass it to another function (a callback)
+- Just the name = "the function itself (call it later)", with `()` = "the result of running it right now"
+- Give handlers just the name. When an argument is needed, wrap with `() => fn(arg)`
+
+</SummaryBox>

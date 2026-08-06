@@ -1,0 +1,158 @@
+---
+title: Range slider
+minutes: 8
+slug: range-slider
+section: recipes
+description: "A slider built on the native range input. Read the value into state, color it with accent-color, and watch out for the string-to-number conversion."
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { SliderDemo } from '@/demos/RangeSlider'
+
+<LearnBox>
+
+- A slider built with just `<input type="range">` (no hand-rolled drag handling)
+- Reading the chosen value into `useState` and reflecting it on screen
+- The gotcha that `e.target.value` comes in as a **string**, and coloring with `accent-color`
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Here is what we are building. Move the thumb and the chosen value updates right above it.
+
+<Demo title="RangeSlider">
+  <SliderDemo />
+</Demo>
+
+## Don't build the thumb yourself {#native-first}
+
+Building a slider yourself, "line up some `div`s and calculate the drag position…," is misery. The browser has **a slider built in from the start**. Just write `<input type="range">` and you get dragging and keyboard control (arrow keys) too.
+
+```tsx title="The shortest slider"
+<input type="range" min={0} max={100} />
+```
+
+What you do need is to receive "what is the value right now" and use it. We do only that part in React.
+
+## Read the value into state {#read-value}
+
+To use the slider's value, read it into `useState`. There is only one thing to watch out for: **`e.target.value` comes in as a string**.
+
+```tsx
+const [max, setMax] = useState(5000)
+
+<input
+  type="range"
+  min={0}
+  max={10000}
+  step={500}
+  value={max}
+  onChange={(e) => setMax(Number(e.target.value))}
+/>
+```
+
+- **`min` / `max`** … the range you can move within. Here, `0` to `10000`.
+- **`step`** … the increment. `500` means it moves 500 at a time.
+- **`value={max}`** … reflect the current value (state) on the slider.
+- **`onChange`** … called every time you move it. Since `e.target.value` is a **string** like `"5000"`, convert it to a number with `Number(...)` before passing it to `setMax`.
+
+<JsNote feature="e.target.value comes in as a string">
+
+An `<input>`'s value is always passed as a **string**, whether it is `type="range"` or `type="number"`. If you don't turn it into a number with `Number(e.target.value)`, `+` becomes string concatenation instead of addition, and your math goes wrong.
+
+</JsNote>
+
+## Make it reusable {#reusable}
+
+Writing this `<input>` every time is tedious, so let's bundle a label and value display into a small part. Create a new `src/components/RangeSlider/RangeSlider.tsx`.
+
+```tsx title="src/components/RangeSlider/RangeSlider.tsx (new file, full)"
+interface RangeSliderProps {
+  label: string
+  min: number
+  max: number
+  step?: number
+  value: number
+  onChange: (value: number) => void
+  format?: (value: number) => string
+}
+
+export function RangeSlider({
+  label,
+  min,
+  max,
+  step = 1,
+  value,
+  onChange,
+  format,
+}: RangeSliderProps) {
+  return (
+    <label>
+      <span>
+        {label}
+        <span>{format ? format(value) : value}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    </label>
+  )
+}
+```
+
+The caller passes just the value state and "how to display it" (`format`).
+
+```tsx title="The caller"
+const [max, setMax] = useState(5000)
+
+<RangeSlider
+  label="Maximum price"
+  min={0}
+  max={10000}
+  step={500}
+  value={max}
+  onChange={setMax}
+  format={(v) => `Up to ${v.toLocaleString()} yen`}
+/>
+```
+
+## Color it {#styling}
+
+You can change the color of the thumb and bar with one line of CSS. You don't have to write per-browser selectors like `::-webkit-slider-thumb` — `accent-color` does the job.
+
+```scss title="RangeSlider.module.scss"
+.range {
+  width: 100%;
+  accent-color: var(--c-accent);
+}
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Line up divs and calculate the drag position yourself"
+  good="Use <input type='range'> and read only the value into state"
+  note="Building it yourself means re-implementing keyboard control and accessibility too. Native gives you all of it from the start."
+/>
+
+## When it doesn't work {#trouble}
+
+- **The numbers look wrong / get concatenated** … you forgot `Number(e.target.value)`. The value comes in as a string.
+- **The thumb won't move** … if you pass `value` but there is no `onChange`, it is frozen. Always write both together.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Don't build the slider yourself; use `<input type="range">`. Dragging and the keyboard come with it
+- Write `value` and `onChange` together, and convert `e.target.value` to a number with `Number(...)`
+- Color it with one line of `accent-color`. No per-browser thumb selectors needed
+
+</SummaryBox>

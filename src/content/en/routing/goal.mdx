@@ -1,0 +1,76 @@
+---
+title: Goal of this part
+minutes: 5
+slug: routing-goal
+section: routing
+description: "Routing that switches screens by URL. Use react-router to build a multi-page app with a list, product detail, and favorites. How an SPA changes screens without a reload."
+level: beginner
+prerequisites: ['typescript/summary']
+---
+
+import { MiniRouterDemo } from '@/demos/MiniRouter'
+
+<PartIntro>
+
+The `my-shop` we've built so far had **just one screen**. Tapping a product didn't open a detail view, and there were no other pages. In this part we'll use **react-router** to turn it into a **multi-page app** where the URL switches the screen.
+
+Your `ProductCard` is already type-safe and styled.
+
+```
+my-shop/src/
+├─ App.tsx                        ← the list (a single screen)
+├─ components/ProductCard/        ← typed and styled
+├─ types/product.ts               ← Product type
+└─ data/products.json
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- What routing is, and why an SPA needs it
+- What you'll be able to build by the end of this part
+- How this part is structured
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+In the mini app below, tapping a product name **switches to the detail screen**, and "← Back to list" takes you back. The key point: the whole page doesn't reload — **only the contents get swapped out**.
+
+<Demo title="The screen switches (detail ⇄ list)">
+  <MiniRouterDemo />
+</Demo>
+
+By the end of this part, `my-shop` will be an app with a **product list page, a product detail page, and a favorites page**. Each one has its own URL, and the browser's back and forward buttons work too.
+
+## Why you need routing {#why}
+
+An LP was self-contained in a single `index.html`. If you needed another page, you'd **split it into a separate file** like `about.html`. React's SPA (Single Page Application) works differently. **The HTML stays as a single file**, and JavaScript rewrites the contents to "look like a different page."
+
+That's where the following things become tricky:
+
+- You want the "product detail page" to have its **own direct URL** (so you can share a link).
+- You want the browser's **back and forward** buttons to work.
+- You want to **switch what's shown** based on "which page you're on right now."
+
+Doing this by hand is a lot of work. **react-router** is a tool that maps "a URL and the screen to show for that URL." When the URL changes, the screen changes, and following a link doesn't trigger a reload.
+
+## How this part is structured {#roadmap}
+
+1. **Set up the router** — register "this screen for this URL."
+2. **Navigate with Link** — use `<Link>` (no reload) instead of `<a>`.
+3. **URL params** — use `:id` in `/product/:id` for a per-product detail page.
+4. **Shared layout** — put the nav shared by every page in one place with `<Outlet>`.
+5. **Navigate from code** — move around from a button and such with `useNavigate`.
+6. **Capstone** — build the three pages: list → detail → favorites.
+
+Each page comes with **full code** and practice. Follow along in `my-shop`, actually switching URLs as you go.
+
+<SummaryBox>
+
+- Routing is the mechanism that maps "a URL to its screen." It's essential in an SPA
+- With react-router, the screen switches without a reload, and back/forward work too
+- In this part you'll turn `my-shop` into a multi-page app with a list, detail, and favorites
+
+</SummaryBox>

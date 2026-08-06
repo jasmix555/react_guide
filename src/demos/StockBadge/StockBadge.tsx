@@ -1,20 +1,22 @@
 import products from '@/data/products.json'
+import { useLocale } from '@/hooks/useLocale'
 
 import styles from './StockBadge.module.scss'
 
 // Conditional rendering: `? :` picks one of two badges per item.
 export function StockBadgeDemo() {
+  const en = useLocale() === 'en'
   const items = products.slice(0, 4)
 
   return (
     <ul className={styles.list}>
       {items.map((product) => (
         <li className={styles.row} key={product.id}>
-          <span className={styles.name}>{product.name}</span>
+          <span className={styles.name}>{en ? product.nameEn : product.name}</span>
           {product.inStock ? (
-            <span className={styles.in}>在庫あり</span>
+            <span className={styles.in}>{en ? 'In stock' : '在庫あり'}</span>
           ) : (
-            <span className={styles.out}>売り切れ</span>
+            <span className={styles.out}>{en ? 'Sold out' : '売り切れ'}</span>
           )}
         </li>
       ))}

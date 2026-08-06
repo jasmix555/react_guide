@@ -1,0 +1,138 @@
+---
+title: Design tokens and theming
+minutes: 10
+slug: design-tokens-theming
+section: styling
+description: "Group colors into CSS variables (--x) and reference them with var(). Covers the difference from $ variables and why they handle light/dark switching so well."
+level: beginner
+prerequisites: ['styling/scss-features']
+---
+
+<LearnBox>
+
+- The difference between SCSS `$` variables and CSS `--variables` (custom properties)
+- Group colors as **design tokens** in `:root` and reference them with `var()`
+- Why CSS variables are strong for switching between light and dark
+
+</LearnBox>
+
+## Where `$` variables alone fall short {#why-css-var}
+
+The `$` variables from the previous page have their **values baked in at build time**. That's handy, but it has a weakness: **you can't change the value at runtime**.
+
+For example, "switch between a light theme and a dark theme with a button." Here the color needs to **change at runtime**. Since `$` is already baked in, it can't handle that. This is where CSS **`--variables` (custom properties)** come in.
+
+| | SCSS `$variable` | CSS `--variable` |
+| --- | --- | --- |
+| Decided when | At build time (baked in) | At runtime (alive) |
+| Change at runtime | No | Yes (theme switching, etc.) |
+| Reference | `$name` | `var(--name)` |
+
+## Group tokens in `:root` {#tokens}
+
+Define colors and corner radii in one place with meaningful names. These are called **design tokens**. Put them in `:root` so they're usable across the whole page.
+
+```scss title="src/styles/tokens.scss"
+:root {
+  --c-bg: #ffffff;
+  --c-surface: #f8fafc;
+  --c-text: #0f172a;
+  --c-muted: #64748b;
+  --c-line: #e5e7eb;
+  --c-accent: #4f46e5;
+}
+```
+
+Let's break down defining and referencing.
+
+```scss
+:root {
+  --c-surface: #f8fafc;
+}
+/*  ↑          ↑
+    │          └─ value
+    └─ the name starts with --. :root is where you define "the whole page" */
+
+.card {
+  background: var(--c-surface);
+}
+/*           ↑
+             └─ var(--name) calls up the defined value */
+```
+
+## Components reference the tokens {#use}
+
+Replace `ProductCard`'s colors with tokens instead of literal values. Now "the place where colors are decided" is gathered in one spot.
+
+```scss title="ProductCard.module.scss (colors as tokens)"
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  color: var(--c-text);
+}
+
+.price {
+  color: var(--c-accent);
+}
+```
+
+Since every component looks at `var(--c-*)`, **when you want to change a color you only fix one place in `:root`** and it applies across the whole site.
+
+## Support light and dark {#theme}
+
+This is where CSS variables really shine. **Keep the same token names and just override the values for dark.** You can switch automatically based on the OS setting (`prefers-color-scheme`).
+
+```scss title="tokens.scss (adding dark)"
+:root {
+  --c-bg: #ffffff;
+  --c-surface: #f8fafc;
+  --c-text: #0f172a;
+  --c-line: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #0b1120;
+    --c-surface: #111827;
+    --c-text: #e5e7eb;
+    --c-line: #1f2937;
+  }
+}
+```
+
+The `ProductCard` side just says `var(--c-surface)` and you **haven't changed a thing**, yet in dark mode it automatically becomes a dark color. Components only look at the tokens, and the token side holds the actual color values — this division of labor makes theming easy.
+
+<Callout type="note" title="To switch with a button">
+
+If you want a manual toggle rather than just the OS setting, use JavaScript to swap an attribute like `<html data-theme="dark">`, and on the CSS side provide `:root[data-theme='dark'] { ... }`. This site itself uses this approach. The mechanism is the same: just swapping out the token values.
+
+</Callout>
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="Hard-code colors like #0f172a directly in each component's .module.scss"
+  good="Define tokens (--c-text, etc.) in :root and reference them with var(--c-text)"
+  note="Hard-coding means searching every file when a color changes. With tokens, it's one place. Dark mode is just swapping the values."
+/>
+
+## When things don't work {#trouble}
+
+- **`var(--c-text)` doesn't work** … Check the token name's spelling, that it starts with `--`, and that it's defined in `:root`.
+- **Dark mode doesn't kick in** … Check that you're overriding the same token names inside `@media (prefers-color-scheme: dark)`. Don't change the component side.
+
+## Summary & practice {#summary}
+
+<Exercise answer="CSS --variables (custom properties). $ variables are baked in at build time and can't change at runtime, but --variables are alive at runtime, so you can swap their values like for theme switching.">
+
+For "switching light/dark with a button," which is the better fit — `$` variables or CSS `--variables`? Give your reasoning too.
+
+</Exercise>
+
+<SummaryBox>
+
+- `$` variables are baked in at build time; `--variables` are alive at runtime (strong for theme switching)
+- Group colors in `:root` as design tokens, and have components reference them with `var(--name)`
+- Dark mode is just overriding the same token names in `@media (prefers-color-scheme: dark)`
+
+</SummaryBox>

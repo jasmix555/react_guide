@@ -1,0 +1,223 @@
+---
+title: map / filter / find
+minutes: 10
+slug: array-methods
+section: javascript
+description: "Three tools for looping over arrays. map to transform, filter to narrow down, find to grab one item. You won't need for loops anymore."
+level: beginner
+prerequisites: ['javascript/arrow-functions']
+---
+
+<LearnBox>
+
+- `map`: transform each element to build a new array
+- `filter`: keep only the elements that match a condition
+- `find`: find the first item that matches a condition
+- What happens when you forget `return` in a `map` callback
+
+</LearnBox>
+
+## Graduating from for loops {#why}
+
+"Process the contents of an array one at a time" is something you used to do with a `for` statement. In React, you use three tools instead: **`map` / `filter` / `find`**. In particular, `map` shows up whenever you line up a list on screen. Get comfortable with it here and everything later becomes much easier.
+
+On this page, we'll use an array like this as our example.
+
+```js
+const products = [
+  { name: 'Tomato', price: 320, inStock: true },
+  { name: 'Egg', price: 280, inStock: false },
+  { name: 'Milk', price: 200, inStock: true },
+]
+```
+
+<Callout type="analogy">
+
+It's close to processing elements one at a time with jQuery's `$.each()`. The difference: `map` and friends "**return a new array**." They don't touch the original — you receive the result and use it.
+
+</Callout>
+
+## map: transform everything {#map}
+
+`map` returns a **new array of the same length, with each element transformed**. It's the tool for "apply the same operation to everything."
+
+```js
+const names = products.map(p => p.name)
+
+console.log(names) // ['Tomato', 'Egg', 'Milk']
+```
+
+Let's break this one line into pieces and label them.
+
+```js
+   products.map(p => p.name)
+// ↑        ↑   ↑    ↑
+// │        │   │    └─ the value returned. these get collected into a new array
+// │        │   └─ the callback's argument. one element's worth
+// │        └─ map. the tool that transforms each element
+// └─ the original array
+```
+
+- **`products`** … the original array (the side being `map`ped)
+- **`.map(...)`** … transforms each element in turn and returns a **new array of the same length**
+- **`p`** … the callback's argument. one element's worth comes in at a time (name is your choice)
+- **`p.name`** … the value returned. no braces, so it's returned automatically, and the collection becomes the result array
+
+`products.map(p => p.name)` means "for each element `p`, pull out `p.name`, and build a new array lining those up." `p` is a single product at a time, and you can name it whatever you like. To convert prices to tax-included, it's this:
+
+```js
+const withTax = products.map(p => p.price * 1.1)
+console.log(withTax) // [352.00000000000006, 308.00000000000006, 220.00000000000003]
+```
+
+<JsNote feature="A map callback is 'the processing for one item'">
+
+The `p => …` part of `map(p => …)` is called a **callback**. It's a function that writes "what to do to one item's worth." `map` calls it in turn, once per element in the array, and collects the returned values into a new array.
+
+</JsNote>
+
+## filter: narrow down by condition {#filter}
+
+`filter` returns a new array **with only the elements that match a condition**. Only the elements for which the callback returns `true` remain.
+
+```js
+const inStockOnly = products.filter(p => p.inStock)
+
+console.log(inStockOnly) // Tomato and Milk, two items (Egg is excluded since inStock: false)
+```
+
+Only the elements where `p => p.inStock` is `true` remain, so you get just the in-stock products. For "under 300 yen only," it's `p => p.price < 300`.
+
+## find: locate the first item {#find}
+
+`find` returns **only the first item** that matches a condition (not an array — the element itself). If nothing is found, it returns `undefined`.
+
+```js
+const milk = products.find(p => p.name === 'Milk')
+
+console.log(milk) // { name: 'Milk', price: 200, inStock: true }
+```
+
+`filter` is "everything that matches (an array)," `find` is "the first item (the element itself)." Use it for things like looking up one item by ID.
+
+## Break it on purpose: forget return in map {#break-no-return}
+
+The number one trap with `map` is adding braces `{}` to the callback and **forgetting to write `return`**. The gotcha from the arrow functions page shows up here exactly.
+
+```js
+const names = products.map(p => {
+  p.name // no return written
+})
+
+console.log(names) // [undefined, undefined, undefined]
+```
+
+We expected `['Tomato', ...]`, but got three `undefined` lined up. No error appears. The cause: we added braces `{}` but there's no `return`. `map` collects "the value the callback returned," but since nothing is returned, it gathers `undefined`.
+
+The fix is to remove the braces and make it one line, or add a `return`.
+
+```js
+const names = products.map(p => p.name) // remove the braces (returned automatically)
+```
+
+<Callout type="warn">
+
+When your `map` result is full of `undefined`, suspect that **you forgot `return` inside the callback's braces**. A sizable fraction of React bugs where a list goes blank are exactly this.
+
+</Callout>
+
+<Together
+  task="From the products above, build an array of just the 'names' of the in-stock products. (Hint: think in two stages — narrow down with filter, then pull out names with map.)"
+  hint="Like products.filter(...).map(...) — you can chain map straight onto the result of filter."
+>
+
+```js
+const inStockNames = products
+  .filter(p => p.inStock)
+  .map(p => p.name)
+
+console.log(inStockNames) // ['Tomato', 'Milk']
+```
+
+First narrow to the two in-stock items with `filter(p => p.inStock)`, then chain `.map(p => p.name)` onto the result to pull out just the names. Both `filter` and `map` return a new array, so you can chain them like this.
+
+</Together>
+
+## Break it on purpose: map on something that isn't an array {#break-not-array}
+
+`map` is arrays-only. Accidentally use it on something that isn't an array (like `undefined`) and you get a clear error.
+
+```js
+const data = undefined
+data.map(p => p.name)
+// Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+```
+
+It's the error "can't read the `map` of `undefined`." In React, this often shows up when "the data hasn't arrived yet (`undefined`) but you tried to `map` it." **When you get this shape of error, check whether the thing you're `map`ping is really an array** (we'll cover the handling in detail in a later part).
+
+## Syntax catalog: map / filter / find variations {#catalog}
+
+"Want to transform → `map`." "Want to narrow down → `filter`." "Want to find one item → `find`." Pick the tool by your goal.
+
+```js
+const products = [
+  { name: 'Tomato', price: 320, inStock: true },
+  { name: 'Egg', price: 280, inStock: false },
+]
+
+products.map(p => p.name)                        // transform: array of just names
+products.map(p => p.price * 1.1)                 // transform: array of tax-included prices
+products.filter(p => p.inStock)                  // narrow down: in-stock only
+products.filter(p => p.price < 300)              // narrow down: under 300 yen only
+products.find(p => p.name === 'Milk')            // one item: the first match
+products.filter(p => p.inStock).map(p => p.name) // chain them (narrow → transform)
+```
+
+All three leave the original array intact and return a result. Since both `filter` and `map` return a new array, you can chain them like `.filter(...).map(...)`.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="products.map(p => { p.name })"
+  good="products.map(p => p.name)"
+  note="Add braces and you need return. To just return, remove the braces entirely. Forget, and you get an array of undefined."
+/>
+
+<Diff
+  bad="build a new array by pushing in a for loop"
+  good="receive a new array with map / filter"
+  note="If what you want is 'transform' or 'narrow down,' the dedicated tool is shorter and easier to read."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="For array processing, use map / filter / find instead of for"
+  alt="Complex aggregation (branching while summing a total, etc.) is sometimes easier to read with reduce or for-of. Start with just the three: map / filter / find."
+>
+
+"Want to transform → `map`." "Want to narrow down → `filter`." "Want to find one item → `find`." Pick the tool by your goal. What they share: all three leave the original array intact and return a new result.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`map` result is full of `undefined`** … you forgot `return` inside the callback's braces. Make it one line or add `return`.
+- **`Cannot read properties of undefined (reading 'map')`** … the thing you're `map`ping isn't an array. Check whether the data has arrived.
+- **`find` result is `undefined`** … either no element matches the condition, or the condition (like the `===` comparison) is wrong.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write products.filter(p => p.price < 300). filter returns a new array collecting only elements where the condition is true, so only products under 300 yen remain.">
+
+From the `products` above, how would you pull out only the products priced under 300 yen?
+
+</Exercise>
+
+<SummaryBox>
+
+- `map` = transform each element into a new array, `filter` = a new array narrowed by condition, `find` = the first item
+- All three leave the original array intact and return a result. Use them in place of `for` loops
+- If you use braces in a `map` callback, you need `return`. Forget it and you get an array of `undefined`
+
+</SummaryBox>

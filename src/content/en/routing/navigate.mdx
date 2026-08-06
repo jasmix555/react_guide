@@ -1,0 +1,139 @@
+---
+title: Navigating in code (useNavigate)
+minutes: 9
+slug: routing-navigate
+section: routing
+description: "useNavigate moves the screen without a click. Covers navigating after some work, going back, and a 404 page for URLs that match nothing."
+level: beginner
+prerequisites: ['routing/layout-outlet']
+---
+
+<LearnBox>
+
+- `useNavigate` for when you want to move without a link click
+- How to write "navigate after some work" and "go back one"
+- A 404 page for URLs that match no route
+
+</LearnBox>
+
+## When you want to move without a link {#why}
+
+`<Link>` is "click to move". But sometimes you want to move **after doing some work** first. For example, "add to cart → once it's done, go to the cart screen". For a move that isn't click = instant navigation, use **`useNavigate`**.
+
+```tsx
+import { useNavigate } from 'react-router-dom'
+
+function AddButton() {
+  const navigate = useNavigate()
+
+  function handleClick() {
+    // ...add-to-cart logic...
+    navigate('/cart') // move after the work
+  }
+
+  return <button onClick={handleClick}>Add to cart and continue</button>
+}
+```
+
+```tsx
+const navigate = useNavigate()
+navigate('/cart')
+//       ↑
+//       └─ the destination URL. Same idea as <Link>'s to
+```
+
+Get the `navigate` function from `useNavigate()`, then call `navigate('/destination')` whenever you like.
+
+## Go back one {#back}
+
+Pass a number to move through history. `navigate(-1)` is the same as the browser's back button.
+
+```tsx
+navigate(-1) // go back to the previous page
+```
+
+Handy for things like a "Back" button on a detail page.
+
+## 404: when nothing matches the URL {#notfound}
+
+When someone opens a URL that doesn't exist (a typo like `/prodcut/p01`), you want to show "not found" instead of a blank page. **`path: '*'`** is a special route that matches "everything that matched none of the others". Put it last.
+
+```tsx
+children: [
+  { index: true, element: <ProductListPage /> },
+  { path: 'product/:id', element: <ProductDetailPage /> },
+  { path: 'favorites', element: <FavoritesPage /> },
+  { path: '*', element: <NotFoundPage /> }, // URLs that match none of the above
+]
+```
+
+It's nice to put a link back to the list on `NotFoundPage`.
+
+```tsx title="src/pages/NotFoundPage.tsx"
+import { Link } from 'react-router-dom'
+
+export function NotFoundPage() {
+  return (
+    <div>
+      <h1>Page not found</h1>
+      <Link to="/">Back to the list</Link>
+    </div>
+  )
+}
+```
+
+## Break it on purpose: forget to call navigate {#break}
+
+`useNavigate` just "hands you a function". If you only receive it and **don't call it, nothing happens**.
+
+```tsx
+const navigate = useNavigate()
+
+function handleClick() {
+  // ...work...
+  navigate // ← not called (no ())
+}
+```
+
+Just writing `navigate` only points at the function; it doesn't move you. You have to **add `()` and call it**, like `navigate('/cart')` (this is the same idea as [passing a function as a value](/guide/javascript/functions-as-values)).
+
+## Cheat sheet: Link vs useNavigate {#catalog}
+
+```tsx
+// Click to move instantly → Link
+<Link to="/favorites">Favorites</Link>
+
+// Move after some work → useNavigate
+const navigate = useNavigate()
+navigate('/cart') // to a specific URL
+navigate(-1) // go back one
+```
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="Write a plain link move as useNavigate + onClick"
+  good="Click to move instantly is <Link>. Only use useNavigate for a move after some work"
+  note="A simple move is most natural with Link. Use useNavigate when you need to 'move after some work'."
+/>
+
+## When it doesn't work {#trouble}
+
+- **You called `navigate` but nothing moves** … Check that you added `()` and called it, like `navigate('/x')`.
+- **The 404 doesn't show** … Check that you registered a `{ path: '*' }` route and put it last.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Use useNavigate. Get it with const navigate = useNavigate(), and after the save finishes, call navigate('/favorites'). Since this isn't click = instant navigation, useNavigate is the right choice, not Link.">
+
+When you want to "press a save button, and once the save succeeds, move to the favorites list", do you use `<Link>` or `useNavigate`? Show how you'd write it too.
+
+</Exercise>
+
+<SummaryBox>
+
+- To move after some work, use `const navigate = useNavigate()` → `navigate('/destination')`
+- `navigate(-1)` is "go back one". `navigate` does nothing unless you call it (you need the `()`)
+- The catch-all for URLs that match nothing is `{ path: '*', element: <NotFoundPage /> }`
+
+</SummaryBox>

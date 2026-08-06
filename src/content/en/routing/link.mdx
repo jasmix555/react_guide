@@ -1,0 +1,107 @@
+---
+title: Navigating with Link
+minutes: 8
+slug: routing-link
+section: routing
+description: "Navigate with Link instead of an a tag. Why it swaps only the contents without a reload, and how to highlight the current page with NavLink."
+level: beginner
+prerequisites: ['routing/setup-router']
+---
+
+<LearnBox>
+
+- Why you navigate with `<Link>` instead of `<a>` (no reload)
+- The basics of `<Link to="...">`
+- Highlighting "the page you're on" with `NavLink`
+
+</LearnBox>
+
+## `<a>` reloads the whole page {#why-link}
+
+On an LP, a link was `<a href="...">`. That tells the browser to **open that page from scratch**. Do this in an SPA and **the whole app reloads** — it goes blank and then loads everything again. Any state you were holding (favorites and such) is wiped out too.
+
+In react-router, you use **`<Link>`** instead. `<Link>` doesn't reload the page; it **swaps only the contents that need to change**. It's fast, and state is preserved.
+
+```tsx
+import { Link } from 'react-router-dom'
+
+<Link to="/product/p01">See details</Link>
+```
+
+```tsx
+<Link to="/product/p01">See details</Link>
+//    ↑
+//    └─ the destination URL (to, not href)
+```
+
+The key point is using **`to`** instead of `href`. It looks like an ordinary link, but clicking it doesn't cause a reload.
+
+## NavLink: highlight the page you're on {#navlink}
+
+When you want to highlight "the page you're on" in the nav, use **`NavLink`** instead of `<Link>`. `NavLink` tells you "am I currently at this link's destination (`isActive`)?", and you use that to switch the class.
+
+```tsx
+import { NavLink } from 'react-router-dom'
+
+<NavLink
+  to="/favorites"
+  className={({ isActive }) => (isActive ? styles.active : styles.link)}
+>
+  Favorites
+</NavLink>
+```
+
+You can pass a **function** to `className`, and if its `isActive` argument is `true`, you apply `styles.active`. That's the behavior where only the link for the current page changes color.
+
+## Break it on purpose: use `<a>` instead of Link {#break}
+
+Let's feel the difference. Write a link in the product list with `<a>` instead of `<Link>`.
+
+```tsx title="Deliberately using an a tag"
+<a href="/product/p01">See details</a>
+```
+
+When you click it, the screen **flashes blank for a moment** and then reloads (a full page reload). If you were holding any state, that's wiped out too. Switch back to `<Link to="/product/p01">` and the white flicker is gone — only the contents smoothly swap. **Inside an SPA, links are `<Link>`** — this is why.
+
+## Syntax catalog: Link and NavLink {#catalog}
+
+```tsx
+// normal navigation
+<Link to="/">To the list</Link>
+<Link to={`/product/${product.id}`}>Details</Link>
+
+// highlight the page you're on
+<NavLink to="/favorites" className={({ isActive }) => (isActive ? styles.active : styles.link)}>
+  Favorites
+</NavLink>
+```
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad='<a href="/product/p01">Details</a>'
+  good='<Link to="/product/p01">Details</Link>'
+  note="Using <a> for in-app navigation reloads everything and wipes state. Internal links use <Link>."
+/>
+
+## When things don't work {#trouble}
+
+- **The screen flashes blank on click** … You're using `<a href>`. Change it to `<Link to>`.
+- **`to` has no effect** … Did you write `<Link href>`? `<Link>` uses `to`, not `href`.
+- **Links to external sites** … For navigating to another site (`https://...`), a plain `<a href>` is actually fine. `<Link>` is for navigation within the app.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write <Link to={`/product/${product.id}`}>{product.name}</Link>. Use to instead of href, and embed the id into the URL with a template literal. With <a>, the whole page would reload.">
+
+In the product list, write a link so that tapping each product name navigates to `/product/that-product's-id`.
+
+</Exercise>
+
+<SummaryBox>
+
+- Navigate within the app with `<Link to="...">`. `<a href>` reloads everything and wipes state
+- `to` is not `href`. Use a plain `<a href>` only for external sites
+- Highlight the page you're on with `NavLink`'s `isActive`
+
+</SummaryBox>

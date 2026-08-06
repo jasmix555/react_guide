@@ -1,0 +1,135 @@
+---
+title: Scroll reveal
+minutes: 9
+slug: scroll-reveal
+section: recipes
+description: "Fade elements in as they enter the viewport. Use IntersectionObserver instead of scroll events, and support the reduce-motion setting."
+level: intermediate
+prerequisites: ['state/use-effect/basics']
+---
+
+import { ScrollRevealDemo } from '@/demos/ScrollReveal'
+
+<LearnBox>
+
+- Fade an element in once, the moment it enters the viewport
+- Why you should hand this off to `IntersectionObserver` instead of the `scroll` event
+- Supporting the "reduce motion" setting (`prefers-reduced-motion`)
+
+</LearnBox>
+
+## See the finished version first {#goal}
+
+The effect you see all over LPs: content rises up a little and fades in. Press "Reset" to play it again.
+
+<Demo title="ScrollReveal">
+  <ScrollRevealDemo />
+</Demo>
+
+## Don't compute positions with the scroll event {#why-io}
+
+Listening to the `window` `scroll` event and recalculating coordinates every time to figure out "is it on screen yet?" is a **pattern to avoid**. It runs dozens of times per scroll and causes janky, stuttering motion.
+
+The browser has a dedicated tool for this: `IntersectionObserver`. You register "let me know when this element becomes visible," and it calls you back only at the moment it appears. Both the position math and the timing are left to the browser.
+
+## The Reveal component {#reveal-body}
+
+Create a new file at `src/components/Reveal/Reveal.tsx` and paste in the whole thing.
+
+```tsx title="src/components/Reveal/Reveal.tsx (new file, full source)"
+import { type ReactNode, useEffect, useRef, useState } from 'react'
+
+import styles from './Reveal.module.scss'
+
+export function Reveal({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShown(true)
+          io.disconnect() // stop observing once it's shown
+        }
+      },
+      { threshold: 0.2 },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} className={shown ? `${styles.reveal} ${styles.shown}` : styles.reveal}>
+      {children}
+    </div>
+  )
+}
+```
+
+Here are the three things to focus on.
+
+- **`new IntersectionObserver((entries) => …, { threshold: 0.2 })`** … registers "call me once 20% is visible." `entry.isIntersecting` tells you "is it visible right now?"
+- **`io.observe(el)`** … starts watching this element. You pass the real DOM node via `ref`.
+- **`io.disconnect()`** … stop observing once it has appeared. Always disconnect in the `useEffect` cleanup (`return () => …`) too. Forget to disconnect and the observer lives on.
+
+The look comes from CSS. Once `shown` is applied, all it does is reset the downward offset and the transparency back to zero.
+
+```scss title="Reveal.module.scss"
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.shown {
+  opacity: 1;
+  transform: none;
+}
+```
+
+## Support the reduce-motion setting {#reduced-motion}
+
+For people who dislike animation or get motion sickness, the OS has a "reduce motion" setting. When it's on, **show the content from the start with no animation** (the key point: don't leave it hidden). It's just one extra CSS block.
+
+```scss title="Reveal.module.scss (addition)"
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+```
+
+<Callout type="warn" title="Don't leave the content hidden">
+
+A common accident when supporting `prefers-reduced-motion` is "I removed the animation and the content disappeared too." When you kill the motion, always set `opacity: 1` so the **content stays visible**. Remove the motion, not the information — that's the rule.
+
+</Callout>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Recomputing the scroll position every time with window.addEventListener('scroll', ...)"
+  good="Registering 'tell me when it's visible' with IntersectionObserver"
+  note="The scroll event fires dozens of times per scroll and stutters. Leave the visibility check to the dedicated Observer."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Everything is visible from the start** … Like the box in the demo, if an element is already on screen it appears immediately (this is normal). On a real page, elements further down appear as they scroll into view.
+- **It flashes in and out / replays repeatedly** … Check that `io.disconnect()` is actually being called. The trick is to stop observing once it has appeared.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Don't compute "is it visible?" with the `scroll` event — hand it to `IntersectionObserver`
+- Once shown, call `io.disconnect()`. Always disconnect in the cleanup (`return () => …`) too
+- On `prefers-reduced-motion`, remove the motion but keep the content visible with `opacity: 1`
+
+</SummaryBox>

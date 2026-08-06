@@ -1,14 +1,17 @@
 import { motion, useReducedMotion } from 'motion/react'
 
 import products from '@/data/products.json'
+import { useLocale } from '@/hooks/useLocale'
 
 import styles from './MotionCards.module.scss'
 
 /**
- * Part 9 の完成イメージ。カードが少しずつ（stagger）フワッと出て、ホバーで持ち上がる。
- * 「動きを減らす」設定のときは、動かさず最初から出す（useReducedMotion）。
+ * The finished look of Part 9. Cards appear softly one after another (stagger) and lift on hover.
+ * When the "reduce motion" setting is on, they appear from the start without moving
+ * (useReducedMotion).
  */
 export function MotionCards() {
+  const en = useLocale() === 'en'
   const reduce = useReducedMotion()
   const items = products.slice(0, 4)
 
@@ -33,8 +36,10 @@ export function MotionCards() {
           whileHover={reduce ? undefined : { y: -4 }}
           transition={{ type: 'spring', stiffness: 300, damping: 24 }}
         >
-          <span className={styles.name}>{p.name}</span>
-          <span className={styles.price}>{p.price.toLocaleString()}円</span>
+          <span className={styles.name}>{en ? p.nameEn : p.name}</span>
+          <span className={styles.price}>
+            {en ? `${p.price.toLocaleString()}` : `${p.price.toLocaleString()}円`}
+          </span>
         </motion.li>
       ))}
     </motion.ul>

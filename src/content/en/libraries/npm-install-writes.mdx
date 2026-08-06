@@ -1,0 +1,171 @@
+---
+title: What npm install changes
+minutes: 10
+slug: npm-install-writes
+section: libraries
+description: "Running npm install <something> changes three things: package.json, package-lock.json, and node_modules. The difference between dependencies and devDependencies, what ^1.2.3 means, and why you don't touch the lock file."
+level: beginner
+prerequisites: ['libraries/goal']
+---
+
+<LearnBox>
+
+- The 3 places `npm install <something>` rewrites
+- The difference between `dependencies` and `devDependencies`
+- How to read version notations like `^1.2.3`, and the role of `package-lock.json`
+
+</LearnBox>
+
+## What actually happens on your machine when you install {#why}
+
+You probably already have a rough sense that `npm install <something>` is a command that downloads a part from the internet (the npm registry). But if you don't know **what actually gets rewritten inside your own project as a result**, then later, when you look at a file diff, you'll be scared: "what is this?"
+
+Running it changes these **3 places**.
+
+1. **`node_modules/`** … The part itself (the actual code) is downloaded here. It's a huge folder.
+2. **`package.json`** … One line is appended to the list of "what you installed." **This is the ledger.**
+3. **`package-lock.json`** … The precise record — including "which other parts that part in turn depends on" — is updated.
+
+The key point is that **the body (`node_modules`) is disposable, and the ledger (`package.json` and `package-lock.json`) is what's real**. This page nails down that relationship.
+
+## One line gets added to dependencies in package.json {#dependencies}
+
+In `my-shop`, let's try installing a small part for assembling class names, `clsx` (we'll actually use `clsx` on a later page; here we're just watching "what changes when you install it").
+
+```bash
+npm install clsx
+```
+
+When it's done, open `package.json`. Inside `dependencies`, you should see a line like this added.
+
+```json title="package.json (excerpt)"
+"dependencies": {
+  "clsx": "^2.1.1",
+  "react": "^19.2.6",
+  "react-dom": "^19.2.6"
+}
+```
+
+`"clsx": "^2.1.1"` is the line that was just appended. It's a record saying **"we're using the 2.1.1 line of a library called clsx."** `npm install` doesn't just download — it goes as far as writing this into the ledger for you.
+
+<JsNote feature="package.json is the project's ledger">
+
+`package.json` is a ledger, written in a human-readable form, of "what this project depends on." Put another way, **as long as you have this ledger, you can delete `node_modules` and get it all back with `npm install`** (we'll try this shortly). That's why `node_modules` isn't included in Git, but `package.json` always is.
+
+</JsNote>
+
+## The difference between dependencies and devDependencies {#dev}
+
+`package.json` has **2** places to put parts: `dependencies` and `devDependencies`.
+
+- **`dependencies`** … Parts needed by **the app's actual behavior**. `react`, `clsx`, and the like — parts that become part of the screen running in the browser.
+- **`devDependencies`** … Parts needed **only during development / at build time**. `vite`, `sass`, `typescript`, `eslint`, and so on. They're not directly included in the finished screen.
+
+When you want something in `devDependencies`, add `-D` (or `--save-dev`).
+
+```bash
+npm install -D sass     # used only during dev/build → goes to devDependencies
+npm install clsx        # needed for the screen to run → goes to dependencies
+```
+
+<Callout type="note">
+
+If you're unsure which way to split it, think: "**does the finished app need this part's code to run in the browser?**" If yes, `dependencies`; if it only helps building or development, `devDependencies`. Getting it wrong isn't fatal, but splitting it correctly is a kindness to whoever reads the code later.
+
+</Callout>
+
+## How to read ^1.2.3 (semantic versioning) {#semver}
+
+The **`^` (caret)** in `"clsx": "^2.1.1"` has meaning. A version number is made of 3 numbers, `major.minor.patch` (e.g., `2.1.1`), and the symbol changes "how far it's allowed to bump up automatically."
+
+| Notation | Range allowed to bump | Meaning |
+|---|---|---|
+| `^2.1.1` | within `2.x.x` | major (the leading 2) is fixed; minor and patch may bump |
+| `~2.1.1` | within `2.1.x` | only patch (the last number) may bump |
+| `2.1.1` | no bump | pinned to this exact point |
+
+Why write a range? Because there's a worldwide promise (semantic versioning) that **as long as the major stays the same, only "non-breaking fixes" go in**. `^` is the most commonly used spec: "follow the latest within a safe range." `create vite` adds the `^` for you from the start, so **you generally don't need to rewrite it yourself**.
+
+## Break it on purpose: node_modules comes back even after you delete it {#break-delete-modules}
+
+Let's feel "the body is disposable, the ledger is what's real." In `my-shop`, try **deleting the entire `node_modules` folder** that holds the bodies of the parts (deleting it in Explorer is fine).
+
+Right after deleting it, run `npm run dev`, and it won't start — this appears:
+
+```
+failed to load config from ... Error: Cannot find module 'vite'
+```
+
+Since you deleted the body of `vite`, it says "not found." Don't panic here; get it all back in one shot, relying on `package.json` (the ledger).
+
+```bash
+npm install
+```
+
+`npm install` (with no part name) is the command that **re-assembles everything written in the ledger**. Wait a moment and `node_modules` comes back, and `npm run dev` works again. **If it breaks, just delete and reinstall** — you no longer need to be afraid of `node_modules`.
+
+<Together
+  task="Open dependencies in package.json and find the react spec (a line like ^19.2.6). With this ^, an update like 19.2.6 → 19.3.0 is automatically allowed, but 20.0.0 is not. Explain in your own words why."
+  hint="^ fixes the major (the leading number). It's because 19 → 20 changes the major, which by convention means a breaking change may be included."
+>
+
+`^19.2.6` means "you may bump up within the `19.x.x` range." `19.3.0` is only a minor bump, so it's inside this range; `20.0.0` changes the major from `19 → 20`, so it's out of range. There's a worldwide promise that **when the major changes, code that used to work may stop working** — so `^` is a safety design that won't bump up automatically there and nowhere else.
+
+</Together>
+
+## Don't touch, don't delete, do commit package-lock.json {#lock}
+
+`package-lock.json` is a finer-grained record than `package.json`. It's **a record that pins down every part in the whole project exactly** — which parts, at which versions, the `clsx` you installed in turn depends on behind the scenes.
+
+Thanks to this, **the exact same set of parts is reproduced on your PC and a coworker's PC**. It's the finalized blueprint that prevents "it works on my machine but not on someone else's."
+
+- **Don't hand-edit it** … `npm` manages it automatically. It's not a file humans rewrite.
+- **Don't delete it** … deleting it breaks reproducibility.
+- **Commit it to Git** … it's a file the team should share (`node_modules`, conversely, you don't commit).
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Committing node_modules to Git"
+  good="Exclude node_modules with .gitignore, and commit package.json / package-lock.json"
+  note="The body is disposable. With the ledger and the lock, anyone can restore it with npm install."
+/>
+
+<Diff
+  bad="Putting sass or eslint in dependencies"
+  good="Put things used only for build/development in devDependencies (-D)"
+  note="Split by whether the finished screen needs it to run."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Keep dependencies minimal. Split dependencies and devDependencies correctly, and always commit package-lock.json"
+  alt="Leaving versions at ^ by default (create vite's default) is fine. Only when you have a specific reason to pin an exact version do you write the numbers directly."
+>
+
+Install as few parts as possible. `node_modules` is disposable, so don't include it in Git — share the ledger (`package.json`) and the finalized version (`package-lock.json`). With those two in place, anyone's PC can restore the same environment with a single `npm install`.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`Cannot find module '<something>'`** … `node_modules` is missing or broken. Re-assemble it with `npm install`.
+- **Behaves differently from a coworker** … `package-lock.json` may not be shared. Check that it's committed.
+- **Added it to `package.json` but nothing changed** … if you wrote it by hand, it only gets downloaded once you run `npm install`.
+
+## Summary and exercise {#summary}
+
+<Exercise answer="sass is used only to convert SCSS to CSS at build time and isn't included in the finished screen's behavior, so devDependencies (npm install -D sass) is the right choice.">
+
+Should `sass` go in `dependencies` or `devDependencies`? Think about why, too.
+
+</Exercise>
+
+<SummaryBox>
+
+- `npm install <something>` rewrites `node_modules` (the body), `package.json` (the ledger), and `package-lock.json` (the finalized version)
+- Things needed to run go in `dependencies`; things only for development/build go in `devDependencies` (`-D`)
+- `^1.2.3` fixes the major and updates within a range. Don't touch, don't delete, and do commit `package-lock.json`
+
+</SummaryBox>

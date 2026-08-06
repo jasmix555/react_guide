@@ -1,0 +1,100 @@
+---
+title: Toast notification
+minutes: 8
+slug: toast
+section: recipes
+description: "A notification that pops up briefly after an action and disappears on its own. Hold messages in an array, and let setTimeout remove each one."
+level: intermediate
+prerequisites: ['state/use-effect/basics']
+---
+
+import { ToastDemo } from '@/demos/Toast'
+
+<LearnBox>
+
+- A notification like "Saved" that appears and disappears on its own
+- Hold messages in an array and remove each one with `setTimeout`
+- How to create non-colliding `id`s, and how to convey them to screen readers
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Press the button and a notification appears at the bottom, then disappears on its own after a moment. Press it repeatedly and they stack up.
+
+<Demo title="Toast">
+  <ToastDemo />
+</Demo>
+
+## Hold messages in an array {#state}
+
+Several toasts can appear at once, so hold them in **an array, not a single string**. Add one when you show it, and remove just that one when it goes away. Give each an `id` so you can tell which one to remove.
+
+```tsx
+const [toasts, setToasts] = useState([]) // an array of { id, msg }
+const idRef = useRef(0) // counter for creating non-colliding ids
+
+function notify(msg) {
+  const id = idRef.current++
+  setToasts((list) => [...list, { id, msg }]) // add one
+  window.setTimeout(() => {
+    setToasts((list) => list.filter((t) => t.id !== id)) // remove only that id
+  }, 2500)
+}
+```
+
+<JsNote feature="Create ids with a useRef counter">
+
+If you use the array's length for `id`, removing and adding will cause **collisions**. Increment a `useRef(0)` counter with `idRef.current++` and you always get a different number. A `ref` doesn't trigger a re-render, so it's well suited to this kind of "behind-the-scenes value."
+
+</JsNote>
+
+## Rendering and auto-dismiss {#render}
+
+Pin the display to the bottom of the screen. Remove each one after 2.5 seconds with `setTimeout`, and add `role="status"` and `aria-live="polite"` so screen readers are told about new notifications too.
+
+```tsx title="src/components/Toaster/Toaster.tsx (key parts)"
+<div className={styles.toaster} role="status" aria-live="polite">
+  {toasts.map((t) => (
+    <div key={t.id} className={styles.toast}>
+      {t.msg}
+    </div>
+  ))}
+</div>
+```
+
+```scss title="Toaster.module.scss (key parts)"
+.toaster {
+  position: fixed;
+  bottom: var(--sp-6);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column-reverse; // newest ones stack up from the bottom
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Using toasts.length or index for id"
+  good="Create a guaranteed-unique id with a useRef counter"
+  note="length or index collide after a removal, so the wrong notification gets removed. A counter is safe."
+/>
+
+## Practical notes {#notes}
+
+- **Avoid leftovers**: `setTimeout` removes only its own `id`, not all of them.
+- **`aria-live`**: `polite` means "don't interrupt what's being read; announce at a break." For urgent things like errors, use `assertive`.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Since several can appear at once, hold the messages in an array
+- Create `id`s with a `useRef` counter, and when removing, `filter` out only that `id`
+- Pin to the bottom of the screen, and use `role="status"` / `aria-live="polite"` to inform screen readers
+
+</SummaryBox>

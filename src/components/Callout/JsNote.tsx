@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
+import { useLocale, useStrings } from '@/hooks/useLocale'
+import { withLocale } from '@/lib/i18n'
+
 import styles from './style.module.scss'
 
 /**
@@ -18,10 +21,12 @@ export function JsNote({
   to?: string
   children: ReactNode
 }) {
+  const locale = useLocale()
+  const strings = useStrings()
   return (
     <details className={styles.jsnote}>
       <summary>
-        <span className={styles.jsTag}>JS のおさらい</span>
+        <span className={styles.jsTag}>{strings.callout.jsNoteTag}</span>
         <span>{feature}</span>
       </summary>
       <div className={styles.jsBody}>
@@ -29,7 +34,9 @@ export function JsNote({
         {to && (
           <>
             {' '}
-            <Link to={to}>詳しく →</Link>
+            <Link to={to.startsWith('/') ? withLocale(to, locale) : to}>
+              {strings.callout.jsNoteMore}
+            </Link>
           </>
         )}
       </div>

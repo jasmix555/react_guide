@@ -1,0 +1,80 @@
+---
+title: Summary & exercises
+minutes: 5
+slug: setup-summary
+section: setup
+description: "A full review of this part. Check with the exercises whether you can build a project on your own again."
+level: beginner
+prerequisites: ['setup/troubleshooting']
+---
+
+<LearnBox>
+
+- Organize what you did in this part as a flow
+- Check whether you can now do it on your own
+- Build another project from scratch with the exercises
+
+</LearnBox>
+
+Nice work. You've made it past the hardest stretch. You're now someone who "can build a working React project on your own". Let's finish by organizing the flow and cementing it with practice.
+
+## The flow of this part {#recap}
+
+Let's look back at what you did, in order.
+
+1. **Check the tools** … Node.js is the foundation that runs JavaScript on your PC. You confirmed it with `node -v` / `npm -v` and installed the LTS if it wasn't there.
+2. **Create the project** … you ran `npm create vite@latest` and answered three things: name, framework (React), and variant (TypeScript).
+3. **Start it** … you gathered the ingredients with `npm install` and put a screen on `localhost:5173` with `npm run dev`.
+4. **Understand** … you saw the flow "index.html (an empty box) → main.tsx (draws) → App.tsx (the content)" and the role of each config file.
+5. **Blank slate + settings** … you deleted all the samples to get a blank slate and made auto-format-on-save work.
+
+## Check whether you can do it {#checklist}
+
+Next, if you can do the following on your own without getting stuck, you pass.
+
+- Open a terminal and print the version with `node -v`
+- Create a React + TypeScript project with `npm create vite@latest`
+- Put a screen on `localhost` with `npm install` → `npm run dev`
+- Delete the samples to reach a blank slate
+- When `Target container is not a DOM element` appears, have a good guess at the cause
+
+## Exercises {#exercises}
+
+<Exercise
+  title="Build another one from scratch"
+  answer="cd to where you want to build it → npm create vite@latest practice2 → React → TypeScript → cd practice2 → npm install → npm run dev. Once it displays, reduce App.tsx to just <h1>, delete App.css and the sample images, and minimize index.css. If you can do all this without getting stuck, setup has sunk in."
+>
+
+Build **another brand-new project from scratch** named `practice2`, get it displaying on `localhost`, and take it all the way to a blank slate. You shouldn't need hints. This is a round to check whether your hands remember it.
+
+</Exercise>
+
+<Exercise
+  title="Trigger an error on purpose and fix it"
+  answer="If you change the id 'root' in index.html to a different name and save, Target container is not a DOM element appears. It no longer matches the id main.tsx looks for, so the box to draw into can't be found. Change the id back to root to fix it."
+>
+
+Deliberately change the `id` of the box in `index.html` to produce `Target container is not a DOM element`. Then explain in your own words why it appeared, and fix it.
+
+</Exercise>
+
+<Exercise
+  title="Explain it in one line"
+  answer="With only a package.json written in ranges (like ^19.2.0), the versions people actually get can drift, but the lock file pins exact versions, so everyone can reproduce the same thing."
+>
+
+Sum up in one line, as if explaining to a coworker, why you commit `package-lock.json` to git.
+
+</Exercise>
+
+## What to read next {#next}
+
+The foundation is in place. In the next part, "**[JavaScript you need before React](/guide/javascript/destructuring)**", we cover the JavaScript syntax that shows up in React code from the very start (destructuring and so on), right down to how it's used in React. Get through this and component code becomes much easier to read.
+
+<SummaryBox>
+
+- If you can walk the flow "check the tools → create → start → understand → blank slate" on your own, you pass
+- When you get stuck, go back to page 20, "When things don't work"
+- Next, you'll learn the JavaScript syntax that shows up in React code
+
+</SummaryBox>

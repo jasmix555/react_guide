@@ -1,0 +1,129 @@
+---
+title: Responsive design
+minutes: 9
+slug: responsive
+section: styling
+description: "Mobile-first media queries, and letting grid wrap a list automatically. Why to drop flex percentage math in favor of grid."
+level: beginner
+prerequisites: ['styling/design-tokens-theming']
+---
+
+<LearnBox>
+
+- Mobile-first (start from the narrow screen, add for wider ones)
+- How to write the media query `@media (min-width: ...)`
+- Using `grid` to make a product list wrap automatically as the screen width changes
+
+</LearnBox>
+
+This page covers the basics of responsive design in plain CSS. **In our own work, we build it the usual way with the [shared mixins (`getVw` and `mq`)](/guide/styling/shared-mixin)** on the next page. First, let's understand how it works.
+
+## Think mobile-first {#mobile-first}
+
+The standard approach to responsive design is to write **the narrow screen (phone) as your base look** and **add on as it gets wider**. If your base is a plain single column, it won't break on phones.
+
+```scss
+.list {
+  /* base = phone: 1 column */
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .list {
+    /* 2 columns at 640px and up */
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .list {
+    grid-template-columns: repeat(3, 1fr); /* 3 columns when even wider */
+  }
+}
+```
+
+`@media (min-width: 640px)` means "apply the rules inside only when the screen is 640px wide or more." It overrides the rules you set for narrow screens.
+
+```scss
+@media (min-width: 640px) {
+//                 ↑
+//                 └─ apply the rules inside only at this width and above
+```
+
+## Let grid "wrap automatically" {#auto-grid}
+
+Writing the column count per breakpoint is fine, but there's also a way to **line up as many as fit and wrap the rest**. It combines `auto-fill` and `minmax`.
+
+```scss
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+```
+
+This means "lay out as many columns as fit, where each is **at least 200px and stretches if there's room**." When the screen is wide, columns are added naturally; when narrow, they're reduced. With this single line, the list becomes responsive without any media queries.
+
+<JsNote feature="minmax(200px, 1fr) means 'at least 200px, share the leftover'">
+
+`minmax(min, max)` is the range for a column's width. With `minmax(200px, 1fr)`, each column reserves at least 200px, and the leftover space is shared out via `1fr` (split evenly). Since `auto-fill` "creates as many columns as fit," the number of columns changes with the width.
+
+</JsNote>
+
+## Drop flex percentage math and use grid {#grid-over-flex}
+
+Laying out a list with `flex` and percentage math like `width: calc(33% - ...)` plays badly with `gap` and breaks easily. **For a layout that lines up and wraps, use `grid`** — it settles cleanly with no math.
+
+<Diff
+  bad="display: flex; with children given a calculated width: calc(33.3% - 16px)"
+  good="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))"
+  note="flex percentage math fights with gap and breaks easily. A wrapping list is straightforward with grid."
+/>
+
+<Together
+  task="Make the product list .list wrap automatically with auto-fill and minmax(180px, 1fr). Resize the browser and watch the column count change."
+  hint="It's the single line grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));"
+>
+
+```scss title="List styles"
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+```
+
+Widen the window and columns are added; narrow it and they're reduced. Each card keeps at least 180px while as many as fit line up. This all works without a single media query.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Write the wide screen as the base and cancel it back for phones with max-width"
+  good="Write the phone as the base and add on for wider screens with min-width"
+  note="Mobile-first means fewer overrides to cancel and less breakage on phones."
+/>
+
+## When things go wrong {#trouble}
+
+- **Horizontal scroll appears on phones** … Often caused by a fixed width (like `width: 800px`). Use `max-width` with `width: 100%`.
+- **The column count doesn't change** … Check the `min-width` value in your media query, or the spelling of `auto-fill` / `minmax`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Use grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)). Each column keeps at least 200px, lines up as many as fit, and wraps the rest automatically, so it becomes responsive without any media queries.">
+
+To make a list "change its column count automatically with the screen width," how do you write `grid-template-columns`?
+
+</Exercise>
+
+<SummaryBox>
+
+- Mobile-first: write the narrow screen as the base, and add for wider screens with `@media (min-width: ...)`
+- For a wrapping list, use `grid`. `repeat(auto-fill, minmax(200px, 1fr))` makes it responsive automatically
+- Drop `flex` percentage math (`calc(33% - ...)`) and use `grid` so it breaks less
+
+</SummaryBox>

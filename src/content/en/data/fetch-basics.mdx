@@ -1,0 +1,130 @@
+---
+title: fetch basics
+minutes: 9
+slug: fetch-basics
+section: data
+description: "fetch returns a Promise. Await it with async/await, and pull out the contents with .json(). Plus the trap where a 404 doesn't reject, and the res.ok check."
+level: beginner
+prerequisites: ['data/from-json-to-fetch', 'javascript/promise-async-await']
+---
+
+<LearnBox>
+
+- `fetch` returns a Promise. Await it with `async` / `await`
+- `.json()` pulls out the reply's contents (this is also a Promise)
+- The trap where **a 404 doesn't make `fetch` fail**, and the `res.ok` check
+
+</LearnBox>
+
+## fetch returns the "reply" as a Promise {#promise}
+
+`fetch(url)` returns the result of the request as a **Promise** (that's the [Promise and async/await](/guide/javascript/promise-async-await) chapter). So you wait for it to complete with `await`.
+
+```ts
+const res = await fetch('/products.json')
+```
+
+```ts
+const res = await fetch('/products.json')
+//    ↑       ↑     ↑
+//    │       │     └─ the URL to go and get
+//    │       └─ wait for the Promise to complete (inside an async function)
+//    └─ the reply (Response). Note: not the contents (product data) yet
+```
+
+The `res` you get back here is the **Response (the reply itself)**, not the product data yet. You pull out the contents next with `.json()`.
+
+## Pull out the contents with .json() {#json}
+
+`res.json()` pulls out the reply's body as JSON. This **takes time too**, so it's a Promise. Again, you `await` it.
+
+```ts
+const data = await res.json()
+//    ↑            ↑
+//    │            └─ pull out the reply's body as JSON (a Promise)
+//    └─ now you finally get the product data (an array)
+```
+
+## A 404 doesn't make fetch fail (the trap) {#ok}
+
+This is where people get tripped up the most. **`fetch` does not "fail (reject)" when a 404 or 500 comes back.** It only fails when the network itself is cut off. In other words, even when "the server replied, but the reply was an error page," `fetch` treats it as a success.
+
+So you check whether the reply was OK yourself, with **`res.ok`**.
+
+```ts
+const res = await fetch('/products.json')
+if (!res.ok) {
+  throw new Error('Failed to fetch') // turn 404/500 into a failure yourself here
+}
+const data = await res.json()
+```
+
+`res.ok` is a `true` / `false` that says "is the status in the 200s?" If it's `false`, you `throw` yourself and treat it as a failure.
+
+## Bundle it into a single function {#function}
+
+Let's bundle everything so far into a fetching function.
+
+```ts title="A function to fetch products"
+async function loadProducts() {
+  const res = await fetch('/products.json')
+  if (!res.ok) {
+    throw new Error('Failed to fetch')
+  }
+  const data = await res.json()
+  return data
+}
+```
+
+`fetch` → `res.ok` check → `.json()`. These three steps are the common skeleton for any fetch.
+
+## Break it on purpose: remove the res.ok check {#break}
+
+Let's remove the `res.ok` check and deliberately fetch a URL that doesn't exist.
+
+```ts title="Break it on purpose: no check, missing URL"
+const res = await fetch('/nothing.json') // doesn't exist → 404
+const data = await res.json() // tries to read the 404 page (HTML, etc.) as JSON
+```
+
+Since `fetch` treats a 404 as a success, it goes straight to `.json()`. Then it tries to read "something that isn't JSON" as JSON, and you get a confusing error like **`Unexpected token '<'`**. If you put in `if (!res.ok) throw ...`, **you know clearly, one step earlier, that "the fetch failed."**
+
+## Code catalog: the fetch skeleton {#catalog}
+
+```ts
+async function load(url) {
+  const res = await fetch(url) // ① make the request and wait for the reply
+  if (!res.ok) throw new Error() // ② turn 404/500 into a failure yourself
+  return await res.json() // ③ pull out the contents as JSON
+}
+```
+
+## A common mistake {#mistakes}
+
+<Diff
+  bad="Thinking const data = await fetch(url) gives you the contents right away"
+  good="const res = await fetch(url); const data = await res.json()"
+  note="What fetch returns is a Response. Get the contents by awaiting .json() one more time."
+/>
+
+## When it doesn't work {#trouble}
+
+- **`res` isn't the product data** … the return value of `fetch` is a Response. Pull out the contents with `await res.json()`.
+- **It succeeds even though it's a 404** … `fetch` doesn't fail on a 404. Add `if (!res.ok) throw ...`.
+- **`Unexpected token '<'`** … you're reading an error page (HTML) as JSON. Check the URL and `res.ok`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Because fetch doesn't reject on a 404/500 — it treats them as a success. You check res.ok (is the status in the 200s?) yourself, and throw on false to treat it as a failure. Without this, you end up calling .json() on an error page and get a confusing error.">
+
+Why do you write `if (!res.ok) throw ...` after `fetch`? What happens if you don't?
+
+</Exercise>
+
+<SummaryBox>
+
+- `fetch` returns a Promise. `await fetch(url)` gives the Response, `await res.json()` gives the contents
+- **`fetch` doesn't fail on a 404/500**. Turn it into a failure yourself with `if (!res.ok) throw ...`
+- The skeleton is the three steps "`fetch` → `res.ok` check → `.json()`"
+
+</SummaryBox>

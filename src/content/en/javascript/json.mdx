@@ -1,0 +1,123 @@
+---
+title: JSON
+minutes: 8
+slug: json
+section: javascript
+description: "JSON lets you exchange data as text. stringify turns it into a string, parse turns it back into an object — and why you need it for saving and networking."
+level: beginner
+prerequisites: ['javascript/objects-arrays']
+---
+
+<LearnBox>
+
+- JSON is "an object or array turned into a string"
+- `JSON.stringify` turns it into a string, `JSON.parse` turns it back into an object
+- Where you use it (saving with `localStorage`, networking with `fetch`)
+
+</LearnBox>
+
+## JSON is "data as a string" {#intro}
+
+An object inside your program **can't be saved or sent as-is**. Saving and networking can basically only handle strings. That's why JSON exists — it's an object **converted into a string form**. It looks a lot like a JavaScript object.
+
+```json
+{ "name": "Tote", "price": 3200, "inStock": true }
+```
+
+This site's `products.json` is also in this JSON format.
+
+## Object → string: JSON.stringify {#stringify}
+
+Before saving or sending, convert the object into a string.
+
+```js
+const product = { name: 'Tote', price: 3200 }
+
+const text = JSON.stringify(product)
+// '{"name":"Tote","price":3200}' (just a string)
+
+typeof text // 'string'
+```
+
+## String → object: JSON.parse {#parse}
+
+A JSON string you receive can't be read with `.name` and such as-is. Use `JSON.parse` to **turn it back into an object** before using it.
+
+```js
+const text = '{"name":"Tote","price":3200}'
+
+const product = JSON.parse(text)
+product.name // 'Tote' (readable now that it's an object again)
+```
+
+`stringify` (pack it up) and `parse` (unpack it) are exactly opposite operations.
+
+## Where do you use it {#where}
+
+- **Saving (`localStorage`)** … Only strings can be kept in the browser. `stringify` when you save, `parse` when you read back. This site's "reading history" works the same way.
+- **Networking (`fetch`)** … Data arriving from a server is a JSON string. You receive it and `parse` it (with `fetch`, that's `.json()`) before using it. We cover this in detail in [Promise and async / await](/guide/javascript/promise-async-await).
+
+```js
+// localStorage can only save strings
+localStorage.setItem('cart', JSON.stringify(cart)) // save: pack it up
+const cart = JSON.parse(localStorage.getItem('cart')) // read: unpack it
+```
+
+<JsNote feature="In JSON, keys use double quotes and functions aren't allowed">
+
+JSON looks like a JavaScript object, but its rules are stricter. **Both keys and strings must always use double quotes `"..."`**, trailing commas are forbidden, and functions and `undefined` can't go in (only numbers, strings, booleans, `null`, arrays, and objects).
+
+</JsNote>
+
+## Break it on purpose: parsing broken JSON {#break-parse}
+
+`JSON.parse` stops with an error if you hand it a string whose shape isn't valid. Try it in the console.
+
+```js
+JSON.parse("{ name: 'Tote' }")
+// Uncaught SyntaxError: ... (keys and strings aren't in double quotes)
+```
+
+The correct form is `'{ "name": "Tote" }'`. Because JSON **can't use single quotes and requires double quotes even on keys**, the string above is treated as "broken JSON."
+
+## Syntax catalog: the JSON round trip {#catalog}
+
+```js
+const obj = { name: 'Tote', tags: ['fabric', 'lightweight'] }
+
+JSON.stringify(obj) // object → string (before saving/sending)
+JSON.parse(text) // string → object (after receiving)
+
+// the classic save-and-read pattern
+localStorage.setItem('key', JSON.stringify(obj))
+const back = JSON.parse(localStorage.getItem('key'))
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Saving an object into localStorage as-is"
+  good="Turn it into a string with JSON.stringify first, then save"
+  note="localStorage can only save strings. Put an object in directly and you get [object Object]."
+/>
+
+## When things go wrong {#trouble}
+
+- **`Unexpected token ... in JSON`** … The string's shape isn't valid as JSON. Check for double quotes and any extra commas.
+- **Saved value became `[object Object]`** … You saved without `stringify`. Run `JSON.stringify` before saving.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Turn it into a string with JSON.stringify(user) before saving. localStorage can only handle strings, so an object can't be saved correctly as-is.">
+
+To save the object `user` into `localStorage`, what do you need to do before saving?
+
+</Exercise>
+
+<SummaryBox>
+
+- JSON is "an object or array as a string format." Saving and networking can only handle strings
+- `JSON.stringify` (pack it up) → before saving/sending; `JSON.parse` (unpack it) → after receiving
+- In JSON, both keys and strings require double quotes. Functions and `undefined` aren't allowed
+
+</SummaryBox>

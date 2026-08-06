@@ -1,0 +1,84 @@
+---
+title: What you can skip for now
+minutes: 4
+slug: not-yet
+section: javascript
+description: "JavaScript has a lot of features. This page says plainly which ones you don't need yet to write React, so you can stop second-guessing."
+level: beginner
+prerequisites: ['javascript/const-let']
+---
+
+<LearnBox>
+
+- Syntax you'll see online and in existing code, but can skip for now
+- Things we decide "we don't use" on the flip side
+- The reassurance that you don't have to know everything to write code
+
+</LearnBox>
+
+## How to use this page {#how}
+
+JavaScript has a long history and a huge number of features. Online articles and existing code are full of syntax we haven't covered here. If you brace yourself with "I have to learn this too" every time, you'll never get to React.
+
+**If you understand the syntax taught in this part, you can write React.** Below is a list of things you can "walk right past for now" even when you see them. When you actually need one, that's soon enough to look it up.
+
+## Things you can skip for now, even when you see them {#skip}
+
+| Syntax you'll see | For now |
+|---|---|
+| Involved talk about `class` / `this` | Not used in function components. OK to skip |
+| `prototype` | Deep mechanics. Not needed now |
+| `reduce` (complex aggregation) | Fine to put off while `map` / `filter` are enough |
+| `function*` / `yield` (generators) | Advanced feature. No use for it yet |
+| Regular expressions `/.../` (pattern matching) | Enough to look up individually where you need it |
+| Bitwise operations (`&`, `^`, etc.) | Almost never used in building web screens |
+| `Symbol` / `Proxy` / `WeakMap` | For library internals. Not needed yet on the writing side |
+
+<Callout type="note">
+
+"You can skip it" doesn't mean "you'll never need it." It means **you don't need it for the current goal (building screens with React)**. Rather than spreading yourself thin, getting solid with the core 13 first will get you improving much faster.
+
+</Callout>
+
+## Things we decide "we don't use" on the flip side {#avoid}
+
+These aren't "skip for now" — they're syntax **we actively avoid**. If you see them, don't use them in new code.
+
+- **`var`** … We use `const` / `let` (see [const and let](/guide/javascript/const-let)).
+- **`==` (loose comparison)** … It causes accidents through unexpected type coercion. Always use **`===`**.
+- **Overusing `function` expressions** … We keep things uniform with arrow functions (except top-level declarations).
+
+<Callout type="analogy">
+
+The toolbox has old tools in it too, but on our site the agreement is to keep to the newer ones (`const` / `===` / arrow). When you see the old tools (`var` / `==`), don't copy them — write with the newer ones.
+
+</Callout>
+
+## Syntax catalog: the syntax we use {#catalog}
+
+Here in one place is the "consuming side" syntax taught in this part. Paste it straight into the console and it runs on its own (no `var`, no `==`).
+
+```js
+const price = 100                 // const, not var
+let count = 0                     // let only for values that change
+const double = n => n * 2         // arrow function
+const { name } = { name: 'Sato' } // destructuring
+const next = [...[1, 2], 3]       // spread
+console.log(price === 100)        // compare with === (never ==)
+console.log(double(count))        // → 0
+console.log(name, next)           // → Sato [1, 2, 3]
+```
+
+Keep to these forms and every React page ahead reads with the same syntax. When in doubt, come back to this list.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Understand this part and you can write React. You don't need to memorize every bit of syntax
+- `class` / `reduce` / regular expressions and the like can be skipped for now, even when you see them
+- Avoid `var` and `==`; use `const` / `let` and `===`
+
+</SummaryBox>
+
+That's the end of Part 2. The `const` / arrow functions / destructuring / spread / `map` / short-circuit evaluation / references and copies you picked up here get used every day on every page ahead. Whenever you get stuck, come back to this part anytime.

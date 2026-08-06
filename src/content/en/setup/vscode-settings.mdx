@@ -1,0 +1,85 @@
+---
+title: VS Code settings
+minutes: 7
+slug: setup-vscode-settings
+section: setup
+description: "Auto-format on save, handy extensions, and workspace settings you can share with your team."
+level: beginner
+prerequisites: ['setup/blank-slate']
+---
+
+<LearnBox>
+
+- A setting that auto-formats your code the moment you save
+- Extensions that make life more comfortable
+- How to include the settings in the project so your team stays in sync
+
+</LearnBox>
+
+Fixing the look of your code (indentation, quotes) by hand every time is a waste of time, and it also fills up reviews with "formatting diffs". Let the editor do it automatically. Set it up once and it keeps working from then on.
+
+## Install extensions {#extensions}
+
+Open the "Extensions" icon (four squares) at the far left of VS Code, search for the following, and install them.
+
+- **Prettier - Code formatter** … the standard that formats your code automatically.
+- **Error Lens** … shows errors and warnings directly to the right of the line (so you don't have to go look at the console).
+
+<Callout type="note">
+
+This project uses `oxlint` for automatic checks (the `lint` script in `package.json`). There's a VS Code extension for `oxlint` too, but **we'll set up the whole code-quality toolkit (ESLint / Prettier / husky, etc.) together in a later part**. Here we just get "format on save" working first.
+
+</Callout>
+
+## Format on save {#format-on-save}
+
+Create a file called **`.vscode/settings.json`** inside the project. In the Explorer on the left, create a `.vscode` folder directly under the project, create a new `settings.json` inside it, and write this content.
+
+```json title=".vscode/settings.json (new file)"
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
+```
+
+`editor.formatOnSave` means "format when you save", and `defaultFormatter` specifies "use Prettier for formatting".
+
+## Check {#check}
+
+Let's test whether it works. Put some deliberately messy code into `App.tsx` and save.
+
+```tsx title="src/App.tsx (deliberately messy)"
+function App() {
+      return    <h1>Product list app</h1>
+}
+export     default App
+```
+
+The moment you save (`Ctrl` + `S`), the extra spaces and indentation **line up automatically**. If it gets formatted, the setting is working. If nothing changes, see "When things don't work" below.
+
+## Why put .vscode in the project {#why-workspace}
+
+`.vscode/settings.json` is a setting that **applies only to that project**, and it can be included in git. If you commit it, **everyone on the team can write code with the same formatting rules**. The "everyone indents differently" problem goes away.
+
+On top of that, if you create `.vscode/extensions.json`, you can present a **recommendation** to the team: "install this extension for this project".
+
+```json title=".vscode/extensions.json (new file, optional)"
+{
+  "recommendations": ["esbenp.prettier-vscode", "usernamehw.errorlens"]
+}
+```
+
+When a new member opens the project, they get a prompt saying "there are recommended extensions".
+
+## When things don't work {#trouble}
+
+- **Saving doesn't format** … check whether "Prettier" appears at the bottom-right of the screen. If it doesn't, either the extension isn't installed yet or `defaultFormatter` is misspelled. Get `esbenp.prettier-vscode` exactly right.
+- **A different formatter runs instead** … if you set `defaultFormatter` to Prettier, Prettier takes priority.
+
+<SummaryBox>
+
+- The Prettier extension plus `editor.formatOnSave` lines up your code automatically every time you save
+- Put the settings in `.vscode/settings.json` and commit them so the whole team stays in sync
+- Use `.vscode/extensions.json` to present recommended extensions to the team
+
+</SummaryBox>

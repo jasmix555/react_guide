@@ -8,8 +8,8 @@ interface Tab {
 }
 
 /**
- * どのタブが選ばれているかを index 1 つで持つ。ボタンは role="tab"、中身は
- * role="tabpanel" にして、aria で「どのタブがどのパネルか」を結びつける。
+ * Keep which tab is selected as a single index. Buttons use role="tab" and the
+ * content uses role="tabpanel", with aria tying "which tab goes with which panel".
  */
 export function Tabs({ tabs }: { tabs: Tab[] }) {
   const [active, setActive] = useState(0)

@@ -1,0 +1,98 @@
+---
+title: Summary & practice
+minutes: 6
+slug: components-summary
+section: components
+description: "A recap of Your first React. Revisit JSX, components, props, lists (map and key), conditional rendering, and events, then build a product list in the capstone. State is next."
+level: beginner
+prerequisites: ['components/goal']
+---
+
+<LearnBox>
+
+- A full review of the "build the screen from parts" skill you gained in this part
+- Capstone: display a product list in `my-shop`
+- A bridge to the next part (state)
+
+</LearnBox>
+
+## Full review of this part {#recap}
+
+In this part, you gathered the **complete basic set for building React screens**. Let's review them in order.
+
+- **JSX** … JavaScript that looks like HTML. Drop values and expressions in with curly braces `{ }`. Return a single element (use `<>...</>` for multiple).
+- **Components** … functions that return JSX. Names start with a capital letter. `import` them and use them with `<Xxx />`.
+- **props** … pass values to a part. Receive them with destructuring and add types. Pass numbers inside curly braces.
+- **Lists (map and key)** … turn an array into JSX with `map` and line them up. Use a stable id for `key`.
+- **Conditional rendering** … `? :` for either/or, `&&` for "only when present". When the left of `&&` is a number, make it a boolean with `> 0`.
+- **Events** … pass a function to `onClick` (no `()`). Wrap an argument in an arrow function.
+
+You can see that the JavaScript from Part 2 is directly at work in building screens. `map`, destructuring, the ternary operator, `&&`, passing functions as values — you used all of them here.
+
+## Capstone: display a product list {#project}
+
+Let's take the `my-shop` capstone one step further with what's in this part. Try doing the following yourself.
+
+1. Create `src/components/ProductCard/ProductCard.tsx`, receive `name` and `price` as props, and display them.
+2. In `App.tsx`, `import` `products.json` and line up `<ProductCard />` with `map` (don't forget `key={product.id}`).
+3. Show "Sold out" only when out of stock (`!product.inStock`).
+
+```tsx title="src/App.tsx (where we've reached so far)"
+import products from './data/products.json'
+
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+function App() {
+  return (
+    <div>
+      <h1>Product list app</h1>
+      {products.map((product) => (
+        <ProductCard
+          name={product.name}
+          price={product.price}
+          inStock={product.inStock}
+          key={product.id}
+        />
+      ))}
+    </div>
+  )
+}
+
+export default App
+```
+
+With this, you've reached the point where a product list lines up from data. The **look is still bare**, and **nothing changes when you press anything**. We'll add that from the next part onward.
+
+## Practice {#exercise}
+
+<Exercise answer="Convert the array into <ProductCard /> with map, and give each a key={product.id}. Without a key you get a console warning, and it becomes a source of bugs when reordering.">
+
+When you display a list from an array of product data, what must you always include alongside `map`? Try explaining why, too.
+
+</Exercise>
+
+<Exercise answer="? : is 'either/or' (A if true, B if false). && is 'show only when present' (show the right side only when the left is true). Putting a number like a stock count on the left of && leaks a 0 onto the screen, so make it a boolean like count > 0 && ....">
+
+"If in stock show 'In stock', otherwise show 'Sold out'" is `? :`; "show stars only when there are reviews" is `&&`. Try explaining how to choose between these two. Include the caution about using `&&` with a number.
+
+</Exercise>
+
+<Exercise answer="onClick={handleClick} passes the function itself (called on click). onClick={handleClick()} passes the result of calling it on the spot, so it runs on every render and tends to become a bug. When you want to pass an argument, wrap it in an arrow function: onClick={() => handleClick(id)}.">
+
+What's the difference between `onClick={handleClick}` and `onClick={handleClick()}`? How do you write it when you want to pass an argument?
+
+</Exercise>
+
+## On to the next part {#next}
+
+The list shows up, but the current screen **doesn't do anything**. "Increase the count when a button is pressed", "toggle a favorite" — for these **screen-changing** behaviors, you need **state**.
+
+In the next part, you'll learn `useState`. The `ProductCard` you built here is finally about to come to life.
+
+<SummaryBox>
+
+- With JSX, components, props, lists (map/key), conditional rendering, and events, you can build the screen
+- The JavaScript from Part 2 (map, destructuring, ternary, &&) is directly at work in building screens
+- Capstone: build `ProductCard` and display a list with `map`. Adding behavior starts with state, next
+
+</SummaryBox>

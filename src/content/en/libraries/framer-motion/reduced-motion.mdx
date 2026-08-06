@@ -1,0 +1,97 @@
+---
+title: Respecting reduced-motion settings
+minutes: 8
+slug: reduced-motion
+section: framer-motion
+description: "Caring for people who are sensitive to motion. Read the OS setting with useReducedMotion and remove the motion. The rule: remove the motion, never the information."
+level: beginner
+prerequisites: ['libraries/framer-motion/motion-basics']
+---
+
+<LearnBox>
+
+- What the "reduce motion" OS setting (`prefers-reduced-motion`) is
+- Using `useReducedMotion` to read that setting and remove motion
+- The rule: **remove the motion, never the information**
+
+</LearnBox>
+
+## Why this matters {#why}
+
+Some people **are sensitive to animation** or find it physically hard to handle (motion can make them queasy or unable to focus). That is why the OS has a "**reduce motion**" setting, and plenty of people have it turned on. Our apps respect it too. **It's an accessibility fundamental — not optional.**
+
+## Read the setting with useReducedMotion {#hook}
+
+`motion` provides the **`useReducedMotion`** hook for reading that setting. It returns `true` when the setting is on, so you check it and **remove the motion**.
+
+```tsx
+import { motion, useReducedMotion } from 'motion/react'
+
+function Card() {
+  const reduce = useReducedMotion()
+
+  return (
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      Product card
+    </motion.div>
+  )
+}
+```
+
+- **`reduce` is `true` (reduce setting on)** … with `initial={false}`, it appears **without animating, already in the `animate` state**.
+- **`reduce` is `false` (normal)** … it animates in from the usual `initial`.
+
+Hover and the like work the same way — toggle with `whileHover={reduce ? undefined : { scale: 1.05 }}`.
+
+## The rule: remove the motion, never the information {#principle}
+
+This is the most important rule. **When you remove motion, always keep the content (the information) visible.**
+
+```tsx
+// ❌ Bad: with reduce, it stays at opacity 0 → the content is invisible
+initial={reduce ? { opacity: 0 } : { opacity: 0, y: 16 }}
+
+// ✅ Good: with reduce, show it from the start (cancel initial)
+initial={reduce ? false : { opacity: 0, y: 16 }}
+```
+
+Removing the "fade in" and ending up **making the element itself disappear** — that's the most common accident. When you remove motion, put the element in its "already visible" state. **Remove only the motion; keep the information.**
+
+<Callout type="note" title="Same in CSS">
+
+With a CSS animation you do the same thing via `@media (prefers-reduced-motion: reduce) { ... }` (we used it in the [Reveal on scroll](/recipes/scroll-reveal) recipe). With `motion`, `useReducedMotion` applies the same care from the JavaScript side.
+
+</Callout>
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="With reduce, leave it at opacity: 0 so the content becomes invisible"
+  good="With reduce, use initial={false} (visible from the start)"
+  note="Remove the motion but keep the information. Losing the whole element is the worst accident."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Content is invisible with the reduce setting** … set `initial` to `false` (or to the final state) so it shows from the start.
+- **Changing the setting has no effect** … `useReducedMotion` reads the value at render time. After changing the OS setting, reload to pick it up.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Set initial to false (or the final state). If you leave it at opacity: 0, removing the motion also hides the content. The rule is to remove only the motion and always keep the information (the display).">
+
+When `useReducedMotion` is `true`, what's the problem with leaving `initial={{ opacity: 0 }}` as is? How do you fix it?
+
+</Exercise>
+
+<SummaryBox>
+
+- Caring for people with the "reduce motion" setting is an accessibility fundamental. Not optional
+- Read it with `useReducedMotion`, and if `true`, remove the motion with `initial={false}` and the like
+- **The rule: remove only the motion, and always keep the content visible**
+
+</SummaryBox>

@@ -1,0 +1,106 @@
+---
+title: Star rating
+minutes: 7
+slug: star-rating
+section: recipes
+description: "A rating UI where you pick the number of stars by clicking. It keeps the confirmed value and the hover preview in two separate pieces of state."
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { StarRatingDemo } from '@/demos/StarRating'
+
+<LearnBox>
+
+- A UI where you set a rating by clicking stars
+- Split the "confirmed value" and the "hover preview" into two pieces of state
+- Make them buttons so they work with the keyboard and screen readers
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Hover over a star and it lights up to that position ahead of time (a preview). Click to confirm.
+
+<Demo title="StarRating">
+  <StarRatingDemo />
+</Demo>
+
+## Two states: "confirmed" and "preview" {#state}
+
+The trick to a star rating is to **think of the displayed value as two separate values**.
+
+- `value` … The rating **confirmed** by a click. The parent owns it.
+- `hover` … A **temporary preview** of wherever the mouse currently is. `0` when nothing is hovered.
+
+Then, for display, use "the preview while hovering, otherwise the confirmed value." This one line is the key.
+
+```tsx
+const shown = hover || value
+```
+
+When `hover` is `0` (falsy), `value` is used; while you hover, `hover` takes priority ([short-circuit evaluation](/guide/javascript/ternary-short-circuit)).
+
+## The StarRating component {#body}
+
+Create `src/components/StarRating/StarRating.tsx` as a new file and paste in this full source.
+
+```tsx title="src/components/StarRating/StarRating.tsx (new file, full source)"
+import { useState } from 'react'
+
+interface StarRatingProps {
+  value: number
+  onChange: (value: number) => void
+  max?: number
+}
+
+export function StarRating({ value, onChange, max = 5 }: StarRatingProps) {
+  const [hover, setHover] = useState(0)
+  const shown = hover || value
+
+  return (
+    <div role="radiogroup" aria-label="Rating">
+      {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={n === value}
+          aria-label={`${n} stars`}
+          onClick={() => onChange(n)}
+          onMouseEnter={() => setHover(n)}
+          onMouseLeave={() => setHover(0)}
+        >
+          {n <= shown ? '★' : '☆'}
+        </button>
+      ))}
+    </div>
+  )
+}
+```
+
+There are two things to notice. `Array.from({ length: max }, (_, i) => i + 1)` builds `[1, 2, 3, 4, 5]` and lays out the stars. Each star is filled (★) when `n <= shown`, and empty (☆) otherwise.
+
+<Callout type="mistake" title="Don't make the stars divs">
+
+If you build the stars with `<span>` or `<div>` and only add `onClick`, they can't be chosen with the keyboard. **Make them `<button>`s** and you can move between them with Tab and press them with Enter. Adding `role="radio"` and `aria-checked` also tells screen readers which of the 5 levels is selected.
+
+</Callout>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Building the display from value alone, then forcing the hover preview in on the side"
+  good="Split into value (confirmed) and hover (preview), with shown = hover || value"
+  note="Splitting them in two lets the hover appearance and the confirmed value coexist cleanly."
+/>
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Split the "confirmed value" and the "hover preview" into separate states
+- Switch the display with the single line `shown = hover || value`
+- Stars are `<button>` + `role="radio"` + `aria-checked`. Works with keyboard and screen readers
+
+</SummaryBox>

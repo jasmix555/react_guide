@@ -1,17 +1,20 @@
+import { useLocale } from '@/hooks/useLocale'
+
 import { Tooltip } from './Tooltip'
 import styles from './Tooltip.module.scss'
 
 export function TooltipDemo() {
+  const en = useLocale() === 'en'
   return (
     <div className={styles.demo}>
-      <Tooltip label="カートに追加します">
+      <Tooltip label={en ? 'Adds this to your cart' : 'カートに追加します'}>
         <button type="button" className={styles.btn}>
-          カート
+          {en ? 'Cart' : 'カート'}
         </button>
       </Tooltip>
-      <Tooltip label="あとで見るリストに保存">
+      <Tooltip label={en ? 'Save to your watch-later list' : 'あとで見るリストに保存'}>
         <button type="button" className={styles.btn}>
-          ♡ 保存
+          {en ? '♡ Save' : '♡ 保存'}
         </button>
       </Tooltip>
     </div>

@@ -1,0 +1,73 @@
+---
+title: Goal of this part
+minutes: 5
+slug: data-goal
+section: data
+description: "Fetch data from a server. Handle the three states — loading, error, success — with fetch and useEffect. Turn the direct import of products.json into real data fetching."
+level: beginner
+prerequisites: ['routing/summary']
+---
+
+import { FetchDemo } from '@/demos/FetchDemo'
+
+<PartIntro>
+
+Until now, the product data came from **importing `products.json` directly**. The file is right there on disk, so it loads instantly. But in a real app, the data usually **lives on a server, and you fetch it over the network**. That takes time, and it can fail. This part faces that reality.
+
+Your `my-shop` is at the point where routing is done.
+
+```
+my-shop/src/
+├─ main.tsx                       ← router
+├─ pages/                         ← list, detail, favorites
+├─ types/product.ts               ← Product type
+└─ data/products.json             ← currently a direct import
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- What data fetching (fetch) is, and why you need three states
+- What you'll be able to build by the end of this part
+- How this part is structured
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Communication **takes time**, and it can **fail**. So the screen shows one of three things: "loading," "error," or "success." Use the buttons below to experience those three states.
+
+<Demo title="The three states: loading, error, success">
+  <FetchDemo />
+</Demo>
+
+Press "Load successfully" and, after a short wait, the list appears (it shows "loading" in the meantime). Press "Make it fail" and you get an error display. **Being able to handle these three states yourself** is the goal of this part.
+
+## Why make "data fetching" its own part {#why}
+
+`import products from './products.json'` **always succeeds instantly**. So there's no "loading" and no "failure." But `fetch` is different.
+
+- **It takes time** … it doesn't come back the moment you press the button. What do you show in the meantime?
+- **It fails** … bad signal, server down. What do you show then?
+
+If you can't handle this "waiting" and "failing," you can't build an app that talks to a network. Conversely, once you've got the **three states: loading / error / success**, most data fetching follows the same shape. That's what you'll learn in this part.
+
+## How this part is structured {#roadmap}
+
+1. **From direct import to fetch** — why, and when, to switch to the network.
+2. **fetch basics** — `async` / `await` and `.json()`.
+3. **Fetching with useEffect** — write "fetch once when the screen appears."
+4. **The three states** — hold loading, error, and success in state.
+5. **Typing the fetched data** — turn the returned JSON into `Product[]`.
+6. **Extracting a custom hook** — bundle it into `useProducts()` and reuse it.
+
+Each page comes with the **full code** and practice. Get hands-on and see the "waiting" and "failing" of network requests for yourself.
+
+<SummaryBox>
+
+- Data fetching is network communication that "takes time and can fail." That's why you need three states (loading, error, success)
+- Unlike a direct import of `products.json`, `fetch` means you have to handle waiting and failure
+- In this part, you'll learn the standard shape for handling those three states
+
+</SummaryBox>

@@ -1,0 +1,75 @@
+---
+title: What are Node.js / npm / npx?
+minutes: 6
+slug: setup-node-npm-npx
+section: setup
+description: "npm and npx, which you'll type hundreds of times. Nail down what they really are and their three-way relationship with Node.js first."
+level: beginner
+prerequisites: ['setup/goal']
+---
+
+<LearnBox>
+
+- What "tool" Node.js makes possible
+- The difference between `npm` and `npx` (easy to mix up even though you use them daily)
+- How the three connect together
+
+</LearnBox>
+
+From here on you'll type `npm install` and `npx` hundreds of times. If you type them without knowing what they mean, you'll freeze up when an error appears because you won't know what's happening. Nailing down what they really are here makes everything afterward much easier.
+
+## Node.js — running JavaScript on your PC {#node}
+
+JavaScript was originally a language that ran "only inside the browser." **Node.js is the runtime that made it possible to run that JavaScript outside the browser (on your PC)**.
+
+Why do you need this? The tools that run a React project (Vite, the TypeScript conversion, the various checks) are all written in JavaScript, and they **run on your PC, not in the browser**. The foundation that runs them is Node.js. Without Node.js installed, not a single one of the tools ahead will even start.
+
+<Callout type="analogy">
+
+It's the same position as needing PHP itself (and XAMPP) to run PHP. Think of Node.js as "the JavaScript version of that runtime."
+
+</Callout>
+
+## npm — the tool for installing libraries {#npm}
+
+`npm` (Node Package Manager) is **the tool for bringing parts someone else made (libraries) into your own project**. It comes bundled when you install Node.js.
+
+For example, when you want "a library that formats dates nicely," you type `npm install date-fns`, and that library gets downloaded into a folder called `node_modules` so you can use it from your code. It's close to how, in LP work, you used to download a jQuery plugin by hand and load it with a `<script>` tag — except `npm` does that for you automatically.
+
+## npx — the tool for running something once without installing {#npx}
+
+`npx` is npm's sibling, **the tool for "running something once, without adding it to the project."**
+
+A tool like `create-vite`, which creates a project, is only used once — the very first time. Installing it permanently with `npm install` would be wasteful. With `npx` (or `npm create`), it downloads and runs on the spot, and leaves nothing behind when it's done.
+
+## The three-way relationship {#relationship}
+
+| Name | What kind of tool it is | Example |
+| --- | --- | --- |
+| **Node.js** | The foundation that runs JavaScript on your PC | Without it, nothing runs |
+| **npm** | **Installs and keeps** libraries | `npm install date-fns` |
+| **npx** | **Runs a tool once without installing** | `npx` (what's inside `npm create vite`) |
+
+In other words, **npm and npx sit on top of the Node.js foundation**. Once you install Node.js, both npm and npx become usable automatically. From the next page, we'll check whether they're actually installed.
+
+## A common mistake {#mistakes}
+
+<Diff
+  bad="npm create-vite my-app"
+  good="npm create vite@latest my-app"
+  note="Creating a project is npm create (which internally works like npx). It is not a command name joined with a hyphen."
+/>
+
+<Deeper title="How it differs from pnpm, yarn, and bun">
+
+Some workplaces use `pnpm`, `yarn`, or `bun` instead of `npm`. The role (installing libraries) is the same — they just differ in speed and how they use disk space. This guide standardizes on `npm`, which comes with Node.js from the start. If your team decides to use something else, switching over at that point is plenty.
+
+</Deeper>
+
+<SummaryBox>
+
+- **Node.js** is the foundation that runs JavaScript on your PC. Without it, not a single tool runs
+- **npm** is the tool that installs and keeps libraries; **npx** is the tool that runs something once without installing
+- Install Node.js and you get npm and npx along with it
+
+</SummaryBox>

@@ -1,0 +1,138 @@
+---
+title: Conditional classes (clsx)
+minutes: 8
+slug: conditional-classes
+section: styling
+description: "Add classes based on state. Why chaining template literals falls apart, and how to write it safely and concisely with clsx in ProductCard."
+level: beginner
+prerequisites: ['styling/responsive']
+---
+
+<LearnBox>
+
+- Toggle classes by state (out of stock, favorite)
+- Why naive string concatenation falls apart
+- Build conditional classes safely and concisely with `clsx`
+
+</LearnBox>
+
+## We want the look to change with state {#goal}
+
+There are places where `ProductCard` should change its look based on state.
+
+- If out of stock (`!inStock`), darken the card a little (`.sold`).
+- If it's a favorite (`fav`), turn the heart red (`.active`).
+
+In other words, we need to build "**an always-on class plus classes added conditionally**."
+
+## The naive way falls apart fast {#naive}
+
+Let's first try chaining with a template literal. It works, but it gets painful as conditions pile up.
+
+```tsx
+<article className={`${styles.card} ${!inStock ? styles.sold : ''}`}>
+```
+
+With two or three conditions, `${A ? x : ''} ${B ? y : ''}` lines up and gets hard to read, and the empty strings `''` sneak in **extra whitespace**. Writing it with `&&` has its own trap, where `false` ends up right in the string (as we saw on the [clsx page](/libraries/clsx)).
+
+## Build it with clsx {#clsx}
+
+`clsx` is a tiny tool made just for this "building conditional classes" job. Since it **ignores any item that's `false`**, you need no ternaries and no empty strings.
+
+```tsx
+import clsx from 'clsx'
+
+<article className={clsx(styles.card, !inStock && styles.sold, fav && styles.active)}>
+```
+
+```tsx
+clsx(styles.card, !inStock && styles.sold, fav && styles.active)
+//   ↑            ↑                        ↑
+//   │            │                        └─ add active only when fav is true
+//   │            └─ add sold only when out of stock (ignored if false)
+//   └─ the always-on class
+```
+
+`condition && styles.className` means "the class name if the condition is `true`, or `false` if it's `false`." `clsx` throws away the `false` values and joins the remaining class names with spaces.
+
+<Callout type="note" title="Installing clsx">
+
+`clsx` is part of what appears on screen at runtime, so install it without `-D`. `npm install clsx`. For details, see ["Building class names with clsx"](/libraries/clsx).
+
+</Callout>
+
+## Use it in ProductCard {#apply}
+
+Here's the shape that changes the look based on stock and favorite state.
+
+```tsx title="src/components/ProductCard/ProductCard.tsx (excerpt)"
+import clsx from 'clsx'
+
+import styles from './ProductCard.module.scss'
+
+// ...
+<article className={clsx(styles.card, !product.inStock && styles.sold)}>
+  {/* ... */}
+  <button
+    type="button"
+    className={clsx(styles.fav, fav && styles.active)}
+    onClick={() => setFav((f) => !f)}
+  >
+    {fav ? '♥' : '♡'}
+  </button>
+</article>
+```
+
+```scss title="ProductCard.module.scss (state styles)"
+.sold {
+  opacity: 0.55;
+}
+
+.fav.active {
+  color: var(--c-accent);
+}
+```
+
+`.fav.active` means "an element that has both `fav` and `active`." It takes effect only when `clsx` has added `active`.
+
+<Together
+  task="Using clsx, write a className that adds styles.sold only when product.inStock is false."
+  hint="It's clsx(styles.card, !product.inStock && styles.sold). The class is added only when it's true."
+>
+
+```tsx
+<article className={clsx(styles.card, !product.inStock && styles.sold)}>
+```
+
+`styles.sold` is added only when `!product.inStock` is `true` (out of stock). When in stock it's `false`, and since `clsx` throws that away, you're left with just `styles.card`.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="className={`${styles.card} ${cond ? styles.on : ''}`}"
+  good="className={clsx(styles.card, cond && styles.on)}"
+  note="String concatenation easily introduces whitespace or a stray false. clsx drops false and joins safely."
+/>
+
+## When things go wrong {#trouble}
+
+- **`false` or extra whitespace ends up in the class** … Stop concatenating strings and use `clsx`. It throws away the unwanted values.
+- **The state style doesn't take effect** … Check that the selector targets both classes together, like `.fav.active`, and that the `clsx` conditions are correct.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write clsx(styles.btn, isActive && styles.active). styles.active is added only when isActive is true, and clsx throws it away when false. It's safer and more readable than string concatenation.">
+
+To add `styles.active` to a button only when `isActive` is `true`, how do you write it with `clsx`?
+
+</Exercise>
+
+<SummaryBox>
+
+- Build "an always-on class plus conditionally added classes" with `clsx`
+- Line up `condition && styles.className`, and `clsx` throws away the `false` values
+- `clsx` is safer and more readable than string concatenation (with its whitespace and `false` traps)
+
+</SummaryBox>

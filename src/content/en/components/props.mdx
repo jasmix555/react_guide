@@ -1,0 +1,240 @@
+---
+title: Receive values with props
+minutes: 10
+slug: props
+section: components
+description: "props let you pass values to a part to change what's inside. Receiving with destructuring, light typing, defaults, and passing numbers with curly braces. You'll also see the type stop you when you pass a value of the wrong type."
+level: beginner
+prerequisites: ['components/first-component', 'javascript/destructuring']
+---
+
+import { GreetingDemo } from '@/demos/GreetingDemo'
+
+<LearnBox>
+
+- Pass values to a part with props to change what's inside
+- Receive props with destructuring and add light typing
+- Pass numbers with curly braces; the type stops values of the wrong type
+
+</LearnBox>
+
+## Change the contents of the same part {#what}
+
+The `ProductCard` from the previous page had fixed contents: "saucepan, 3,200 yen." That would mean rebuilding the part for every product. So we use a mechanism that **passes values into the part from outside to change what's inside**. That's **props** (properties).
+
+Values passed into a part from outside are called **props** (properties). First, we'll make `ProductCard` able to receive a name and a price from outside (at the end of this page, we'll see a working example too).
+
+## Passing and receiving props {#receive}
+
+props are **passed like HTML attributes**. The receiving side pulls them out with the **destructuring** you did in Part 2.
+
+```tsx title="Passing side (App.tsx)"
+<ProductCard name="Stainless steel saucepan 18cm" price={3200} />
+```
+
+```tsx title="Receiving side (ProductCard.tsx)"
+export function ProductCard({ name, price }: ProductCardProps) {
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()} yen</p>
+    </article>
+  )
+}
+```
+
+When passing, you write them as attributes like `name="..."` and `price={3200}`. When receiving, you pull them out with **destructuring** as `({ name, price })`, then inject them into the JSX with curly braces `{name}` and `{price}`. In terms of "passing arguments to a part," it's the same as an ordinary function.
+
+<JsNote feature="Receiving props is destructuring itself">
+
+The `{ name, price }` in `function ProductCard({ name, price })` is the [destructuring](/guide/javascript/destructuring) from Part 2. React passes the given props to a part as **a single object**. You're just pulling "name and price, please" out of it with destructuring.
+
+</JsNote>
+
+## Write which props you receive, as a type {#types}
+
+`ProductCardProps` is a **type** that describes "which props this part receives." Since we use TypeScript, writing it lets you stop passing mistakes before you run (we'll cover types in detail in a later part; here it's just the shape).
+
+```tsx title="Top of ProductCard.tsx"
+interface ProductCardProps {
+  name: string
+  price: number
+}
+```
+
+It declares "`name` is a string, `price` is a number." That fixes which props you can pass to `ProductCard` and their types. Written out in full, `ProductCard` looks like this.
+
+```tsx title="src/components/ProductCard/ProductCard.tsx (full)"
+interface ProductCardProps {
+  name: string
+  price: number
+}
+
+export function ProductCard({ name, price }: ProductCardProps) {
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()} yen</p>
+    </article>
+  )
+}
+```
+
+Let's break down the one receiving line.
+
+```tsx
+export function ProductCard({ name, price }: ProductCardProps) {
+//                          ↑               ↑
+//                          │               └─ the props' type (what values come in)
+//                          └─ receive props with destructuring (pull out name and price)
+```
+
+## Add defaults {#defaults}
+
+You can decide "the initial value for when nothing is passed." Just write `= value` in the destructuring.
+
+```tsx
+export function ProductCard({ name, price, inStock = true }: ProductCardProps) {
+  // if inStock isn't passed, it becomes true
+}
+```
+
+With `inStock = true`, even if you omit `inStock` as in `<ProductCard name="..." price={3200} />`, it's treated as `true`. For an omittable prop, put a `?` on the type side too, as `inStock?: boolean` (the `?` is the mark for "may be absent").
+
+## Pass numbers with curly braces {#numbers}
+
+Just one caution about how you pass. **Strings go as-is; everything else (numbers, booleans, variables) goes in curly braces.**
+
+```tsx
+<ProductCard name="Saucepan" price={3200} inStock={false} />
+```
+
+`name` is a string, so `"Saucepan"`. `price` is a number, so `{3200}`. `inStock` is a boolean, so `{false}`. If you write a non-string without curly braces, it doesn't arrive as the intended type.
+
+## How it actually works {#demo}
+
+Let's see "same part, different contents" via props, using a separate `Greeting` part (which receives `name` and `role`). First the full code, then the working thing.
+
+```tsx title="src/demos/GreetingDemo/Greeting.tsx (full)"
+interface GreetingProps {
+  name: string
+  role?: string
+}
+
+export function Greeting({ name, role = 'Member' }: GreetingProps) {
+  return (
+    <div>
+      <span>{name}</span>
+      <span>{role}</span>
+    </div>
+  )
+}
+```
+
+<Demo title="Pass different props to the same part">
+  <GreetingDemo />
+</Demo>
+
+Pass values like `<Greeting name="Sato" role="Designer" />` and the display changes with those values. If you don't pass `role`, it becomes the default, "Member."
+
+## Break it on purpose: pass a value of the wrong type {#break-type}
+
+To confirm what writing a type protects, let's break it on purpose. `price` is a number, but we'll pass a string.
+
+```tsx
+<ProductCard name="Saucepan" price="3200" />
+```
+
+A red squiggle appears under `"3200"`, and you get this.
+
+```
+Type 'string' is not assignable to type 'number'.
+```
+
+It means "**a string can't be put into a number type.**" Thanks to fixing `price` as `number`, it stopped you **before you run** with "that's not a number." Had you not written a type, you wouldn't notice until `price.toLocaleString()` produced an unexpected result. That's the value of writing types. Numbers pass if you give them as `price={3200}` (curly braces).
+
+<Together
+  task="Add a props called category, a string representing the product category, to ProductCard. Add it to the type, receive it, and display it with <p>{category}</p>."
+  hint="Add category: string to the type, add category to the destructuring, and display {category} in the JSX."
+>
+
+```tsx title="ProductCard.tsx"
+interface ProductCardProps {
+  name: string
+  price: number
+  category: string
+}
+
+export function ProductCard({ name, price, category }: ProductCardProps) {
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()} yen</p>
+      <p>{category}</p>
+    </article>
+  )
+}
+```
+
+Adding a prop is always the same three places: **(1) add it to the type, (2) receive it with destructuring, (3) use it in the JSX**. The user side passes it like `<ProductCard name="..." price={3200} category="kitchen" />`. If you pass it without adding it to the type, the type tells you "there's no such prop."
+
+</Together>
+
+## Syntax catalog: how to pass props {#catalog}
+
+```tsx
+<ProductCard name="Saucepan" />     // strings go as-is
+<ProductCard price={3200} />        // numbers in curly braces
+<ProductCard inStock={false} />     // booleans in curly braces too
+<ProductCard name={product.name} /> // variables in curly braces too
+<Card>this is the contents</Card>   // children (the contents between open and close)
+```
+
+Remember it as: quote strings only, braces for everything else.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="<ProductCard price='3200' /> (passing a number as a string)"
+  good="<ProductCard price={3200} />"
+  note="Pass non-strings with curly braces. If the type is number, a string is rejected."
+/>
+
+<Diff
+  bad="function ProductCard(props) { props.name … }"
+  good="function ProductCard({ name }: ProductCardProps) { name … }"
+  note="Receiving with destructuring shows up front what you use, and makes typing easier."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Receive props with destructuring and always write a type (interface). For optional props, pair a ? with a default"
+  alt="For a small throwaway part with 1-2 props, you can write the type inline ({ name }: { name: string }). Once the count grows, split it out into an interface."
+>
+
+Make the `({ name, price }: ProductCardProps)` form the baseline. Destructuring shows "what you use" up front, and the type stops passing mistakes. For an omittable prop, put a `?` on the type and give a default in the destructuring -- pairing these two is the safe move.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`Type 'X' is not assignable to type 'Y'`** ... the type of the value you passed differs from the declaration. Match either the passing side or the type.
+- **`Property 'xxx' does not exist`** ... you're trying to receive (or pass) a prop that isn't in the type. Add it to the type.
+- **A number is displayed or computed as a string** ... check that you didn't pass it without curly braces (`price={3200}`).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Three places: (1) add it to the type (interface), (2) receive it with destructuring, (3) use it in the JSX as {propName}. On the passing side, pass non-strings with curly braces.">
+
+When adding one new prop to a part, which three places do you change?
+
+</Exercise>
+
+<SummaryBox>
+
+- props are the mechanism for passing values to a part. Pass them as attributes, receive them with destructuring
+- Writing a type (interface) lets you stop passing mistakes before you run. Optional = `?` plus a default
+- Pass numbers, booleans, and variables with curly braces (`price={3200}`). Strings go as-is
+
+</SummaryBox>

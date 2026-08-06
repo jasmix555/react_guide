@@ -4,9 +4,8 @@ import { useLocation } from 'react-router-dom'
 
 import { PrereqChips } from '@/components/PrereqChips'
 import { PrevNext } from '@/components/PrevNext'
-import { site } from '@/config/site'
-import { strings } from '@/config/strings.ja'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
+import { useLocale, useSite, useStrings } from '@/hooks/useLocale'
 import { useReadProgress } from '@/hooks/useReadProgress'
 import { setLastRead } from '@/lib/lastRead'
 import { getPage, routeIdFromPath } from '@/lib/nav'
@@ -22,13 +21,16 @@ import styles from './style.module.scss'
  */
 export function GuidePage() {
   const { pathname } = useLocation()
+  const locale = useLocale()
+  const strings = useStrings()
+  const site = useSite()
   const route = routeIdFromPath(pathname)
   // Stable lazy component from a module-scope registry (see lib/pages.ts).
-  const content = lazyForRoute(route)
-  const page = getPage(route)
+  const content = lazyForRoute(locale, route)
+  const page = getPage(locale, route)
   const { isRead, toggle } = useReadProgress()
 
-  useDocumentMeta(page ? `${page.title} — ${site.name}` : site.name, page?.description)
+  useDocumentMeta(page ? `${page.title} — ${site.name}` : site.name, page?.description, locale)
 
   // Remember where the reader is, so Home can offer 「続きから」.
   useEffect(() => {
@@ -47,9 +49,7 @@ export function GuidePage() {
         {(page?.minutes != null || (page && page.prerequisites.length > 0)) && (
           <div className={styles.meta}>
             {page?.minutes != null && (
-              <span className={styles.minutes}>
-                {strings.page.minutesLabel} 約 {page.minutes} 分
-              </span>
+              <span className={styles.minutes}>{strings.page.readingTime(page.minutes)}</span>
             )}
             {page && page.prerequisites.length > 0 && (
               <PrereqChips prerequisites={page.prerequisites} />
@@ -59,7 +59,7 @@ export function GuidePage() {
       </header>
 
       <div className="prose">
-        <Suspense fallback={<p className={styles.loading}>読み込み中…</p>}>
+        <Suspense fallback={<p className={styles.loading}>{strings.page.loading}</p>}>
           {createElement(content)}
         </Suspense>
       </div>

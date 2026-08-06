@@ -1,0 +1,66 @@
+---
+title: Goal of this part
+minutes: 5
+slug: framer-motion-goal
+section: framer-motion
+description: "Add movement with motion. Cards fade up gently, lift on hover. Add only meaningful motion, with care for reduced-motion."
+level: beginner
+prerequisites: ['data/summary']
+---
+
+import { MotionCards } from '@/demos/MotionCards'
+
+<PartIntro>
+
+This is where the **Libraries** section begins. Now that the core (Parts 1–8) has you writing React comfortably, we'll take a deeper, library-by-library look at "how to actually add a commonly used library to a real project and use it."
+
+First up is **Framer Motion** (the package is named `motion`). It's a library that lets you add "feels good to use" UI — cards that fade in gently, a little lift on hover — with very little code. Installing it is covered in ["Installing motion"](/libraries/motion), so start there if you haven't yet.
+
+</PartIntro>
+
+<LearnBox>
+
+- The idea that animation isn't "decoration" but "meaningful movement"
+- What you'll be able to build by the end of this part
+- How this part is structured
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+The cards below appear **one after another, fading up from below**. Hover over a card and it lifts. Press "Reset" to watch them come in again.
+
+<Demo title="Cards appearing with stagger (one after another)">
+  <MotionCards />
+</Demo>
+
+By the end of this part, you'll be able to add this "feels good" quality to your list of `ProductCard`s.
+
+## Give every movement a "reason" {#why}
+
+An important premise: **more animation is not better**. When things are constantly moving all over the place, it's noisy, hard to read, and can even make some people queasy. Whenever you add movement, always give it a **reason**.
+
+- **Draw attention** … a newly appearing element fades in to catch the eye.
+- **Communicate a change of state** … show additions, removals, and switches smoothly instead of abruptly.
+- **Respond to interaction** … return a bit of movement when something is pressed or hovered.
+
+Don't animate just "because it looks kind of cool" — that's the trick to not being noisy. And we'll handle **care for people who are sensitive to motion** (`prefers-reduced-motion`) from the very start of this part.
+
+## How this part is structured {#roadmap}
+
+1. **motion basics** — `motion.div` and `initial` / `animate` / `transition`.
+2. **Hover and tap** — respond to interaction with `whileHover` / `whileTap`.
+3. **Reduced-motion setting** — use `useReducedMotion` to care for people who are sensitive to motion.
+4. **Scroll and stagger** — reveal when visible, and reveal a little at a time.
+5. **Enter/exit animation** — with `AnimatePresence`, make things smooth when they disappear too.
+6. **Capstone** — add movement to the list of `ProductCard`s.
+
+Each page comes with the **full code** and a working **demo**. Try them out and see for yourself where "feels good" ends and "too much" begins.
+
+<SummaryBox>
+
+- Add only "meaningful movement" (attention, change of state, response to interaction)
+- The tool is `motion`. The goal is to add "gentle fade-in" to a list of `ProductCard`s
+- We handle care for people sensitive to motion (reduced-motion) from the start
+
+</SummaryBox>

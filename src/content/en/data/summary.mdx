@@ -1,0 +1,63 @@
+---
+title: Summary & practice
+minutes: 6
+slug: data-summary
+section: data
+description: "A wrap-up of data fetching. Revisit fetch, res.ok, useEffect, the three states, and custom hooks, then self-check with a comprehension quiz. This completes the React core; Libraries is next."
+level: beginner
+prerequisites: ['data/goal']
+---
+
+<LearnBox>
+
+- A full review of the "fetch data over the network" skill you picked up in this part
+- A comprehension quiz (self-check on the spots that trip people up)
+- A bridge to what to read next (Libraries)
+
+</LearnBox>
+
+## Full review of this part {#recap}
+
+We took a list that used to be a direct import and made it run on a real request. Here are the key points.
+
+- **import vs fetch** … `import` bakes the data in (instant, fixed); `fetch` is a request (takes time, can fail, always current).
+- **The skeleton of a fetch** … `await fetch(url)` → **`if (!res.ok) throw`** → `await res.json()`. A 404 doesn't make fetch fail, so you check `res.ok` yourself.
+- **Where to call it** … in the render body it's an infinite loop. Use `useEffect(() => {...}, [])` to run it just once. Clean up with `ignore = true`.
+- **Three states** … hold `status` as the union `'loading' | 'error' | 'success'`, route it with `try` / `catch`, and switch what you show on screen.
+- **Custom hook** … bundle the fetch into `useProducts()` (a function that starts with `use`), return `{ products, status }`, and reuse it.
+
+Handling "waits and can fail" with three states — this shape is the same for any request.
+
+## Comprehension quiz {#quiz}
+
+<Exercise answer="Because fetch doesn't fail (reject) on 404/500 — it's treated as a success. You check res.ok (is it in the 200s?), and if it's false you throw to make it a failure. Without this, you'd .json() an error page and get a confusing error.">
+
+Why do you write `if (!res.ok) throw ...` after `fetch`?
+
+</Exercise>
+
+<Exercise answer="You get an infinite loop. fetch → setState → re-render → fetch again in the body → … it never stops. Put it inside useEffect(() => { ... }, []) and it runs only once at the start.">
+
+What happens if you `fetch` and `setState` directly in the component body (before the return)? How do you fix it?
+
+</Exercise>
+
+<Exercise answer="Hold status as the union 'loading' | 'error' | 'success', and use useEffect + try/catch to set success on success and error on failure. On screen, switch in the order loading → error → the success content. Since it's a union, spelling mistakes are stopped by the type.">
+
+How do you hold a request's three states in `status`, and how do you switch what shows on screen?
+
+</Exercise>
+
+## That completes the React core {#next}
+
+Now you can fetch data over a real network too. With that, you've worked through the whole **React core** (setup → JavaScript → components → state → styling → TypeScript → routing → data fetching). `my-shop` is now **an app you built with your own hands: it works, it's protected by types, it has multiple pages, and it makes requests**. "How to write it" is something you've already got down.
+
+From here, head to **Libraries** (a separate tab). It's a deep dive, library by library, into how to actually add popular libraries to a real project and how to use them. A good place to start is **Framer Motion**, adding that satisfying feel of cards floating gently into view. If you already have a UI in mind, working backward from the **[recipes](/recipes/modal)** is a shortcut too.
+
+<SummaryBox>
+
+- `fetch` returns a Promise. Check `res.ok` yourself, and get the contents with `.json()`
+- Fetch once with `useEffect(..., [])`; clean up with an `ignore` flag
+- The three states are a union `status` + `try`/`catch`. Bundle the fetch into `useProducts` and reuse it
+
+</SummaryBox>

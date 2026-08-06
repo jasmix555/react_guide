@@ -1,16 +1,18 @@
 import { useState } from 'react'
 
 import products from '@/data/products.json'
+import { useLocale } from '@/hooks/useLocale'
 
 import styles from './MiniRouter.module.scss'
 
 /**
- * ルーティングの「見た目」を、箱の中だけで実演するデモ。本物の react-router を
- * ここに入れ子にすると <Router> が二重になってエラーになる（サイト全体が既に
- * Router の中だから）。そこでこのデモは state で画面を切り替えている。react-router
- * の実際の書き方（createBrowserRouter / Link / useParams）は各ページのコードで学ぶ。
+ * A demo that shows the "look" of routing entirely inside a box. Nesting a real react-router
+ * here would nest <Router> twice and throw an error (because the whole site is already inside
+ * a Router). So this demo switches screens with state instead. You learn the real react-router
+ * usage (createBrowserRouter / Link / useParams) in each page's code.
  */
 export function MiniRouterDemo() {
+  const en = useLocale() === 'en'
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const product = selectedId ? products.find((p) => p.id === selectedId) : null
 
@@ -18,23 +20,25 @@ export function MiniRouterDemo() {
     return (
       <div className={styles.pane}>
         <button type="button" className={styles.back} onClick={() => setSelectedId(null)}>
-          <span aria-hidden>←</span> 一覧へ
+          <span aria-hidden>←</span> {en ? 'Back to list' : '一覧へ'}
         </button>
-        <h3 className={styles.name}>{product.name}</h3>
-        <p className={styles.price}>{product.price.toLocaleString()}円</p>
-        <p className={styles.cat}>カテゴリ：{product.category}</p>
+        <h3 className={styles.name}>{en ? product.nameEn : product.name}</h3>
+        <p className={styles.price}>
+          {en ? `${product.price.toLocaleString()}` : `${product.price.toLocaleString()}円`}
+        </p>
+        <p className={styles.cat}>{en ? 'Category: ' : 'カテゴリ：'}{product.category}</p>
       </div>
     )
   }
 
   return (
     <div className={styles.pane}>
-      <p className={styles.crumb}>商品一覧</p>
+      <p className={styles.crumb}>{en ? 'Products' : '商品一覧'}</p>
       <ul className={styles.list}>
         {products.slice(0, 3).map((p) => (
           <li key={p.id}>
             <button type="button" className={styles.link} onClick={() => setSelectedId(p.id)}>
-              {p.name} <span aria-hidden>→</span>
+              {en ? p.nameEn : p.name} <span aria-hidden>→</span>
             </button>
           </li>
         ))}

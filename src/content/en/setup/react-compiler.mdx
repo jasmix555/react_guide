@@ -1,0 +1,71 @@
+---
+title: What is the React Compiler?
+minutes: 5
+slug: setup-react-compiler
+section: setup
+description: "What a compiler even is, what the React Compiler automates, and why we skip it while you are learning."
+level: beginner
+prerequisites: ['setup/variants']
+---
+
+<LearnBox>
+
+- What the word "compiler" actually means
+- What work the React Compiler takes off your hands
+- Why it is better not to add it while you are still learning
+
+</LearnBox>
+
+On the previous page we decided not to add the React Compiler. But skipping past a name you have never heard of leaves a nagging feeling, so let us just get a sense of what it is. **This is not something you will use right now.**
+
+## What a compiler is in the first place {#compiler}
+
+**A compiler is a tool that converts code from one form into another.** The browser cannot read the TypeScript you write directly. Converting it into JavaScript the browser can read is itself a kind of compilation, and Vite does it for you behind the scenes.
+
+<Callout type="analogy">
+
+It is like a translator who turns a Japanese manuscript into English. The compiler stands between the person who wrote the code (you) and the reader (the browser) and converts the language.
+
+</Callout>
+
+## What kind of compiler is the React Compiler? {#react-compiler}
+
+React has situations where "a calculation that always gives the same result gets redone every time and is wasted." Traditionally, to prevent this, **people wrote tools called `useMemo` and `useCallback` by hand** to optimize it (you will learn these in a later part).
+
+**The React Compiler is a compiler that does that optimization for you automatically.** Even without you writing `useMemo`, it inserts the equivalent work where it is needed. When it works well, you can write a fast app without thinking about optimization at all.
+
+## Why we do not add it right now {#why-not}
+
+There is a clear reason for not adding something so convenient.
+
+The goal while learning is to understand, with your own head, **why React re-renders** and **where the waste happens**. If the React Compiler is turned on from the start, that optimization happens automatically behind the scenes, and **you lose sight of "what would happen if I wrote it myself."**
+
+Concretely, in the later Part 9 "state and hooks" you will **write `useMemo` / `useCallback` / `React.memo` by hand** to confirm "where the waste is and how to prevent it." If the React Compiler is turned on first, that optimization happens automatically on the reader's machine, and **the exercise "does not hold up on your own screen"** (we will cover this in detail later).
+
+So first understand the mechanism without automation, and **add it later once you need it**. The React Compiler can be added to a plain project at any time.
+
+<Deeper title="How to add the React Compiler later (not now)">
+
+You can enable it by passing React Compiler settings to `@vitejs/plugin-react`. The steps are collected in the [official documentation](https://react.dev/learn/react-compiler). The healthy time to introduce it is once your whole team understands re-rendering and optimization and has decided to "stop hand-writing optimizations and let it happen automatically."
+
+</Deeper>
+
+<Deeper title="Babel, SWC, Oxc — the conversion tools (nothing to do right now)">
+
+There are actually several kinds of tools that convert code into "a form the browser can read." **Babel, SWC, and Oxc all do the same job (converting JSX and newer syntax into JavaScript the browser can read)**; they just differ in speed and how new they are.
+
+- **Babel** … The long-standing standard.
+- **SWC** … A later tool that made Babel faster. A little while ago create-vite had a "TypeScript + SWC" option, and many articles recommend it.
+- **Oxc** … Newer still, and the conversion engine that create-vite 9 **uses by default**.
+
+So even if an old article tells you to "choose SWC," it will not appear in today's creation screen. **You do not need to choose anything; the default Oxc is used as-is.** If you come across the names, it is enough to recognize "ah, this is about conversion tools."
+
+</Deeper>
+
+<SummaryBox>
+
+- A compiler is "a tool that converts code from one form into another." The TS→JS conversion is one kind of it
+- The React Compiler is a compiler that does optimizations like `useMemo` for you automatically
+- While learning we skip it because we want to understand the mechanism ourselves. You can add it later when you need it
+
+</SummaryBox>

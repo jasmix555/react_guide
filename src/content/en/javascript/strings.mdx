@@ -1,0 +1,134 @@
+---
+title: String operations
+minutes: 8
+slug: strings
+section: javascript
+description: "Check a string's length, test whether it contains something, and cut, replace, and split it. Also learn that methods return a new string without changing the original."
+level: beginner
+prerequisites: ['javascript/template-literals']
+---
+
+<LearnBox>
+
+- A string's length, and whether it contains something (`.length` / `.includes`)
+- Cut out, replace, split (`.slice` / `.replace` / `.split`)
+- That string methods **return a new string without changing the original**
+
+</LearnBox>
+
+## Strings often get inspected, cut, and replaced {#intro}
+
+Searching product names, adding "yen" to a price, trimming the spaces around input. You use string operations every day. Let's learn just the common ones, hands-on in the console.
+
+## Length, and whether it contains {#length-includes}
+
+```js
+const name = 'Canvas Tote'
+
+name.length // 11 (character count)
+name.includes('Tote') // true (contains it?)
+name.startsWith('Canvas') // true (starts with it?)
+name.endsWith('Bag') // false (ends with it?)
+```
+
+- **`.length`** … the number of characters. It's a property, so don't add `()`.
+- **`.includes('...')`** … whether it contains that text (`true` / `false`). Often used for searching.
+
+## Cutting out {#slice}
+
+Use `.slice(start, end)` to pull out a portion. Numbers **start at 0**, and the `end` position is **not included**.
+
+```js
+'hello'.slice(0, 2) // 'he'
+```
+
+```js
+'hello'.slice(0, 2)
+//     ↑      ↑  ↑
+//     │      │  └─ up to here (this number is not included)
+//     │      └─ from here (starts at 0)
+//     └─ cut out from index 0 up to just before index 2
+```
+
+## Replacing and splitting {#replace-split}
+
+```js
+'2,800 yen'.replace(' yen', '') // '2,800' (replaces the first occurrence)
+'a,b,c'.split(',') // ['a', 'b', 'c'] (split into an array by a separator)
+['a', 'b', 'c'].join('-') // 'a-b-c' (join an array into a string)
+```
+
+- **`.replace(A, B)`** … replaces the first `A` with `B`. To replace all of them, use `.replaceAll(A, B)`.
+- **`.split(separator)`** … splits by the separator into an **array**.
+- **`.join(glue)`** … joins an array into a **string** with the glue characters (the reverse of `split`).
+
+## Case, and leading/trailing spaces {#trim-case}
+
+```js
+'  hello  '.trim() // 'hello' (removes leading and trailing spaces)
+'react'.toUpperCase() // 'REACT'
+'REACT'.toLowerCase() // 'react'
+```
+
+<JsNote feature="string methods don't change the original (they return a new string)">
+
+Even if you call `name.trim()`, `name` itself doesn't change. It just **returns a new, processed string**. When you want to use it, receive it like `const trimmed = name.trim()`. Most cases of "I called it but nothing changed" come from this.
+
+</JsNote>
+
+## Check it on purpose: not receiving the return value {#break-noassign}
+
+Let's feel that "the original doesn't change." Try the following in the console.
+
+```js
+let s = '  react  '
+s.trim() // 'react' is returned, but…
+console.log(s) // '  react  ' (s itself hasn't changed!)
+
+s = s.trim() // receive it and it changes
+console.log(s) // 'react'
+```
+
+Because we throw away the result of `s.trim()`, `s` stays as it was. You need to **reassign the new string that's returned**.
+
+## Syntax catalog: common string operations {#catalog}
+
+```js
+const t = 'Canvas Tote'
+t.length // character count → 11
+t.includes('Tote') // contains it → true
+t.slice(0, 4) // cut out → 'Canv'
+'2,800 yen'.replace(' yen', '') // replace → '2,800'
+'a,b,c'.split(',') // split → ['a','b','c']
+['a', 'b'].join('-') // join → 'a-b'
+'  x  '.trim() // trim spaces → 'x'
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="thinking name changes just by calling name.trim()"
+  good="receive the return value, like const trimmed = name.trim()"
+  note="String methods don't change the original; they return a new string. If you don't receive it, nothing takes effect."
+/>
+
+## When things don't work {#trouble}
+
+- **Error on `.length()`** … `length` is a property. Don't add `()` (`name.length`).
+- **You processed it but nothing changed** … you didn't receive the return value. Reassign it, like `x = x.trim()`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="price.replace(' yen', '') removes ' yen' and returns '3,200'. Since price itself doesn't change, receive it if needed, like const num = price.replace(' yen', '').">
+
+From `const price = '3,200 yen'`, how would you write it to get the string with "yen" removed?
+
+</Exercise>
+
+<SummaryBox>
+
+- Inspect: `.length` (a property), `.includes()`. Cut out: `.slice(start, end)` (end is not included)
+- Replace `.replace()`, split `.split()`, join `.join()`
+- String methods return a **new string** without changing the original. Receive the return value
+
+</SummaryBox>

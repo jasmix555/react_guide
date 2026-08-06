@@ -1,0 +1,159 @@
+---
+title: Modal
+minutes: 10
+slug: modal
+section: recipes
+description: "A modal dialog you can open and close. We cover where to keep the open/closed state, and how to close it with Esc or a background click."
+level: beginner
+prerequisites: ['components/button-variants']
+---
+
+import { ModalDemo } from '@/demos/ModalDemo'
+
+<LearnBox>
+
+- How to build a modal that keeps its open/closed state in `useState`
+- Closing on Esc and on an overlay click
+- Moving focus inside when it opens, and back where it was when it closes
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Here is what we are building. A button opens it, and Esc, a background click, or the ✕ closes it. Give it a try.
+
+<Demo title="Modal">
+  <ModalDemo />
+</Demo>
+
+## Why the parent holds the open/closed flag {#why}
+
+The first thing people get stuck on with a modal is "where do I manage whether it is open?" The answer is: **the caller (the parent) holds it in `useState`**. The modal itself just receives "should I be shown right now?" as a `prop`. That way the caller is free to decide which button opens it and what happens once it closes.
+
+## Step 1: Keep the open/closed flag on the calling side {#open-state}
+
+First, let's settle on the shape of the calling side. Keep whether it is open in a state called `open`: a button sets it to `true`, and the close action sets it to `false`.
+
+```tsx title="Usage"
+const [open, setOpen] = useState(false)
+
+<Button onClick={() => setOpen(true)}>Open modal</Button>
+<Modal open={open} onClose={() => setOpen(false)} title="Confirm purchase">
+  <p>Add this item to your cart?</p>
+</Modal>
+```
+
+You pass `Modal` two things: whether it is open (`open`) and the function to call when it closes (`onClose`). Next, let's build the `Modal` itself.
+
+## Step 2: The Modal itself {#modal-body}
+
+Here is the full `Modal`. It is a little long, but if you read it top to bottom it is not hard.
+
+```tsx title="src/demos/ModalDemo/Modal.tsx (full)"
+import { type ReactNode, useEffect, useRef } from 'react'
+
+import styles from './Modal.module.scss'
+
+interface ModalProps {
+  open: boolean
+  onClose: () => void
+  title: string
+  children: ReactNode
+}
+
+export function Modal({ open, onClose, title, children }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    panelRef.current?.focus()
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      previouslyFocused?.focus?.() // restore focus to where it was when we close
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+```
+
+There are three things worth noticing. `if (!open) return null` means that when it is closed, **nothing is rendered** (it disappears from the screen). Inside `useEffect` we start watching for the Esc key and move focus to the panel when it opens. And the key point is the two `onClick` handlers explained in the next step.
+
+## Step 3: Close on the background, don't close on the content {#overlay-close}
+
+There are two `onClick` handlers inside the `return`. Their jobs are exact opposites.
+
+- The **overlay (background)** has `onClick={onClose}` … click the background and it closes.
+- The **panel (content)** has `onClick={(e) => e.stopPropagation()}` … this **stops** a click on the content from reaching the background.
+
+Together these two give you "clicking the background closes it, but clicking the content does not."
+
+<JsNote feature="e.stopPropagation() stops event propagation">
+
+A click travels up from the element you pressed to its parent, and its parent's parent, and so on (propagation). Calling `stopPropagation()` on the panel keeps that click from reaching the background (overlay), so the background's `onClose` is not fired by mistake.
+
+</JsNote>
+
+## Break it on purpose: remove stopPropagation and clicking the content closes it {#break-propagation}
+
+Let's confirm what `stopPropagation` does by removing it. Delete the panel's `onClick={(e) => e.stopPropagation()}` and save.
+
+```tsx title="Modal.tsx (broken on purpose: stopPropagation removed)"
+<div ref={panelRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+  {children}
+</div>
+```
+
+Open the modal and **click the text inside it**. The modal closes. There is no error, but it is clearly an annoying behavior.
+
+The reason is that the click on the content travels up to the parent overlay, and the overlay's `onClick={onClose}` fires. Put `stopPropagation()` back and the click on the content stops there, so it no longer closes.
+
+## Practical notes {#notes}
+
+- **Closing on Esc**: watch `keydown`, and always remove the listener in the cleanup (`return () => …`) of `useEffect`. If you forget to remove it, the event keeps firing even after the modal closes.
+- **Focus management**: move focus to the panel when it opens, and back to the original button when it closes. This is essential for people who navigate with the keyboard alone.
+- **Background scroll**: for a production-grade modal, it is considerate to stop scrolling on `document.body` while it is open.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Always render the modal and hide it with display:none"
+  good="When open is false, render nothing with return null"
+  note="Just hiding it leaves the inner state and events alive. Removing it when closed is the clean approach."
+/>
+
+## When it doesn't work {#trouble}
+
+- **It closes just from clicking the content** … the panel's `onClick={(e) => e.stopPropagation()}` is missing.
+- **Esc doesn't close it** … check that you register and remove the `keydown` listener correctly inside `useEffect`.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- The parent holds the open/closed flag in `useState` and passes `open` / `onClose` as props
+- Pair the background's `onClose` with the panel's `stopPropagation`
+- Render nothing with `return null` while closed. Move focus inside when it opens, and back when it closes
+
+</SummaryBox>

@@ -1,0 +1,123 @@
+---
+title: Values and types
+minutes: 8
+slug: values-and-types
+section: javascript
+description: "Get to know the kinds of values—string, number, boolean, null, undefined. Check types with typeof, and see the gotcha when you mix strings and numbers."
+level: beginner
+prerequisites: ['javascript/const-let']
+---
+
+<LearnBox>
+
+- The main kinds of values (types) in JavaScript—string, number, boolean, `null`, `undefined`
+- Using `typeof` to check "what type is this?"
+- What happens when you mix strings and numbers (why types matter)
+
+</LearnBox>
+
+## Values have a "kind" (type) {#types}
+
+The `100` in `const price = 100`, and the `'Sato'` in `const name = 'Sato'`. Both are "values," but **their kinds are different**. This kind is called a **type**. Once you're aware of types, you can explain most cases of "the math is somehow wrong" on your own.
+
+First, let's look at the five most-used types one at a time.
+
+```js
+const name = 'Sato' // string: wrapped in quotes
+const price = 100 // number: not wrapped in quotes
+const inStock = true // boolean: either true or false
+const memo = null // null: a value that intentionally shows "empty"
+let notSet // undefined: nothing has been put in yet
+```
+
+- **string** … a sequence of characters. Wrap it in `'...'` or `"..."`.
+- **number** … a number. Integers and decimals are the same number type (`100` and `9.5` are both number).
+- **boolean** … just the two values `true` and `false`. Used in conditions.
+- **`null`** … an empty value that **you put in yourself** to say "this is empty here."
+- **`undefined`** … the state where nothing has been put in yet. JavaScript fills it in on its own.
+
+## Check the type with typeof {#typeof}
+
+"What type is this value?" can be checked with `typeof`. The result comes back as a **string**. Try it in the console.
+
+```js
+typeof 'Sato' // 'string'
+typeof 100 // 'number'
+typeof true // 'boolean'
+typeof undefined // 'undefined'
+```
+
+```js
+typeof price
+//  ↑      ↑
+//  │      └─ the value (or variable) you want to check
+//  └─ an operator that returns "what type is this?" as a string
+```
+
+## The difference between null and undefined {#null-undefined}
+
+Both represent "empty," but **their origins differ**.
+
+- **`undefined`** … nothing has been put in yet. It arises naturally from just creating a variable, forgetting to pass an argument, and so on.
+- **`null`** … a value **you deliberately** put in to say "this is empty." Use it when you want to represent "intentionally none."
+
+<JsNote feature="typeof null is 'object' (a famous trap)">
+
+If you check `typeof null`, for some reason it comes out as `'object'`. This is a long-standing bug in JavaScript that's been left in, because fixing it would break existing code. Just remember: **to check "is it null," use `value === null`, not `typeof`**, and you'll be fine.
+
+</JsNote>
+
+## Check it on purpose: string + number {#break-coerce}
+
+Let's feel the reason types matter, in the console. Try typing the following.
+
+```js
+'5' + 3 // '53' (becomes string concatenation)
+'5' * 2 // 10 (this one is computed as numbers)
+```
+
+`'5'` is a string and `3` is a number. `+` means "concatenate if there's a string," so it becomes `'53'`. On the other hand, `*` only does numeric math, so `'5'` is converted to a number and it becomes `10`. **Even a 5 that looks the same gives a different result if the type is different**—that's why types matter. The fact that an `<input>` value always comes in as a string ([range slider](/recipes/range-slider)) is the same story.
+
+## Syntax catalog: literals for each type {#catalog}
+
+A "value written as-is" is called a literal. Here's how to write each type.
+
+```js
+const s = 'text' // string ('...' or "...")
+const n = 100 // number (integer)
+const f = 9.5 // number (decimals are the same number)
+const b = false // boolean (true / false)
+const empty = null // null (intentionally empty)
+let later // undefined (nothing put in yet)
+const arr = [1, 2, 3] // array (details on the next page)
+const obj = { name: 'Sato' } // object (details on the next page)
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="holding a quantity as a string like '3' and adding it directly"
+  good="hold a quantity as a number like 3. If it arrives as a string, fix it with Number(...)"
+  note="Using + while it's still a string concatenates ('3' + '1' → '31'). Keep values you compute as number."
+/>
+
+## When things don't work {#trouble}
+
+- **You added, but the digits join up** … one of them is a string. Check with `typeof` and convert to a number with `Number(...)`.
+- **It says `undefined`** … you're using the value before putting anything in, or you forgot to pass it. Check that it's been assigned before you use it.
+
+## Summary & practice {#summary}
+
+<Exercise answer="typeof returns a string, so typeof age is 'number' (the string 'number'). It is not the value 20 itself.">
+
+When `const age = 20`, what is the result of `typeof age`? Think about whether it returns the value or the type.
+
+</Exercise>
+
+<SummaryBox>
+
+- The main types are string / number / boolean / `null` / `undefined`. Integers and decimals are the same number
+- You can check the type with `typeof` (but `typeof null` is `'object'`; check for null with `=== null`)
+- Mixing strings and numbers changes the result. Keep values you compute as number
+
+</SummaryBox>

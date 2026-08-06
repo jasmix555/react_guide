@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 
-import { strings } from '@/config/strings.ja'
-import { searchIndex, type SearchRow } from '@/lib/nav'
+import { useLocale, useStrings } from '@/hooks/useLocale'
+import { getSearchIndex, type SearchRow } from '@/lib/nav'
 
 import styles from './style.module.scss'
 
@@ -17,6 +17,7 @@ import styles from './style.module.scss'
  * so its query/selection reset naturally on close — no reset-in-effect.
  */
 export function Search() {
+  const strings = useStrings()
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -52,6 +53,9 @@ export function Search() {
 
 function SearchPalette({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
+  const locale = useLocale()
+  const strings = useStrings()
+  const searchIndex = getSearchIndex(locale)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -67,7 +71,7 @@ function SearchPalette({ onClose }: { onClose: () => void }) {
         threshold: 0.4,
         ignoreLocation: true,
       }),
-    [],
+    [searchIndex],
   )
 
   const results = useMemo<SearchRow[]>(() => {

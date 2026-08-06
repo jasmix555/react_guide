@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
 
+import { LangToggle } from '@/components/LangToggle'
 import { Search } from '@/components/Search'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { site } from '@/config/site'
-import { tabsNav } from '@/lib/nav'
+import { useLocale, useSite, useStrings } from '@/hooks/useLocale'
+import { getTabs } from '@/lib/nav'
 
 import styles from './style.module.scss'
 
@@ -20,6 +21,9 @@ export function TopBar({
   onNavigate?: () => void
 }) {
   const { pathname } = useLocation()
+  const locale = useLocale()
+  const site = useSite()
+  const strings = useStrings()
 
   return (
     <header className={styles.bar}>
@@ -29,16 +33,16 @@ export function TopBar({
             type="button"
             className={styles.menu}
             onClick={onOpenMenu}
-            aria-label="ナビゲーションを開く"
+            aria-label={strings.nav.openMenu}
           >
             ☰
           </button>
         )}
-        <Link to="/" className={styles.brand} onClick={onNavigate}>
+        <Link to={`/${locale}`} className={styles.brand} onClick={onNavigate}>
           {site.name}
         </Link>
-        <nav className={styles.tabs} aria-label="セクション">
-          {tabsNav.map((tab) => {
+        <nav className={styles.tabs} aria-label={strings.nav.tabsAria}>
+          {getTabs(locale).map((tab) => {
             const target = tab.pages[0]?.href ?? tab.basePath
             const activeTab = pathname.startsWith(tab.basePath)
             return (
@@ -57,6 +61,7 @@ export function TopBar({
 
       <div className={styles.right}>
         <Search />
+        <LangToggle onNavigate={onNavigate} />
         <ThemeToggle />
       </div>
     </header>

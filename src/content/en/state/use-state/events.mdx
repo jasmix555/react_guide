@@ -1,0 +1,183 @@
+---
+title: Changing state on events
+minutes: 9
+slug: state-events
+section: state
+description: "Update state on a click to switch the screen. Break down the onClick syntax and write a favorite toggle in full. The trap of calling setState directly and causing an infinite loop, plus a catalog of ways to write handlers."
+level: beginner
+prerequisites: ['state/use-state/basics', 'components/events']
+---
+
+import { FavoriteDemo } from '@/demos/Favorite'
+
+<LearnBox>
+
+- Update state on a click and switch the screen
+- Break down the `onClick` syntax
+- The infinite-loop trap (Too many re-renders), and a catalog of ways to write handlers
+
+</LearnBox>
+
+## Break down the onClick syntax {#anatomy}
+
+We combine the events from Part 3 (`onClick`) with the state from this part. First, let's break down the one line we're about to write.
+
+```tsx
+onClick={() => setFavorite(!favorite)}
+//       ↑     ↑           ↑
+//       │     │           └─ the opposite of the current value (true ⇄ false)
+//       │     └─ the function that updates state. Call it and a re-render happens
+//       └─ wrap it in () =>. It runs only once clicked
+```
+
+- **Wrap it in `() =>`** … you pass "a function to run when clicked." Don't add `()` to run it immediately (we'll see the trap later).
+- **`setFavorite(...)`** … the state updater function. Call it and it re-renders.
+- **`!favorite`** … the opposite of the current value (`!` is the "flip it" from [how to read the symbols](/guide/javascript/symbols)). `true` becomes `false`, `false` becomes `true`.
+
+## Write the favorite button in full {#build}
+
+Create a new file `src/components/FavoriteButton/FavoriteButton.tsx` and paste in **this entire file**.
+
+```tsx title="src/components/FavoriteButton/FavoriteButton.tsx (new file, full source)"
+import { useState } from 'react'
+
+export function FavoriteButton() {
+  const [favorite, setFavorite] = useState(false)
+
+  return (
+    <button type="button" onClick={() => setFavorite(!favorite)}>
+      {favorite ? '♥ Favorited' : '♡ Add to favorites'}
+    </button>
+  )
+}
+```
+
+We hold "whether it's a favorite" as boolean state (`favorite`) and flip it on each click.
+
+## What happens when you save {#result}
+
+Press the button and `setFavorite(!favorite)` is called, so `favorite` toggles between `true` and `false`. When state changes, it re-renders, and the `favorite ? ... : ...` ternary picks the new display (the heart and the text) all over again. This is the basic shape of how React works: "click → update state → re-render."
+
+## The actual behavior {#demo}
+
+Here's that same code running as-is. Give it a press.
+
+<Demo title="Favorite toggle">
+  <FavoriteDemo />
+</Demo>
+
+## Break it on purpose: write setState directly in onClick {#break-loop}
+
+The "add `()` to run it immediately" trap from Part 3 turns into a **much more dramatic symptom** with state. Without wrapping it in an arrow function, let's write `setFavorite` directly.
+
+```tsx
+<button type="button" onClick={setFavorite(!favorite)}>
+```
+
+The moment you save, the screen freezes and a flood of errors appears in the console.
+
+```
+Error: Too many re-renders. React limits the number of renders
+to prevent an infinite loop.
+```
+
+It means "**too many re-renders. React stopped it to prevent an infinite loop.**" `onClick={setFavorite(!favorite)}` **runs `setFavorite` during rendering** without waiting for a click. → state changes → re-render → `setFavorite` runs again → re-render again… **repeating forever**. To prevent it, always wrap it in an arrow function.
+
+```tsx
+<button type="button" onClick={() => setFavorite(!favorite)}>
+```
+
+Wrap it in `() =>` and `setFavorite` runs only when clicked. **When you see `Too many re-renders`, the first thing to suspect is whether you're calling `setState` directly inside `onClick`.**
+
+## Writing catalog: event handlers {#catalog}
+
+There are a few common forms for passing an event. Learning them all at once saves you from second-guessing.
+
+```tsx
+// ① pass a function you prepared (no arguments)
+<button onClick={handleClick}>Submit</button>
+
+// ② write it inline (no arguments)
+<button onClick={() => setOpen(true)}>Open</button>
+
+// ③ call with arguments → wrap in an arrow function (don't add () directly)
+<button onClick={() => buy(product)}>Buy</button>
+
+// ④ use the event object e (to read an input's value, etc.)
+<input onChange={(e) => setName(e.target.value)} />
+```
+
+① passes "just the function's name." ② and ③ "create a function on the spot" and pass it. ④ is for input fields and such, using information about the event that happened (`e.target.value` = the text typed). What they all share: "**pass a function**. Don't add `()` to run it immediately." Follow just that and you won't have accidents.
+
+<Together
+  task="Write, as a complete component, an open/close (toggle) where pressing a 'Show details' button reveals a description and pressing again hides it. Use a boolean state called open."
+  hint="const [open, setOpen] = useState(false), setOpen(!open) in onClick, and {open && <p>description</p>} to show or hide."
+>
+
+```tsx title="src/components/Detail/Detail.tsx (new file, full source)"
+import { useState } from 'react'
+
+export function Detail() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(!open)}>
+        {open ? 'Close' : 'Show details'}
+      </button>
+      {open && <p>The product description goes here.</p>}
+    </div>
+  )
+}
+```
+
+We flip `open` with `!open` and use `{open && <p>...</p>}` to "show the description only when `open` is `true`" (the [conditional display](/guide/components/conditional) from Part 3). Open/close, show/hide, and ON/OFF can all be built with this "flip a boolean state."
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="onClick={setFavorite(!favorite)} (runs during rendering → infinite loop)"
+  good="onClick={() => setFavorite(!favorite)}"
+  note="Writing setState directly in onClick gives Too many re-renders. Always wrap it in an arrow function."
+/>
+
+<Diff
+  bad="onClick={() => (favorite = !favorite)} (direct assignment)"
+  good="onClick={() => setFavorite(!favorite)}"
+  note="Change state with the updater function. Direct assignment doesn't re-render."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="For ON/OFF, open/close, and show/hide, flip a boolean state with !value. Always wrap the event in an arrow function"
+  alt="The functional form setFavorite(prev => !prev), which you'll learn on the next page, is safer when toggling rapidly in quick succession. For now, grasp the mechanism with the !favorite form."
+>
+
+For "toggling," flipping a boolean state is the standard. `onClick={() => setX(!x)}`. Don't forget to wrap it in `() =>`—forget it and you get an infinite loop with `Too many re-renders`.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`Too many re-renders`** … You're calling `setState` during rendering, like `onClick={setX(...)}`. Fix it to `onClick={() => setX(...)}`.
+- **Clicking doesn't toggle it** … Check whether you're calling `setState`, and whether you're flipping with `!value`.
+- **It shows for an instant then disappears / the screen freezes** … This can be an early symptom of an infinite loop. First look at how you wrote `onClick`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="With onClick={setOpen(!open)}, setOpen runs during rendering, causing an infinite loop (Too many re-renders): re-render → runs again → …. Wrap it in an arrow function as onClick={() => setOpen(!open)}.">
+
+You wrote `onClick={setOpen(!open)}` and got `Too many re-renders`. Why? How do you fix it?
+
+</Exercise>
+
+<SummaryBox>
+
+- Call `setState` on a click, and state changes and the screen switches
+- For ON/OFF and open/close, flipping a boolean state with `!value` is the standard
+- Always wrap `onClick` in an arrow function. Calling it directly gives `Too many re-renders` (an infinite loop)
+
+</SummaryBox>

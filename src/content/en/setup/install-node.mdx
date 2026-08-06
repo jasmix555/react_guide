@@ -1,0 +1,74 @@
+---
+title: If it's not installed (installation)
+minutes: 6
+slug: setup-install-node
+section: setup
+description: "How to install Node.js, separately for Windows and Mac. Why you choose LTS, and switching versions per project."
+level: beginner
+prerequisites: ['setup/check-node']
+---
+
+<LearnBox>
+
+- Install Node.js on Windows / Mac
+- Why you choose "LTS"
+- Tools for switching your Node version per project (volta / nvm)
+
+</LearnBox>
+
+This page is for people who got "not recognized / command not found" on the previous page. If `node -v` already worked for you, skip this page and go to page 6.
+
+The goal is simple: a state where, **after these steps, typing `node -v` shows a version**.
+
+## The simplest way to install {#simple}
+
+First, the straightforward way — installing with the official site's installer.
+
+1. Open [nodejs.org](https://nodejs.org) in your browser.
+2. Of the two buttons side by side, click the **one labeled "LTS"** to download the installer.
+3. Double-click the downloaded file and proceed through the install, leaving every screen shown at its default and clicking "Next."
+4. **Close the terminal once and reopen it.** (This is important. If you don't close it, the change won't take effect.)
+5. Type `node -v`, and if a version like `v22.x.x` appears, you're all set.
+
+<Callout type="warn">
+
+Choosing "Current (the latest version)" instead of "LTS" does work, but it includes experimental changes, and libraries sometimes haven't caught up with it yet. **Choose LTS without hesitation.**
+
+</Callout>
+
+## Why LTS {#why-lts}
+
+**LTS (the long-term support version) is a stable version that keeps getting bug fixes over a long period.** For code you use at work, "keeps running" is the top priority, so you choose the mature, stable LTS over the bleeding-edge latest version. React and the libraries are also built assuming LTS, so there's a practical benefit too: you run into fewer problems.
+
+## Changing versions per project — volta / nvm {#volta}
+
+You don't need this right now, but it's worth knowing for later.
+
+Once you're juggling multiple projects at work, it happens that the Node version each project needs differs — **project A needs Node 18, project B needs Node 22**. The Node installed with the official installer is a single one on your PC, so you can't switch between them.
+
+What solves this is a "Node version switcher" called **volta** (or **nvm**). The handy part is that when you enter a project's folder, it **switches automatically** to the version that project requires.
+
+<Callout type="note">
+
+**Our standard: when version management becomes necessary, use volta.** It runs smoothly on Windows too, and the per-project auto-switching works. That said, at this very moment when you're starting to learn React, a single LTS from the official installer is plenty. You can install volta once you start juggling multiple projects, and that's soon enough.
+
+</Callout>
+
+<Deeper title="How to install volta (you don't have to do this now)">
+
+After installing volta itself by following the steps at [volta.sh](https://volta.sh), run `volta pin node@22` in a project's folder, and that version gets recorded in `package.json`. From then on, whenever you enter that folder, volta automatically matches Node 22 for you. The benefit is that your team can all align on the same version.
+
+</Deeper>
+
+## When things don't work {#trouble}
+
+- **I installed it but `node -v` still doesn't work** … 90% of the time it's forgetting to close and reopen the terminal. **Close every terminal (and VS Code), reopen them,** and try once more.
+- **On Windows, a "PATH is…" message appeared** … normally the installer sets this automatically. If it still doesn't work after reopening, restarting your PC will make the change take effect.
+
+<SummaryBox>
+
+- Install the **LTS** from [nodejs.org](https://nodejs.org), reopen the terminal, and confirm with `node -v`
+- LTS is the long-term-support stable version. For work code, choose stability over the bleeding-edge latest
+- When you're juggling projects and Node version differences become a problem, bring in volta
+
+</SummaryBox>

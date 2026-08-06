@@ -1,0 +1,186 @@
+---
+title: Build your first component
+minutes: 8
+slug: first-component
+section: components
+description: "A component is a function that returns JSX. PascalCase names, export and import, calling it with <YourOwnTag />. The trap where writing it lowercase makes it an HTML tag."
+level: beginner
+prerequisites: ['components/jsx']
+---
+
+<LearnBox>
+
+- A component = a function that returns JSX
+- Why the name starts with a capital letter (PascalCase)
+- Using a part you built from another file (export / import)
+
+</LearnBox>
+
+## A component is "a function that returns JSX" {#what}
+
+What a component really is is very simple: **a function that returns JSX**, and that's it. You wrote plenty of functions in Part 2, so the only new thing here is that "what it returns is JSX."
+
+Let's actually build the product-card part. Inside `my-shop`, we create a new file dedicated to the part. Our way is to **split each part into its own dedicated folder and file** (we'll cover folder structure in detail in a later part).
+
+```tsx title="src/components/ProductCard/ProductCard.tsx (new file, full)"
+export function ProductCard() {
+  return (
+    <article>
+      <h3>Stainless steel saucepan 18cm</h3>
+      <p>3,200 yen</p>
+    </article>
+  )
+}
+```
+
+Let's break down the first line.
+
+```tsx
+export function ProductCard() {
+//     ↑        ↑
+//     │        └─ the part's name. Must start with a capital (PascalCase)
+//     └─ just a function that returns JSX
+```
+
+The leading `export` is the mark that says "make this usable from outside files" (a named export, Part 2). So a component is nothing more than **"an `export`ed function that returns JSX."** The `ProductCard` function returns the JSX for a product card. That gives us one "product card" part. The contents are still hard-coded, but on the next page we'll make it able to receive values.
+
+## Start the name with a capital (PascalCase) {#naming}
+
+A component's name **must start with a capital letter** (writing the first letter of each word in capitals, like `ProductCard`, is called PascalCase). This isn't a stylistic preference -- it's a **React rule**.
+
+The reason is that React decides "is this a custom part or just an HTML tag?" from the first letter of the name. It's settled that **starts with a capital = custom component, starts with lowercase = HTML tag**.
+
+## Use the part you built (import it and call it with `<Tag />`) {#use}
+
+You use a part you built by **importing it in the file you want to use it in and calling it in `<Tag />` form**. The import / export from Part 2 works as-is. Let's use it in `App.tsx`.
+
+```tsx title="src/App.tsx"
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+function App() {
+  return (
+    <div>
+      <h1>Product list app</h1>
+      <ProductCard />
+    </div>
+  )
+}
+
+export default App
+```
+
+Just writing `<ProductCard />` displays the card you built a moment ago. And **you can line it up any number of times** -- write `<ProductCard />` on three lines and you get three cards (with the same contents). That's what "combining parts" means.
+
+<JsNote feature="<ProductCard /> is the same as calling a function">
+
+`<ProductCard />` may look like an HTML tag, but it actually calls the `ProductCard()` function and injects its return value (JSX) right there. So when you want to change what's inside, you pass values to the function (props, on the next page).
+
+</JsNote>
+
+## Break it on purpose: writing it lowercase makes it an HTML tag {#break-lowercase}
+
+Let's see what happens when you break the "starts with a capital" rule. We'll name the part lowercase `productCard` and call it.
+
+```tsx
+function productCard() {
+  return <p>Card</p>
+}
+
+function App() {
+  return <productcard />
+}
+```
+
+It doesn't stop with an error, but **nothing shows up on screen**. Depending on your editor, you might see a warning like this.
+
+```
+The tag <productcard> is unrecognized in this browser.
+```
+
+React interpreted `<productcard />` not as "a custom part" but as "an HTML tag named `productcard`." No such HTML tag exists, so nothing displays. **When "I placed a part but the screen is blank," suspect that the name doesn't start with a capital.** Fix it to `ProductCard` and it displays.
+
+<Together
+  task="Build a brand-new component called Price that displays only the price. The contents can be fixed, like <p>3,200 yen</p>. Watch out for how you name it."
+  hint="The form export function Price() { return <p>3,200 yen</p> }. Start the name with a capital."
+>
+
+```tsx title="src/components/Price/Price.tsx (new file)"
+export function Price() {
+  return <p>3,200 yen</p>
+}
+```
+
+Because `Price` starts with a capital, React recognizes it as a custom part. The user side does `import { Price } from './components/Price/Price'` and then calls it with `<Price />`. If you make it `price` (lowercase), it's treated as an HTML tag and won't display.
+
+</Together>
+
+## Syntax catalog: how to use a part {#catalog}
+
+Here's a summary of how to call the part you built and how to bring it in.
+
+```tsx
+// self-closing (no children)
+<ProductCard />
+
+// open and close (when passing children as contents)
+<Card>this is the contents</Card>
+
+// line it up any number of times
+<ProductCard />
+<ProductCard />
+
+// import a named export with { }
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+// import a default export without { } (App.tsx is one of these)
+import App from './App'
+```
+
+A capital-initial tag = calling a custom part. If there are no contents, self-close it as `<ProductCard />`.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="using function productCard() … as <productcard />"
+  good="using function ProductCard() … as <ProductCard />"
+  note="Components start with a capital. Lowercase is treated as an HTML tag and won't display."
+/>
+
+<Diff
+  bad="<ProductCard> (forgot to close)"
+  good="<ProductCard />"
+  note="A custom tag with no contents closes with / at the end."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Put each component in its own dedicated folder and write it as a named export (export function Xxx)"
+  alt="Make it a default export only where routing requires one, such as the top of a whole page (App.tsx is that example). Otherwise, unify on named exports."
+>
+
+Split by part, like `src/components/ProductCard/ProductCard.tsx`. That way you can later put styles (`.module.scss`) and tests in the same folder. Unify exports on named ones -- with `import { ProductCard }`, the name of the contents is visible as-is, so mix-ups drop.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **Placed a part but the screen is blank** ... check that the name starts with a capital (`ProductCard`) and that you closed it as `<ProductCard />`.
+- **`does not provide an export named 'ProductCard'`** ... a mismatch between export / import (see import and export in Part 2). For a named export, bring it in with `{ }`.
+- **`ProductCard is not defined`** ... you forgot to write the import. Import it at the top of the file that uses it.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Start the name with a capital (ProductCard). React distinguishes lowercase-initial as an HTML tag and capital-initial as a custom component, so lowercase won't display.">
+
+You used your custom `productCard` as `<productcard />` and nothing shows up. What should you fix?
+
+</Exercise>
+
+<SummaryBox>
+
+- A component is "a function that returns JSX." The name must always start with a capital (PascalCase)
+- Starting with lowercase is treated as an HTML tag and won't display
+- Use a part you built by `import`ing it and using it in `<ProductCard />` form. You can line it up any number of times
+
+</SummaryBox>

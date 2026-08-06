@@ -1,0 +1,81 @@
+---
+title: Goal of this part
+minutes: 5
+slug: components-goal
+section: components
+description: "By the end of this part you'll be able to build a product card, lay them out in a list with map, and switch what shows based on stock. You'll get a feel for building screens out of parts in React."
+level: beginner
+prerequisites: ['javascript/not-yet']
+---
+
+import { ProductListDemo } from '@/demos/ProductList'
+
+<PartIntro>
+
+From here, we finally **build screens with React**. You laid the JavaScript groundwork through Part 2, so we'll put that knowledge straight to work.
+
+The project on your machine is `my-shop`. We start from the blank state you left it in at the end of Part 1 -- `App.tsx` with just a single heading. If yours looks different, go back to the last page of Part 1 and get it matching.
+
+```
+my-shop/
+├─ src/
+│  ├─ App.tsx      ← just <h1>Product list app</h1>
+│  ├─ main.tsx     ← untouched (the startup entry point)
+│  └─ index.css    ← minimal
+├─ index.html
+└─ package.json
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- React's idea of "building a screen out of parts (components)"
+- What you'll be able to build by the end of this part
+- How this part is structured
+
+</LearnBox>
+
+## See the finished product first {#goal}
+
+The goal of this part is a **product list** like the one below. It isn't one giant slab of HTML -- it's **six copies of a "product card" part lined up**.
+
+<Demo title="Product list (the goal of this part)">
+  <ProductListDemo />
+</Demo>
+
+Cards of the same shape are lined up, one per product. In React, you **build the card as a single part** and then **repeat it** as many times as you have data. That's a shift in mindset from hand-assembling an LP one page at a time.
+
+## React "builds screens by combining parts" {#idea}
+
+React's core idea is to **split a screen into small parts and combine them**. Buttons, product cards, search boxes... you build each one as an independent part (a **component**) and assemble them like Lego into a single screen.
+
+<Callout type="analogy">
+
+Think back to PHP's `include` that you used for LP work (putting the header and footer in separate files and pulling them in). React takes that further and **turns even a single button or a single card into a part**. On top of that, you can pass values to a part (the "arguments" of `include`) to change what's inside.
+
+</Callout>
+
+Once you've built a part, **you only fix it in one place**. Want to move the price on every card? Just fix the card part once. Even with 100 cards, the change applies to all of them. That's the decisive difference from hand-copying the same look over and over.
+
+## How this part is structured {#roadmap}
+
+Working top to bottom, we'll assemble the parts little by little.
+
+1. **JSX** -- the mechanism for writing HTML-like markup inside React.
+2. **Your first component** -- build one part and put it on screen.
+3. **props** -- pass values to a part to change what's inside.
+4. **Rendering a list (map)** -- lay out a part once per piece of data. The `key` story.
+5. **Conditional rendering** -- change what shows based on things like stock.
+6. **Events** -- respond to clicks.
+7. **Reuse (variants)** -- gather look-and-feel variations into one part.
+
+By the end, you'll be able to assemble a list like the demo at the top with your own hands.
+
+<SummaryBox>
+
+- React is a tool for "splitting a screen into parts (components) and assembling them"
+- Build a part once and reuse it repeatedly; you only fix it in one place
+- The goal of this part is to build a product card, lay it out in a list, and switch the display based on stock
+
+</SummaryBox>

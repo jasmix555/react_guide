@@ -1,0 +1,78 @@
+---
+title: How to open the terminal
+minutes: 6
+slug: setup-terminal
+section: setup
+description: "React work starts from the terminal. How to open it on Windows and Mac, and your very first keystroke."
+level: beginner
+prerequisites: ['setup/goal']
+---
+
+<LearnBox>
+
+- What the terminal is (so the black screen stops being scary)
+- How to open it on Windows and on Mac
+- Checking where you are right now (the current directory) and moving around
+
+</LearnBox>
+
+Creating a React project, starting it up, adding libraries — you do all of it by typing text into the **terminal**. You hardly used it in LP work, so you might tense up, but all you're doing is "type the set text and press Enter."
+
+## What the terminal is {#what}
+
+The terminal is **a screen where you command your PC with text instead of clicking with the mouse**. You type commands like "create a project in this folder" or "start the server" one line at a time and run them.
+
+## Opening it on Windows {#windows}
+
+Windows has a few kinds of black screen, but **using VS Code's integrated terminal is the easiest**. The editor and the terminal sit side by side on the same screen, so you don't have to go back and forth. Start with this (how to install VS Code is covered on a later page).
+
+With VS Code open, choose **Terminal → New Terminal** from the top menu (or `Ctrl` + `@` = the `@` key without pressing Shift). A terminal opens in the bottom half of the screen.
+
+If you want to open it standalone without VS Code, search for "**PowerShell**" in the Start menu and launch it.
+
+<Callout type="note">
+
+Windows has both "Command Prompt (cmd)" and "PowerShell." This guide standardizes on **PowerShell**. To tell them apart: if the start of the line begins with **`PS`**, like `PS C:\Users\...>`, it's PowerShell.
+
+</Callout>
+
+## Opening it on Mac {#mac}
+
+Press `command` + `Space` to open Spotlight, type "Terminal," and press `Enter`. Or, just like on Windows, you can use VS Code's integrated terminal.
+
+## Where you are now, and where to move to {#navigate}
+
+The terminal always holds a state of "I'm in this folder right now." If you can keep this in mind before creating a project, you won't get lost.
+
+To show where you are, type the following and press `Enter`.
+
+```bash
+# On Windows (PowerShell) and Mac alike, this shows your current location
+pwd
+```
+
+The path of the folder you're currently in, like `C:\Users\yourname`, is shown. To move to another folder, use `cd` (change directory).
+
+```bash
+# Example of moving to the Desktop
+cd Desktop
+```
+
+<Callout type="analogy">
+
+`cd` is just doing, with text, the same thing as double-clicking a folder in Explorer or Finder to go inside it.
+
+</Callout>
+
+## When things don't work {#trouble}
+
+- **The integrated terminal doesn't open when I press `@`** … the position of symbols differs by keyboard. Opening it from the menu's "Terminal → New Terminal" is a sure thing.
+- **`cd` says "no such path"** … check where you are (`pwd`) and the name of the destination folder (including uppercase/lowercase). Folder names with Japanese characters or spaces tend to cause trouble later, so it's safest to avoid them.
+
+<SummaryBox>
+
+- The terminal is "a screen where you command your PC with text." All you do is type the set text and press Enter
+- On Windows, VS Code's integrated terminal (= PowerShell) is the easiest
+- `pwd` for your current location, `cd` to move. Create projects in a location with an alphanumeric folder name
+
+</SummaryBox>

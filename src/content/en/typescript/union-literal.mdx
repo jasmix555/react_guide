@@ -1,0 +1,126 @@
+---
+title: union and literal types
+minutes: 8
+slug: union-literal
+section: typescript
+description: "Express 'exactly one of these' with a literal union like 'a' | 'b'. Handling X or null, and narrowing a type with if."
+level: beginner
+prerequisites: ['typescript/typing-props']
+---
+
+<LearnBox>
+
+- Literal types and unions (`'a' | 'b'` = "exactly one of these")
+- Expressing "a value, or nothing" like `X | null`
+- Narrowing a type with `if`
+
+</LearnBox>
+
+## Literal types: allow only specific values {#literal}
+
+`string` is "any string at all," but sometimes you want to limit it to **only specific strings** — like `variant` only being allowed to hold `'primary'` or `'secondary'`. For that, you make the value itself into a type (a literal type).
+
+```ts
+type Variant = 'primary' | 'secondary' | 'ghost'
+```
+
+```ts
+type Variant = 'primary' | 'secondary' | 'ghost'
+//             ↑           ↑
+//             │           └─ | means "or"
+//             └─ exactly one of these three strings
+```
+
+`|` means "or." A variable of type `Variant` can't hold anything outside these three. This is what you used on the [button-variants page](/guide/components/button-variants).
+
+## union types: one of several {#union}
+
+You can join more than just strings with `|` — you can join types together too. You can express **one of several types**, like "`string` or `number`" or "`Product` or `null`." This is called a union type.
+
+```ts
+type Id = string | number // string or number
+```
+
+A common one in React is **`X | null`**. It expresses state like "`null` if nothing is chosen yet, `Product` once chosen."
+
+```tsx
+// the currently selected product; null if none yet
+const [selected, setSelected] = useState<Product | null>(null)
+```
+
+## narrowing: narrow the type with if {#narrowing}
+
+A union like `Product | null` can't have its contents used as-is (it might be `null`). When you check it with `if`, TypeScript **narrows the type beyond that point** for you. This is called narrowing.
+
+```tsx
+function label(selected: Product | null): string {
+  if (selected === null) {
+    return 'Not selected'
+  }
+  // from here on, selected is narrowed to Product (not null)
+  return selected.name
+}
+```
+
+After passing through `if (selected === null) return ...`, TypeScript knows "`selected` is no longer `null` — it's a `Product`," so you can safely write `selected.name`.
+
+## Break it on purpose: pass a value that isn't in the union {#break}
+
+Let's watch a literal union do its job. We'll assign a value that isn't in the `'primary' | 'secondary'` type.
+
+```ts title="A value not in the union"
+type Variant = 'primary' | 'secondary'
+
+const v: Variant = 'primani' // ← typo
+```
+
+A red squiggle appears on `'primani'`, saying:
+
+```
+Type '"primani"' is not assignable to type 'Variant'.
+```
+
+"`'primani'` can't go into `Variant` (either primary or secondary)." Fix the spelling and it disappears. If the type had been `string`, this typo would have slipped right through.
+
+## Syntax catalog: union and literals {#catalog}
+
+```ts
+type Variant = 'primary' | 'secondary' // literal union
+type Id = string | number // union of types
+type Nullable = Product | null // value or nothing
+
+// narrowing
+function f(x: string | null) {
+  if (x === null) return 0
+  return x.length // here x is string
+}
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Making variant a string type"
+  good="Making variant a literal union 'primary' | 'secondary'"
+  note="With string, typos slip through. A literal union fixes the choices and even enables autocomplete."
+/>
+
+## When things go wrong {#trouble}
+
+- **`'X' is possibly 'null'`** … You're using the contents of `X | null` without a `null` check. Narrow it with `if (x === null)` first.
+- **The literal isn't working** … Check that the type hasn't become `string`. To fix the choices, write `'a' | 'b'`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write useState<Product | null>(null). Represent the not-yet-chosen state with null, and a Product goes in once chosen. When using it, narrow with if (selected === null) before reading selected.name and the like.">
+
+How would you write the type of a state that holds "the currently selected product (nothing if none yet)"? Note the point to watch when using it.
+
+</Exercise>
+
+<SummaryBox>
+
+- The literal union `'a' | 'b'` is "exactly one of specific values." It fixes the choices and enables autocomplete
+- `X | null` is "a value, or nothing." Common in React state
+- Narrow a union with `if` (narrowing), and beyond that point you can use the contents safely
+
+</SummaryBox>

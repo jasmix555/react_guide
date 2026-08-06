@@ -3,10 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ProgressRing } from '@/components/ProgressRing'
-import { strings } from '@/config/strings.ja'
+import { useLocale, useStrings } from '@/hooks/useLocale'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { useReadProgress } from '@/hooks/useReadProgress'
-import { tabsNav } from '@/lib/nav'
+import { getTabs } from '@/lib/nav'
 import type { BuiltGroup, BuiltPage, BuiltPart, BuiltTab } from '@/types/nav'
 import { isBuiltGroup } from '@/types/nav'
 
@@ -31,6 +31,8 @@ interface SidebarProps {
  * Scroll-spy highlights the active section in both the sidebar and the TOC.
  */
 export function Sidebar({ tab, currentRoute, activeHeading, onNavigate }: SidebarProps) {
+  const locale = useLocale()
+  const strings = useStrings()
   const [openState, setOpenState] = useLocalStorage<Record<string, boolean>>(
     'sidebar-open',
     {},
@@ -97,7 +99,7 @@ export function Sidebar({ tab, currentRoute, activeHeading, onNavigate }: Sideba
           <Link
             to={page.href}
             className={clsx(styles.pageLink, isCurrent && styles.pageActive)}
-            title={page.minutes != null ? `約 ${page.minutes} 分` : undefined}
+            title={page.minutes != null ? strings.page.readingShort(page.minutes) : undefined}
             onClick={onNavigate}
           >
             {page.title}
@@ -106,7 +108,7 @@ export function Sidebar({ tab, currentRoute, activeHeading, onNavigate }: Sideba
             <button
               type="button"
               className={styles.peek}
-              aria-label={`${page.title} のセクション`}
+              aria-label={`${page.title} ${strings.nav.sectionsSuffix}`}
               aria-expanded={peeked.has(page.route)}
               onClick={() => togglePeek(page.route)}
             >
@@ -139,11 +141,11 @@ export function Sidebar({ tab, currentRoute, activeHeading, onNavigate }: Sideba
   }
 
   return (
-    <nav className={styles.sidebar} aria-label="ガイドの目次">
+    <nav className={styles.sidebar} aria-label={strings.nav.guideToc}>
       {/* Drawer-only: the top-bar tabs are hidden on mobile, so surface the
           section switcher here or there's no way off the current tab. */}
       <div className={styles.tabSwitch}>
-        {tabsNav.map((t) => (
+        {getTabs(locale).map((t) => (
           <Link
             key={t.id}
             to={t.pages[0]?.href ?? t.basePath}

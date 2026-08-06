@@ -1,0 +1,130 @@
+---
+title: Set up the router
+minutes: 9
+slug: setup-router
+section: routing
+description: "Register 'this screen for this URL' with createBrowserRouter, then pass it to RouterProvider in main.tsx. Lay the foundation for SPA routing."
+level: beginner
+prerequisites: ['routing/goal']
+---
+
+<LearnBox>
+
+- Register the "URL → screen" mapping with `createBrowserRouter`
+- Pass it to `RouterProvider` in `main.tsx` so the whole app can use it
+- Why `<Link>` and friends won't work without a router
+
+</LearnBox>
+
+## First, install react-router {#install}
+
+If you haven't installed it yet, add it to `my-shop` (see [Installing react-router](/libraries/react-router) for details).
+
+```bash
+npm install react-router-dom
+```
+
+## Register "URL → screen" {#config}
+
+The heart of routing is **a list of "which screen (component) to show for which URL."** You pass that mapping to `createBrowserRouter` as an array.
+
+```tsx
+import { createBrowserRouter } from 'react-router-dom'
+
+import { ProductListPage } from './pages/ProductListPage'
+
+const router = createBrowserRouter([
+  { path: '/', element: <ProductListPage /> },
+])
+```
+
+Let's break down one entry.
+
+```tsx
+{ path: '/', element: <ProductListPage /> }
+//  ↑           ↑
+//  │           └─ the component to display at that URL
+//  └─ the URL path ('/' is the top page)
+```
+
+It means "when `/` is opened, show `<ProductListPage />`." As you add pages, you keep adding to this array.
+
+## Pass it to RouterProvider in main.tsx {#provider}
+
+Pass the router you built to `RouterProvider` at the very outside of your app. This lets the whole app use routing. Here's what `src/main.tsx` becomes.
+
+```tsx title="src/main.tsx (full file)"
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+
+import { ProductListPage } from './pages/ProductListPage'
+import './styles/tokens.scss'
+
+const router = createBrowserRouter([
+  { path: '/', element: <ProductListPage /> },
+])
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <RouterProvider router={router} />
+  </StrictMode>,
+)
+```
+
+The spot that used to render `<App />` is now `<RouterProvider router={router} />`. **From here on, the router is in charge of deciding which screen to show.**
+
+<Callout type="note" title="What happens to App.tsx?">
+
+It's natural to move the list contents out of `App.tsx` into `pages/ProductListPage.tsx` (pages are easier to organize when they live in `pages/`). Just move the contents (`products.map(...)`) over as-is.
+
+</Callout>
+
+## Break it on purpose: use Link outside the router {#break}
+
+Let's see why we wrap things in `RouterProvider`. If you don't wrap and use a `<Link>` somewhere, you'll get this.
+
+```
+useHref() may be used only in the context of a <Router> component.
+```
+
+It means "`<Link>` (which uses `useHref` internally) can only be used inside a `<Router>`." Routing features like `<Link>` and `useParams` only work **inside `RouterProvider`**. That's why we wrap at the very outside.
+
+## Syntax catalog: registering routes {#catalog}
+
+```tsx
+const router = createBrowserRouter([
+  { path: '/', element: <ProductListPage /> }, // top
+  { path: '/favorites', element: <FavoritesPage /> }, // favorites
+  { path: '/product/:id', element: <ProductDetailPage /> }, // detail (:id is on the next page)
+])
+```
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="Render <RouterProvider> inside App.tsx and also render the list within it"
+  good="Render only <RouterProvider router={router} /> at the very outside of main.tsx"
+  note="Routing goes at the app's outermost level, once. The screen contents belong to each page you registered as a route."
+/>
+
+## When things don't work {#trouble}
+
+- **`useHref() may be used only in the context of a <Router>`** … You're using `<Link>` or similar outside `RouterProvider`. Wrap at the outermost level.
+- **Blank screen** … Check the spelling of `path` (`/`) and the import of the component you pass to `element`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Add { path: '/favorites', element: <FavoritesPage /> } to the array passed to createBrowserRouter. path is the URL, and element is the component shown at that URL.">
+
+When you want opening `/favorites` to show `<FavoritesPage />`, how do you add it to the route registration?
+
+</Exercise>
+
+<SummaryBox>
+
+- Register "URL → screen" with `createBrowserRouter([{ path, element }])`
+- Pass it to `RouterProvider router={router}` at the outermost level of `main.tsx`
+- `<Link>` and `useParams` only work inside `RouterProvider`
+
+</SummaryBox>

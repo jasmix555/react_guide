@@ -1,0 +1,232 @@
+---
+title: Reference vs copy
+minutes: 11
+slug: reference-vs-copy
+section: javascript
+description: "Numbers and strings are copied, but arrays and objects are shared. The trap where the original changes when you thought you copied it, and how to fix it."
+level: beginner
+prerequisites: ['javascript/spread-rest']
+---
+
+<LearnBox>
+
+- Numbers and strings are "copied" (they become separate things)
+- Arrays and objects are "shared" (they point to the same thing)
+- The "I thought I copied it, but the original changed too" bug, and how to fix it
+
+</LearnBox>
+
+## Why this page prevents the most bugs {#why}
+
+"I put A into variable B and thought I only changed B, but A changed too" — even experienced developers step on this bug about once a week. The cause is that JavaScript **handles values differently** depending on their kind. Understanding this also makes React's "why do we create a new object every time" click. It's a bit abstract, but you'll definitely get it if you follow along hands-on.
+
+## There are 2 kinds of values {#two-kinds}
+
+JavaScript values split broadly into 2 kinds.
+
+- **Primitives**: numbers, strings, booleans, `null`, `undefined`. They carry **the contents themselves**.
+- **Objects**: objects `{}` and arrays `[]`. They carry **the "location (address)" of the contents**.
+
+This difference between "the contents themselves" and "the address" is what splits the result of copying.
+
+## Primitives are copied {#primitive}
+
+When you put a number or a string into another variable, **the contents are duplicated whole**. Changing one has nothing to do with the other.
+
+```js
+let a = 100
+let b = a // 100 is copied
+b = 200
+
+console.log(a) // 100 (a is unchanged)
+console.log(b) // 200
+```
+
+Setting `b` to `200` leaves `a` as `100`. Because a number carries "the contents themselves", `b` became a completely separate thing. This is intuitive.
+
+## Objects are shared {#object}
+
+Here's the problem. Even when you put an object or array into another variable, **the contents aren't duplicated**. Both just **point to the same single contents**.
+
+```js
+const a = { price: 100 }
+const b = a // "the address of the same location" is copied (there's only 1 set of contents)
+
+b.price = 200
+
+console.log(a.price) // 200  ← a changed too!
+```
+
+Let's break "sharing" and "copying" into parts and compare.
+
+```js
+const b = a
+//    ↑   ↑
+//    │   └─ if a is an array/object, this just passes "the address of the contents" (shared)
+//    └─ b points to the same single contents as a
+
+const b = { ...a }
+//    ↑   ↑
+//    │   └─ ... spreads the contents into a "new box"
+//    └─ b is an independent copy. Changing it doesn't affect a
+```
+
+- **`const b = a`** (when `a` is an object/array) … **shared**. It just points to the same contents. Changing one changes both
+- **`const b = { ...a }` / `[...a]`** … **copy**. A separate box with the contents spread out. Independent
+- Primitives (numbers, strings) are duplicated even with `const b = a` (no sharing happens)
+
+We changed `b.price`, yet `a.price` also became `200`. That's because `const b = a` didn't duplicate the contents — it just handed **the address of the same object** to `b` as well. `a` and `b` point to the same single box under different names.
+
+<Callout type="analogy">
+
+A primitive is "copying a number written on paper and handing it over" — even if the other person rewrites it, your paper is safe. An object is "telling someone the **location** of one notebook" — since both of you look at the same notebook, whatever either writes shows up for both.
+
+</Callout>
+
+<JsNote feature="reference = the address of the contents">
+
+With `const b = a` (when `a` is an object), what goes into `b` is not the contents but "the address of where the contents are". This is called a **reference**. Since `a` and `b` point to the same address, rewriting from either side changes the same contents.
+
+</JsNote>
+
+## Break it on purpose: the original changes when you thought you copied it {#break-shared}
+
+Let's see it in the shape of a real bug. This is code meant to "keep the original product and make a discounted version".
+
+```js
+const original = { name: 'Tomato', price: 100 }
+
+const sale = original // thought this was a copy
+sale.price = 80
+
+console.log(sale.price) // 80
+console.log(original.price) // 80  ← the original got discounted too!
+```
+
+We only wanted to discount `sale`, but `original` became `80` too. No error is thrown. It's because `sale` and `original` pointed to the same box. This is the "I thought I copied it" bug.
+
+## The fix: make a new box {#fix}
+
+When you really want to copy, make a **new box with the contents spread out** using `{...}` or `[...]` from the spread page.
+
+```js
+const original = { name: 'Tomato', price: 100 }
+
+const sale = { ...original } // a "separate box" with the contents spread out
+sale.price = 80
+
+console.log(sale.price) // 80
+console.log(original.price) // 100  ← the original is safe!
+```
+
+`{ ...original }` re-spreads `original`'s contents into a new object. Since `sale` became a separate box, changing it doesn't affect `original`. For an array it's `[...original]`. Connect "I want to safely copy an object or array" with "make a new one with spread".
+
+<Callout type="warn">
+
+`const b = a` (when `a` is an object or array) is not a copy but a **share**. Changing one changes both. When you want an independent copy, make a new one with `{...a}` / `[...a]`.
+
+</Callout>
+
+## The connection to React {#react}
+
+The reason React says "when you update state, create a new object or array" is this mechanism. Even if you rewrite the contents of the same box, the box (address) stays the same, so React judges "nothing changed" and doesn't update the screen. Only when you pass a **separate box** with `{...}` or `[...]` does it notice "this became a different thing = redraw it". We'll cover this in detail in the state part, but the root is this page.
+
+<Together
+  task="When you put array a = [1, 2, 3] straight into b and do b.push(4), predict what happens to a, then confirm in the console. Next, make a new array with 4 added without breaking a."
+  hint="const b = a is sharing. To make it independent, const b = [...a]."
+>
+
+```js
+const a = [1, 2, 3]
+const b = a
+b.push(4)
+console.log(a) // [1, 2, 3, 4]  ← a changes too (because it's shared)
+
+// Add without breaking: make a new array
+const a2 = [1, 2, 3]
+const b2 = [...a2, 4]
+console.log(a2) // [1, 2, 3] (safe)
+console.log(b2) // [1, 2, 3, 4]
+```
+
+`const b = a` points to the same array, so `b.push(4)` shows up in `a` too. `[...a2, 4]` makes a new array, and `a2` is untouched.
+
+</Together>
+
+## For those who want to know more {#deeper}
+
+<Deeper title="Shallow copy: the contents of nested items aren't duplicated">
+
+`{...original}` makes only **the outermost layer** new (a shallow copy). If there's a nested object inside, that nested object is **still shared**.
+
+```js
+const a = { name: 'Tomato', detail: { stock: 10 } }
+const b = { ...a }
+b.detail.stock = 0
+console.log(a.detail.stock) // 0  ← the nested part is shared
+```
+
+In our usual standard, we keep state shallow rather than "deeply nested", so this rarely causes trouble. If you do need a deep copy, either `{...}` each of those layers individually, or consider a dedicated library (for now, it's enough to just remember that the term "shallow copy" exists).
+
+</Deeper>
+
+## Writing catalog: ways to copy {#catalog}
+
+When you want to "change an object or array while keeping the original", always make a new box. Here are the common forms.
+
+```js
+const b = a                           // shared (watch out if a is an object/array)
+const obj2 = { ...obj }               // shallow-copy an object
+const arr2 = [...arr]                 // shallow-copy an array
+const next = [...arr, x]              // copy while appending to the end
+const updated = { ...obj, price: 80 } // copy while overwriting part
+const n2 = n                          // a number is independent as-is (it's copied)
+```
+
+Only `const b = a` is "sharing"; the rest make a new box, a "copy". React's state updates are also built on this "make a new one".
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="const copy = product; copy.price = 80"
+  good="const copy = { ...product }; copy.price = 80"
+  note="const copy = product is sharing. Changing it changes the original. Make a new box with {...}."
+/>
+
+<Diff
+  bad="const next = items; next.push(x)"
+  good="const next = [...items, x]"
+  note="Arrays are the same. Putting it in as-is shares it. Make a new array with spread."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="When you want to 'change an object or array but keep the original', always make a new one with {...} / [...] before changing it"
+  alt="Situations where you intentionally 'want to point to the same thing' (like referencing the same config in multiple places) are fine to share. What matters is being able to tell them apart."
+>
+
+Know that `const b = a` (an object or array) is sharing, and when you want an independent copy, `{...a}` / `[...a]`. Just following this one point prevents both the "I thought I copied it and the original broke" bug and React's "I updated it but the screen didn't change" bug — all at once.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **I changed only one, but the other changed too** … you're sharing with `const b = a`. Make a new one with `{...a}` / `[...a]` before changing it.
+- **I copied with `{...}`, but only the nested part changes the original too** … that's because it's a shallow copy. Make that nested part new individually as well (see the deeper dive).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Since it's a number, b is an independent copy and a stays 10. Primitives (numbers, strings, booleans) have their contents copied, so no sharing bug happens. Sharing only happens with objects and arrays.">
+
+Given `let a = 10; let b = a; b = 99`, what is `a`? Try explaining why the result differs from the object case.
+
+</Exercise>
+
+<SummaryBox>
+
+- Primitives (numbers, strings, booleans) are copied. Changing one has nothing to do with the other
+- Objects and arrays are shared (they point to the same address). Rewriting one changes both
+- When you want an independent copy, make a new box with `{...obj}` / `[...arr]`. This is also why React wants a new container
+
+</SummaryBox>

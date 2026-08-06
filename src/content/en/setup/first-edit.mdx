@@ -1,0 +1,109 @@
+---
+title: Your first edit (HMR)
+minutes: 8
+slug: setup-first-edit
+section: setup
+description: "Make a tiny change to App.tsx and feel HMR update the screen the instant you save. Break it on purpose, then fix it."
+level: beginner
+prerequisites: ['setup/generated-files']
+---
+
+<LearnBox>
+
+- Rewrite App.tsx yourself and feel the screen change
+- What HMR (the mechanism that reflects changes the instant you save) is
+- Cause an error on purpose and get comfortable reading it
+
+</LearnBox>
+
+Now you'll finally touch code yourself. The sample App.tsx has a lot of decoration and is hard to follow as a whole, so **first we'll replace all of it with something short**, then change some text, save, and watch the moment the screen changes. Please leave `npm run dev` running.
+
+## Step 1: Shrink App.tsx {#step-shrink}
+
+Open `src/App.tsx`, **delete the entire contents, and replace them with this**.
+
+```tsx title="src/App.tsx (replace entirely / new file)"
+function App() {
+  return <h1>My first React</h1>
+}
+
+export default App
+```
+
+Save it (`Ctrl` + `S`). Look at the browser and the purple sample from before should be gone, leaving a plain screen with **just the heading 'My first React'**. You might be surprised the decoration vanished, but this is normal. This small state is nice and easy to work with right now.
+
+<Callout type="note">
+
+Because we removed the line that loads `App.css`, the decorative CSS came off too. That's why the screen looks plain — nothing is broken.
+
+</Callout>
+
+## Step 2: Change the text and save {#step-edit}
+
+Next, let's change the heading text. Rewrite `My first React` to `Product list app`.
+
+```tsx title="src/App.tsx (edit / change)"
+function App() {
+  return <h1>Product list app</h1>
+}
+
+export default App
+```
+
+Save it. **You don't need to switch to the browser.** The instant you save, the heading in the browser switches to 'Product list app'. It changes even though you didn't reload.
+
+## What HMR is {#hmr}
+
+This mechanism where 'the instant you save, it's reflected on screen without a reload' is called **HMR (Hot Module Replacement)**. It's Vite's headline feature.
+
+When building LPs, you had to reload the browser by hand every time you fixed the CSS. With HMR, **saving = instant reflection**. On top of that, it swaps things in while keeping state — like the value of a half-filled form — as much as possible. This speed is a big part of what makes React development feel good.
+
+## Break it on purpose: remove export and the screen goes blank {#break-export}
+
+Errors aren't the enemy — they're a map. Let's cause one on purpose and get used to reading it. Delete the last line, `export default App`, and save.
+
+```tsx title="src/App.tsx (break on purpose — remove export)"
+function App() {
+  return <h1>Product list app</h1>
+}
+
+// export default App  ← delete this line and save
+```
+
+When you save, the screen goes blank, and the browser console (open it with `F12`) shows this.
+
+```
+Uncaught SyntaxError: The requested module '/src/App.tsx'
+does not provide an export named 'default'
+```
+
+Here's what it means. `main.tsx` receives App with the form `import App from './App.tsx'`. This form is a promise to receive '**whatever App.tsx sends out with `export default`**'. Since you deleted that `export default`, it complains that 'there's nothing sent out under the name default'.
+
+Put the deleted line back and save, and the screen comes back.
+
+```tsx title="src/App.tsx (fix — restore export)"
+function App() {
+  return <h1>Product list app</h1>
+}
+
+export default App
+```
+
+<Callout type="analogy">
+
+`export default` is the nomination 'this is the representative of this file'. `import App from ...` is the receiving side saying 'give me that file's representative'. Delete the nomination, and the receiving side is stuck with 'there's no representative' — that was the error just now.
+
+</Callout>
+
+## When things go wrong {#trouble}
+
+- **It doesn't change even after saving** … check whether you're editing a different file, and whether the file actually saved (whether a '●' is still on the tab). Also check that `npm run dev` hasn't stopped.
+- **A red error screen (overlay) appeared** … it's often a syntax mistake. The error shows the file name and line number, so calmly look at that line. The trick is to read line 1 without closing it.
+
+<SummaryBox>
+
+- Replace App.tsx with something short, change the text and save, and the screen changes without a reload
+- This 'saving = instant reflection' is HMR — the real source of Vite's speed
+- Delete `export default` and you get `does not provide an export named 'default'` — a sign the nomination-and-receiving pairing broke
+
+</SummaryBox>

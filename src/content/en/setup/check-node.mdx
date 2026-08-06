@@ -1,0 +1,91 @@
+---
+title: Check whether it's installed
+minutes: 5
+slug: setup-check-node
+section: setup
+description: "Type node -v and npm -v to see whether Node.js is installed, and how to read that version."
+level: beginner
+prerequisites: ['setup/terminal']
+---
+
+<LearnBox>
+
+- Use `node -v` and `npm -v` to check whether it's installed
+- How to read text like the `v22.11.0` that gets printed
+- How to recognize the error shown when it's "not installed"
+
+</LearnBox>
+
+Some PCs already have Node.js installed, and some don't. Let's check first. **If it's installed, you can confirm it on this page and move on. If it isn't, you'll install it on the next page.**
+
+## Step 1: Show the version {#step-node}
+
+Type the following into the terminal and press `Enter`.
+
+```bash
+node -v
+```
+
+If it's installed, this is what you'll see (the numbers change depending on your environment).
+
+```
+v22.11.0
+```
+
+This `v22.11.0` is the **version** of Node.js. You read it from left to right as **major.minor.patch**. Here, "major version 22" is the most important piece of information. If the **major is 20 or higher**, everything in this guide works as-is.
+
+## Step 2: Check npm too {#step-npm}
+
+Next, check npm as well.
+
+```bash
+npm -v
+```
+
+This comes out (the numbers may differ).
+
+```
+10.9.0
+```
+
+Since npm comes with Node.js, if `node -v` prints something, `npm -v` should too. Once both show a version, Node.js is installed. **You can skip page 5 of this part and go straight to page 6, "Why Vite."**
+
+## What it looks like when it's not installed {#not-installed}
+
+If Node.js isn't installed, you get an **error** back instead of a version. In Windows PowerShell, the wording is like this.
+
+```
+node : The term 'node' is not recognized as the name of a cmdlet, function,
+script file, or operable program.
+```
+
+On Mac, it's like this.
+
+```
+zsh: command not found: node
+```
+
+Both mean the same thing: "**the tool called node can't be found = it isn't installed**." If you see this message, you'll install Node.js on the next page, page 5.
+
+<Callout type="warn">
+
+`-v` must be a **half-width hyphen + lowercase v**. A full-width hyphen or an uppercase letter means something different and won't work. Copying and pasting is the sure way.
+
+</Callout>
+
+## What LTS is {#lts}
+
+When you install Node.js, you'll come across the word "**LTS**." **LTS (Long Term Support) = the stable version that's supported over a long period.** Rather than the latest experimental version, choosing this LTS is the standard. The reasons are covered on the next page.
+
+## When things don't work {#trouble}
+
+- **I just installed it but it still says "not recognized"** … after installing Node.js, you need to **close the open terminal once and reopen it**. If you type without closing it, it stays in the old state and can't be found.
+- **The version is old, like `v16`** … it will run, but this guide assumes 20 or higher. Reinstalling with the steps on the next page is the safe choice.
+
+<SummaryBox>
+
+- If both `node -v` and `npm -v` print a version, Node.js is installed
+- If the leftmost number (the major) in `v22.11.0` is 20 or higher, you're OK
+- If you get "not recognized / command not found," install it on the next page
+
+</SummaryBox>

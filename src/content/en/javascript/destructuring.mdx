@@ -1,0 +1,240 @@
+---
+title: Destructuring
+minutes: 12
+slug: destructuring
+section: javascript
+description: "The real story behind receiving props. From pulling values out of objects and arrays, to actually using it in React — hands-on."
+level: beginner
+prerequisites: ['setup/summary']
+---
+
+import { GreetingDemo } from '@/demos/GreetingDemo'
+
+<LearnBox>
+
+- How to pull just the values you need out of objects and arrays
+- What the `{ name }` in `function Greeting({ name })` is actually doing
+- Default values, renaming, and array destructuring (the shape `useState` uses)
+
+</LearnBox>
+
+## What we'll build on this page {#goal}
+
+On this page you'll learn to read and write `Greeting` yourself — a component that takes a name and a role and displays them. You line up the same single component and only change the values you pass in, and the part that "receives the values" is written with the **destructuring** you're about to learn. We'll check out the working card below, after you've seen the code.
+
+## Props arrive together as a single object {#why-props-object}
+
+A React component receives values from its parent. These values are called **props**, and **props arrive together as a single object**. So the first thing you need to do is pull the value you want out of that object. Destructuring is the syntax that makes pulling values out short and easy.
+
+<Callout type="analogy">
+
+Think back to passing variables into a PHP include. You'd take the incoming `$data` and pull things out with `$data['title']` — in React, we do all that "pulling out" at the moment we receive the props.
+
+</Callout>
+
+## Step 1: Pull values out of an object {#object}
+
+Let's step away from React first and confirm destructuring in plain JavaScript. Here's the smallest possible example of pulling values out of an object.
+
+```ts title="Destructuring an object" showLineNumbers
+const user = { name: 'Sato', role: 'Designer' }
+
+// The old way: one at a time
+const name1 = user.name
+
+// Destructuring: all at once
+const { name, role } = user
+```
+
+Here's what each line means:
+
+- **Line 1** — the original object. It has two keys, `name` and `role`.
+- **Line 4** — the old way of pulling a value out. You write `user.name`, one at a time.
+- **Line 7** — list key names inside `{ }` and variables with the same names are created all at once.
+
+After line 7, `name` holds `'Sato'` and `role` holds `'Designer'`. Think of `const { name, role } = user` as a one-line version of `const name = user.name; const role = user.role`.
+
+<JsNote feature="{ name, role } is destructuring">
+
+It's syntax for creating several variables at once, each named after a key of the object. `name` ends up with the same value as `user.name`. The `{ }` on the left side isn't creating an object — it's a symbol for "pull these out."
+
+</JsNote>
+
+## Step 2: Use it with React props {#in-react}
+
+Now for the main event. Props arrive as an object, so we destructure them right where we receive them. First, take a look at the **whole thing**. This is the finished `Greeting`.
+
+```tsx title="src/demos/GreetingDemo/Greeting.tsx (full file)"
+interface GreetingProps {
+  name: string
+  role?: string
+}
+
+export function Greeting({ name, role = 'Member' }: GreetingProps) {
+  return (
+    <div className="card">
+      <span>{name}</span>
+      <span>{role}</span>
+    </div>
+  )
+}
+```
+
+The part to focus on is line 6: `({ name, role = 'Member' }: GreetingProps)`. Here we destructure `name` and `role` out of the props object. The `name` we pulled out then gets displayed on screen by the `{name}` below.
+
+When you pass different names and roles to this `Greeting`, they line up like this (the third card doesn't pass a `role`, so the default "Member" shows instead).
+
+<Demo title="Greeting">
+  <GreetingDemo />
+</Demo>
+
+Comparisons make things clear, so let's also look at how you'd write this **without** destructuring.
+
+```tsx title="Without destructuring (for comparison)"
+export function Greeting(props: GreetingProps) {
+  return (
+    <div className="card">
+      <span>{props.name}</span>
+      <span>{props.role}</span>
+    </div>
+  )
+}
+```
+
+Here you write `props.name` and `props.role`, tacking on `props.` every time. It works the same, but in React it's **more common to destructure and drop the `props.`**.
+
+## Step 3: Default values and renaming {#defaults}
+
+The `= 'Member'` in `role = 'Member'` is a **default value**. When the parent doesn't pass a `role`, `role` becomes `'Member'`. The third card in the finished demo doesn't pass a role, so it showed the default "Member".
+
+When you want to rename, specify the new name after a colon.
+
+```ts title="Renaming"
+const { name: userName } = user // receive the value of user.name as a variable called userName
+```
+
+## Step 4: Arrays are pulled out "by position" {#array}
+
+Array destructuring uses `[ ]` and receives values by **order**, not by key name. You've actually seen this already — it's the return value of `useState`.
+
+```tsx title="How useState is received"
+const [count, setCount] = useState(0) // in the order [current value, updater function]
+```
+
+`useState(0)` returns "the value" and "the updater function" as an array **in this order**. So we receive them by position with `[count, setCount]`. The names are up to you, but **the order matters** (first is the value, second is the updater).
+
+Let's break array destructuring into pieces and label them too (the key point is receiving with `[ ]`).
+
+```tsx
+const [first, second] = arr
+//     ↑      ↑         ↑
+//     │      │         └─ the source array to pull from
+//     │      └─ the second element (arr[1])
+//     └─ the first element (arr[0]). name is your choice, position decides it
+```
+
+- **`[first, second]`** … receiving with `[ ]` pulls values out **by position (order)** (not by key name)
+- **`first`** … the first element (`arr[0]`). You can name it whatever you like
+- **`second`** … the second element (`arr[1]`)
+- The `[count, setCount]` of `useState` is exactly this. The order carries meaning
+
+## Break it on purpose: drop the braces and the object gets rendered directly {#break-no-braces}
+
+Let's experience what happens when you forget the `{ }` on props. We'll drop the `{ }` from `Greeting`'s parameter and end up receiving the whole `props` under the name `name`.
+
+```tsx title="Greeting.tsx (break it on purpose: drop the { })"
+export function Greeting(name: GreetingProps) {
+  return (
+    <div className="card">
+      <span>{name}</span> {/* name is the props object itself */}
+    </div>
+  )
+}
+```
+
+Save it and the screen goes blank, with this in the console:
+
+```
+Uncaught Error: Objects are not valid as a React child
+(found: object with keys {name, role}).
+```
+
+Here's what it means. By dropping the `{ }`, `name` became **the object itself**, holding both `name` and `role`. We tried to display that object with `{name}`, so React stopped us: "**an object can't be displayed** (found: object with keys name, role)." Put the `{ }` back to pull out `name` as a **string**, and it's fixed.
+
+<Callout type="note">
+
+This `Objects are not valid as a React child` is the classic error for "I meant to display a string, but accidentally tried to display an object." Forgetting the `{ }` in destructuring is a textbook cause.
+
+</Callout>
+
+## Syntax catalog: destructuring variations {#catalog}
+
+Objects are pulled out by key name, arrays by position. Default values, renaming, and rest also come up a lot.
+
+```tsx
+const { name, role } = user           // object: pull out by key name
+const { name, role = 'Member' } = user // default value (if not passed, 'Member')
+const { name: userName } = user       // rename (receive as userName)
+const { name, ...rest } = user        // everything except name gathered into rest
+const [first, second] = arr           // array: pull out by position
+const [count, setCount] = useState(0) // useState is exactly this
+```
+
+Because props arrive as an object, in a component's parameters the React norm is to receive them in this `{ }` form, like `function Card({ title }: Props)`.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="function Card(title) { ... }"
+  good="function Card({ title }) { ... }"
+  note="Props arrive as a single object. Forget the { } and title ends up holding the entire props."
+/>
+
+<Diff
+  bad="const { nam } = user"
+  good="const { name } = user"
+  note="A typo in a key name isn't an error — it just becomes undefined. Get the name exactly right."
+/>
+
+## When things go wrong {#trouble}
+
+- **A value you pulled out is `undefined`** … the key name on the left doesn't match the object's actual key name (like `nam` vs `name`). Line up the spelling.
+- **`Objects are not valid as a React child`** … same cause as "break it on purpose" above. You're trying to display an object as-is with `{ }`. Pull out the string inside and display that.
+
+<Deeper title="rest and nested destructuring">
+
+Writing `const { name, ...rest } = user` gathers everything except `name` into `rest`. In the "building components" part, we lean on this heavily when passing through native attributes. Nesting (`const { user: { name } } = data`) is possible too, but it gets hard to read when it goes deep, so usually keep it to one level.
+
+</Deeper>
+
+## Summary & practice {#summary}
+
+<Together
+  task="In the console, create product = { name: 'Tote', price: 3200 }, then use destructuring to pull out name and price in a single line and display them."
+  hint="Write const { name, price } = product, then confirm with console.log(name, price)."
+>
+
+```js
+const product = { name: 'Tote', price: 3200 }
+const { name, price } = product
+console.log(name, price) // Tote 3200
+```
+
+Writing `{ name, price }` puts `product.name` and `product.price` into variables of the same name, all at once.
+
+</Together>
+
+<Exercise answer="Write const { title, price } = item. Just list the key names inside the { }.">
+
+When `item` is `{ title: 'Book', price: 500 }`, pull out `title` and `price` in a single line.
+
+</Exercise>
+
+<SummaryBox>
+
+- Props arrive as an object, so the React norm is to destructure with `{ }` the moment you receive them
+- `role = 'default'` gives a default value, and `name: newName` renames
+- Arrays (like the return value of `useState`) are pulled out by position — the order matters
+- Forgetting the `{ }` and getting `Objects are not valid as a React child` is a classic tell
+
+</SummaryBox>

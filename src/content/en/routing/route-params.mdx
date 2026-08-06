@@ -1,0 +1,155 @@
+---
+title: URL params (product detail)
+minutes: 10
+slug: route-params
+section: routing
+description: "Build a per-product detail page from one template. Read the :id param with useParams, look up the product with products.find, and handle the not-found case too."
+level: beginner
+prerequisites: ['routing/link']
+---
+
+<LearnBox>
+
+- The `:id` param that "turns part of the URL into a variable"
+- Reading the `:id` value with `useParams`
+- Looking up that id's product with `find`, and handling the not-found case
+
+</LearnBox>
+
+## Don't build a page per product {#why}
+
+Just because there are 12 products doesn't mean you should create 12 detail-page files. You build **a single template**. You make only part of the URL (the product's id) a variable, and show "the product with that id."
+
+- `/product/p01` → the detail for p01
+- `/product/p05` → the detail for p05
+
+Both are handled by **the same `ProductDetailPage`**; only the id part of the URL differs.
+
+## Receive a param with :id {#param}
+
+In the route registration, write the part you want to be a variable as **`:name`**.
+
+```tsx
+{ path: '/product/:id', element: <ProductDetailPage /> }
+//                ↑
+//                └─ the part starting with : is a "variable". Both /product/p01 and /product/p05 match
+```
+
+`:id` means "some single value goes here." Both `/product/p01` and `/product/xyz` match this one route.
+
+## Pull it out with useParams {#useparams}
+
+The id in the URL is pulled out with `useParams`. You receive it with the **same name** as the `:id` in the route definition.
+
+```tsx
+import { useParams } from 'react-router-dom'
+
+function ProductDetailPage() {
+  const { id } = useParams()
+  // if /product/p01 is open, id is 'p01'
+}
+```
+
+```tsx
+const { id } = useParams()
+//      ↑            ↑
+//      │            └─ pulls out the :id part of the URL
+//      └─ receive it with the same name as :id in the route definition
+```
+
+## Look up the product and display it {#find}
+
+Once you know the id, you look up that product from `products` with `find`. What matters here is handling the **not-found case** (say, someone typed an id that doesn't exist).
+
+```tsx title="src/pages/ProductDetailPage.tsx (full file)"
+import { useParams } from 'react-router-dom'
+
+import products from '../data/products.json'
+
+export function ProductDetailPage() {
+  const { id } = useParams()
+  const product = products.find((p) => p.id === id)
+
+  if (!product) {
+    return <p>Product not found.</p>
+  }
+
+  return (
+    <article>
+      <h1>{product.name}</h1>
+      <p>{product.price.toLocaleString()} yen</p>
+      <p>Category: {product.category}</p>
+    </article>
+  )
+}
+```
+
+With `if (!product) return ...`, you bail out early when there's nothing. Thanks to this one line, you can write `product.name` safely (it's the same idea as [narrowing a union](/guide/typescript/union-literal)).
+
+<JsNote feature="the value from useParams is string | undefined">
+
+The `id` you pull out with `useParams` is `string` or `undefined` (because that part might not be in the URL). The result of `find` is also "the product found, or `undefined`." That's why you need the `if (!product)` check. Skip it and the type complains that "`product` might be `undefined`" at `product.name`.
+
+</JsNote>
+
+## Break it on purpose: don't handle the not-found case {#break}
+
+Let's remove `if (!product)`.
+
+```tsx title="Break it on purpose: remove the check"
+const product = products.find((p) => p.id === id)
+return <h1>{product.name}</h1> // ← product might be undefined
+```
+
+A red squiggle appears under `product.name`, with this message.
+
+```
+'product' is possibly 'undefined'.
+```
+
+"`product` might be `undefined`." That's because if an id that doesn't exist comes in, `find` returns `undefined`. Put `if (!product) return ...` back, and from there on it's narrowed to "the product found," so you can safely write `product.name`.
+
+<Together
+  task="Turn each product name in the list into a <Link> so that tapping it jumps to /product/that-product's-id (the id is product.id)."
+  hint="It's <Link to={`/product/${product.id}`}>{product.name}</Link>. Embed the id into the URL with a template literal."
+>
+
+```tsx
+import { Link } from 'react-router-dom'
+
+// inside the list
+;<Link to={`/product/${product.id}`}>{product.name}</Link>
+```
+
+Embed the id into `to` with a template literal. Tapping it navigates to a URL like `/product/p01`, and `ProductDetailPage` receives that id via `useParams`.
+
+</Together>
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="Use the result of const product = products.find(...) as product.name without checking it"
+  good="Handle the not-found case first with if (!product) return ..., then use it"
+  note="find returns undefined when nothing matches. Without the check you get a type error, and a crash at runtime."
+/>
+
+## When things don't work {#trouble}
+
+- **The `useParams` name doesn't match** … Make the route's `:id` and the name in `const { id }` match. For `:productId`, use `const { productId }`.
+- **`'product' is possibly 'undefined'`** … Check the result of `find` with `if (!product)` before using it.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Set the route to { path: '/product/:id', element: <ProductDetailPage /> }, and on the page side pull it out with const { id } = useParams(). Match :id with the name you receive it as.">
+
+To show a product detail at a URL like `/product/p03`, what do you write in the route definition and on the page side, respectively?
+
+</Exercise>
+
+<SummaryBox>
+
+- The detail page is a single template. Make part of the URL a variable with `:id`
+- Pull it out with `const { id } = useParams()` (same name as the route's `:id`)
+- The result of `find` might be `undefined`. Handle it first with `if (!product) return ...`
+
+</SummaryBox>

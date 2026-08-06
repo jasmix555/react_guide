@@ -3,17 +3,20 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useRef } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './GsapScroll.module.scss'
 
-// ScrollTrigger は別プラグイン。使う前に 1 度だけ登録する。
+// ScrollTrigger is a separate plugin. Register it once before use.
 gsap.registerPlugin(ScrollTrigger)
 
 /**
- * ScrollTrigger の scrub の実演。この箱が画面を通り過ぎる進み具合に合わせて、
- * バーが伸び・四角が回る（スクロールを止めれば動きも止まる）。
- * 「動きを減らす」設定のときは動かさない。
+ * ScrollTrigger scrub demo. As this box passes across the screen, the bar grows and the
+ * square rotates in step with the progress (stop scrolling and the motion stops too).
+ * When "reduce motion" is set, nothing moves.
  */
 export function GsapScroll() {
+  const en = useLocale() === 'en'
   const container = useRef<HTMLDivElement>(null)
 
   useGSAP(
@@ -35,7 +38,11 @@ export function GsapScroll() {
 
   return (
     <div className={styles.wrap} ref={container}>
-      <p className={styles.hint}>↓ ページをスクロールすると、進み具合に合わせて動きます</p>
+      <p className={styles.hint}>
+        {en
+          ? '↓ Scroll the page and it moves in step with the progress'
+          : '↓ ページをスクロールすると、進み具合に合わせて動きます'}
+      </p>
       <div className={styles.track}>
         <div className={styles.fill} />
       </div>

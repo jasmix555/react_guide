@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { useStrings } from '@/hooks/useLocale'
+
 import styles from './style.module.scss'
 
 /**
@@ -26,9 +28,10 @@ export function DemoSource({
   children: ReactNode
   open?: boolean
 }) {
+  const strings = useStrings()
   return (
     <details className={styles.source} open={open}>
-      <summary>ソースコード（クリックで開閉）</summary>
+      <summary>{strings.mdx.demoSource}</summary>
       <div className={styles.sourceBody}>{children}</div>
     </details>
   )

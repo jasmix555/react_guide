@@ -1,0 +1,189 @@
+---
+title: import and export
+minutes: 8
+slug: import-export
+section: javascript
+description: "How to split code across files and share it. Named exports vs. default exports, and the error you get when the names don't match."
+level: beginner
+prerequisites: ['javascript/arrow-functions']
+---
+
+<LearnBox>
+
+- `export` sends things out of a file, `import` brings them in
+- The difference between named exports and default exports
+- How to read the error you get when the imported name doesn't match
+
+</LearnBox>
+
+## Why split code into files {#why}
+
+A React app isn't one giant file — it's made of **many small files**. The button lives in the button file, the product card lives in the card file, and so on. The mechanism these files use to lend and borrow parts is **`export` (lend out)** and **`import` (borrow)**. In Part 1, `main.tsx` importing `App` was exactly this.
+
+## Named exports {#named}
+
+A **named export** sends a function or value out of a file while keeping its name. You just add `export` in front.
+
+```ts title="src/utils/price.ts (new file)"
+export const withTax = (price: number) => price * 1.1
+
+export const format = (price: number) => `${price.toLocaleString()} yen`
+```
+
+To use these in another file, you `import` them by the **same name**, wrapped in curly braces.
+
+```ts title="the consuming side"
+import { withTax, format } from '@/utils/price'
+
+console.log(format(withTax(1000)))
+```
+
+Importing with **curly braces + the same name**, like `{ withTax, format }`, is the hallmark of named exports. You can export as many things as you want from a single file.
+
+Here's an `import` statement broken into pieces and labeled. The presence or absence of curly braces changes the meaning.
+
+```ts
+import { withTax } from '@/utils/price'
+//     ↑           ↑
+//     │           └─ which file to import from (the path)
+//     └─ with curly braces = named import. Use the same name that was exported
+
+import App from './App'
+//     ↑
+//     └─ no curly braces = default import. You can pick any name
+```
+
+- **`import { x } from '...'`** … **with curly braces** = named import. Use the **same** name that was exported
+- **`import x from '...'`** … **no curly braces** = default import. The name is **your choice**
+- **`from '...'`** … which file to import from (the path)
+- If the way you export (`export` / `export default`) doesn't match the way you import (`{ }` or not), you get an error
+
+<JsNote feature="the { } in import is like destructuring">
+
+The named import `import { withTax } from ...` looks a lot like pulling a value out with destructuring, `const { withTax } = ...`. It means "of the things this file exports, give me the one with this name."
+
+</JsNote>
+
+## default export {#default}
+
+A **default export** lets you send out one thing per file — the **representative** of that file. `App.tsx` in Part 1 was this.
+
+```tsx title="src/App.tsx"
+function App() {
+  return <h1>Product List App</h1>
+}
+
+export default App
+```
+
+Whatever you send out with `export default` can be received on the importing side with **no curly braces and any name you like**.
+
+```tsx title="src/main.tsx"
+import App from './App.tsx' // no curly braces. Any name works
+```
+
+## Break it on purpose: mixing up named and default {#break-mismatch}
+
+The most common trap is a **mismatch between how you export and how you import**. If you import something that was `export default`ed as though it were a named export — with `{ }` — it fails. Let's try importing the `App.tsx` above (a default export) like this.
+
+```tsx
+import { App } from './App.tsx' // imported with { } by mistake
+```
+
+You'll get this.
+
+```
+The requested module './App.tsx' does not provide
+an export named 'App'
+```
+
+The error says "there's no **named** export called `App`." Since `App.tsx` exports it with `export default`, the correct way to receive it is `import App from './App.tsx'` (no curly braces), not `{ App }`. The reverse — importing a named export without curly braces — gives the same kind of error.
+
+**When you see "`does not provide an export named ○○`," check that the way you export (default or named) matches the way you import (`{ }` or not).**
+
+<Callout type="note">
+
+`does not provide an export named 'default'` shows up when you forgot to write `export default` (we saw this in Part 1). `does not provide an export named 'App'` means you tried to import a named export, but nothing is exported under that name. Both are "a mismatch between how you export and how you import."
+
+</Callout>
+
+<Together
+  task="In src/utils/greet.ts, create a function greet that takes a name and returns a greeting, using a named export. Then write out how another file would import it."
+  hint="Export with export const greet = ..., and import it with import { greet } from '@/utils/greet'."
+>
+
+```ts title="src/utils/greet.ts (new file)"
+export const greet = (name: string) => `Hello, ${name}`
+```
+
+```ts title="the consuming side"
+import { greet } from '@/utils/greet'
+
+console.log(greet('Sato')) // Hello, Sato
+```
+
+`export const greet` is a named export, and the importing side receives it by the same name with `{ greet }`. If even one character of the name differs, you get `does not provide an export named ...`.
+
+</Together>
+
+## Syntax catalog: the many forms of import {#catalog}
+
+There are several import forms, centered on whether or not there are curly braces. Here are the ones you'll see often.
+
+```ts
+import { Button } from '@/components/Button'    // named (one)
+import { withTax, format } from '@/utils/price' // named (several)
+import App from './App'                          // default (no braces, any name)
+import { Card as ProductCard } from './Card'     // rename (as)
+import Default, { helper } from './mod'          // default and named together
+import * as utils from '@/utils/price'           // import everything at once
+```
+
+With `{ }` it's a named import; without, it's a default import. As a rule we standardize on named exports, so most of the time you'll have `{ }`.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="import { App } from './App' (App is a default export)"
+  good="import App from './App'"
+  note="A default export is received without curly braces. { } is for named exports."
+/>
+
+<Diff
+  bad="import Button from '@/components/Button' (Button is a named export)"
+  good="import { Button } from '@/components/Button'"
+  note="A named export is imported with { }, using the same name."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Standardize on named exports for both components and functions, as a rule"
+  alt="The top of a page-level module (e.g. a route-based lazy-loading target) sometimes needs a default export. Decide up front: default only there, named everywhere else."
+>
+
+Standardizing on named exports means **the name of the thing shows up right there**, as in `import { Button }`, which cuts down on mix-ups and helps your editor's autocomplete. You also don't have to decide whether to add `{ }` every single time.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`does not provide an export named '○○'`** … You tried to import a named export, but nothing is exported under that name. Check the name and whether you used `{ }`.
+- **`does not provide an export named 'default'`** … You forgot to write `export default`, or you're importing a file that has no default as a default.
+- **`Failed to resolve import`** … The path is wrong. Check the `@/` alias and the spelling of the file name.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Do a named export with export const ProductCard = ..., and on the consuming side import it with import { ProductCard } from '@/components/ProductCard' — curly braces plus the same name.">
+
+If you name-export a component called `ProductCard`, how would you write the `import` statement in another file?
+
+</Exercise>
+
+<SummaryBox>
+
+- `export` sends things out and `import` brings them in. A React app is built from small files lending and borrowing parts
+- A named export is imported with `{ the same name }`; a default export is imported without curly braces, under any name you like
+- `does not provide an export named ○○` is the signal of a mismatch between how you export and how you import (`{ }` or not)
+
+</SummaryBox>

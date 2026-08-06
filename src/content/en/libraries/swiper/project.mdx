@@ -1,0 +1,112 @@
+---
+title: Make a product carousel with breakpoints
+minutes: 8
+slug: swiper-project
+section: swiper
+description: "Change the number of slides per screen width with breakpoints and finish the product carousel. Read the full SwiperCarousel and feed in data from products.json."
+level: beginner
+prerequisites: ['libraries/swiper/modules']
+---
+
+import { SwiperCarousel } from '@/demos/SwiperCarousel'
+
+<LearnBox>
+
+- Switch "N slides from this width up" with `breakpoints`
+- Read the full `SwiperCarousel`, modules and all
+- Feed the data from `products.json` into the slides
+
+</LearnBox>
+
+## Responsive with breakpoints {#breakpoints}
+
+`breakpoints` is a switch table that says "**once the screen is this wide or wider, use these settings**." The key is the px width, and the value is the settings at that width and above.
+
+```tsx
+<Swiper
+  slidesPerView={1.1} // default (narrow screen): a little over 1
+  breakpoints={{
+    520: { slidesPerView: 2 }, // 520px and up: 2 slides
+    820: { slidesPerView: 3 }, // 820px and up: 3 slides
+  }}
+>
+  {/* lay out the SwiperSlides */}
+</Swiper>
+```
+
+Show a little over 1 slide large on phones, and increase the count as the screen gets wider — the classic pattern. Other settings like `spaceBetween` can also change per width.
+
+<Callout type="note" title="Swiper's breakpoints are min-width">
+
+Our `mq` mixin was "this width **or narrower**," but Swiper's `breakpoints` are "this width **or wider**" (min-width). The direction is reversed, so you won't get lost if you think of it as **write the narrow-screen settings as the default, and override them as the screen gets wider**.
+
+</Callout>
+
+## Finished code: the product carousel {#full}
+
+Here is the full product carousel with all the features from the [modules page](/libraries/swiper/modules) included. The three things to note are: four items passed to `modules`, `autoplay` switched with `useReducedMotion`, and the number of slides changed with `breakpoints`. The data is fed in from `products.json`.
+
+```tsx title="src/demos/SwiperCarousel/SwiperCarousel.tsx (full)"
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
+
+import { useReducedMotion } from 'motion/react'
+import { A11y, Autoplay, Navigation, Pagination } from 'swiper/modules'
+import { Swiper, SwiperSlide } from 'swiper/react'
+
+import products from '@/data/products.json'
+
+import styles from './SwiperCarousel.module.scss'
+
+export function SwiperCarousel() {
+  const reduce = useReducedMotion()
+  const items = products.slice(0, 8)
+
+  return (
+    <Swiper
+      className={styles.swiper}
+      modules={[Navigation, Pagination, Autoplay, A11y]}
+      spaceBetween={16}
+      slidesPerView={1.1}
+      loop
+      navigation
+      pagination={{ clickable: true }}
+      autoplay={reduce ? false : { delay: 2600, disableOnInteraction: false }}
+      breakpoints={{
+        520: { slidesPerView: 2 },
+        820: { slidesPerView: 3 },
+      }}
+    >
+      {items.map((p) => (
+        <SwiperSlide key={p.id} className={styles.slide}>
+          <span className={styles.name}>{p.name}</span>
+          <span className={styles.price}>{p.price.toLocaleString()} yen</span>
+        </SwiperSlide>
+      ))}
+    </Swiper>
+  )
+}
+```
+
+<Demo title="Product carousel (responsive, with autoplay)">
+  <SwiperCarousel />
+</Demo>
+
+The contents of the product card (images, a "favorite" button, and so on) can go freely inside the `SwiperSlide`. Here we keep it to just the name and price.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write something like { 768: { slidesPerView: 2 } } in Swiper's breakpoints. The key is the px width (that width and up), and the value is the settings at that width. Write the default slidesPerView for narrow screens, and override wide screens with breakpoints.">
+
+To "show 2 slides from 768px up," what do you write on `Swiper`, and how? Cover its relationship to the default value too.
+
+</Exercise>
+
+<SummaryBox>
+
+- `breakpoints` are min-width (that width **or wider**). Make the narrow screen the default, and override for wide screens
+- `modules` + each prop + `breakpoints` let you assemble a real-world carousel
+- The slide contents can be written freely inside the `SwiperSlide`
+
+</SummaryBox>

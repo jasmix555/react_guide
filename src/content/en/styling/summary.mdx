@@ -1,0 +1,64 @@
+---
+title: Summary & practice
+minutes: 6
+slug: styling-summary
+section: styling
+description: "A styling wrap-up. Review SCSS Modules, nesting, tokens, theming, responsive design, and conditional classes, then self-check with a comprehension quiz. Next up: TypeScript for React."
+level: beginner
+prerequisites: ['styling/goal']
+---
+
+<LearnBox>
+
+- A full review of the "adding a look" skills you picked up in this part
+- A comprehension check (self-verify the spots people trip on)
+- A bridge to the next part (TypeScript for React)
+
+</LearnBox>
+
+## Full review of this part {#recap}
+
+You took a plain list all the way to a responsive card list with state indicators. Here are the key points.
+
+- **SCSS Modules** … Making it `.module.scss` makes class names unique at build time, so each component is self-contained (no collisions). `import styles` and use `className={styles.card}`.
+- **SCSS features** … Group with nesting, refer to yourself with `&`, and reuse with `$` variables and `@mixin`.
+- **Design tokens** … Gather colors into `--variables` on `:root` and reference them with `var()`. Unlike `$`, they can change at runtime, so they're strong for theme switching.
+- **Theming** … Get dark mode just by overriding the same token names inside `@media (prefers-color-scheme: dark)`.
+- **Responsive** … Mobile-first plus `grid`'s `auto-fill` / `minmax` for automatic wrapping.
+- **Conditional classes** … `clsx(styles.card, condition && styles.state)` adds classes safely based on state.
+
+"Keep the look inside SCSS Modules, and gather colors into tokens" — these two are the foundation going forward.
+
+## Comprehension check {#quiz}
+
+<Exercise answer="Make the file name .module.scss. Then the class names inside are converted to unique names at build time and won't collide with same-named classes in other files. Apply them by importing styles and writing className={styles.className}.">
+
+To keep two components from colliding even though both use `.card`, what do you do with the CSS file? Also explain how to apply it.
+
+</Exercise>
+
+<Exercise answer="CSS --variables (custom properties). $ variables are baked in at build time and can't change at runtime, but --variables are live at runtime, so you can swap their values for things like dark-mode switching.">
+
+For colors that switch between light and dark, which should you hold them in — SCSS `$` variables or CSS `--variables`? Explain why.
+
+</Exercise>
+
+<Exercise answer="Write clsx(styles.card, !inStock && styles.sold). styles.sold is added only when !inStock is true, and clsx throws it away when false. It's safer than string concatenation, with less risk of whitespace or a stray false.">
+
+To add `styles.sold` to `ProductCard` only when out of stock (`!inStock`), how do you write it with `clsx`?
+
+</Exercise>
+
+## On to the next part {#next}
+
+The look is in shape now. But `ProductCard`'s props are written out one by one every time — `name`, `price`, `category`… — which is a bit tedious. A product has a fixed shape called `Product`, yet we can't express that as a type.
+
+The next part is **TypeScript for React**. We'll define a `Product` type and move to a style that **protects props and data with types**. The `ProductCard` we've built so far becomes safer and easier to write.
+
+<SummaryBox>
+
+- Keep styles inside `.module.scss`, `import styles`, and apply them (no collisions)
+- Gather colors into tokens (`--variables`) and reference with `var()`. Dark is just swapping the values
+- Responsive is `grid`'s `auto-fill`/`minmax`; state is `clsx` conditional classes
+
+</SummaryBox>

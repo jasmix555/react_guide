@@ -1,0 +1,160 @@
+---
+title: truthy and falsy
+minutes: 7
+slug: truthy-falsy
+section: javascript
+description: "A list of the values JavaScript treats as 'true' or 'false.' The trap where 0 and empty string are false, and the trap where the string '0' is true."
+level: beginner
+prerequisites: ['javascript/const-let']
+---
+
+<LearnBox>
+
+- How values other than `true` / `false` are treated inside an `if`
+- The 6 values treated as "false" (falsy)
+- The trap where `0` and empty string are false, and where the string `'0'` is true
+
+</LearnBox>
+
+## Why this matters {#why}
+
+JavaScript's `if` judges not only `true` / `false`, but **any value** as "true-ish or false-ish." This "-ishness" is called **truthy (true-ish) / falsy (false-ish)**. Since React uses the pattern "display only when there's a value," getting this wrong leads straight to display bugs.
+
+First, let's break one line of `if` into pieces and label them.
+
+```js
+   if (value) { ... }
+// ↑   ↑       ↑
+// │   │       └─ the contents to run when true
+// │   └─ judge true/false by this value's "-ishness" (doesn't have to be true/false)
+// └─ "if ~ then"
+```
+
+- **`if`** … "if ~ then." Whether or not to run the contents
+- **`(value)`** … judged by the **truthy / falsy** of the value placed here. It's not comparing with `=== true`
+- **`{ ... }`** … runs only when the value is truthy
+
+## The false-ish values (falsy) are just 6 {#falsy}
+
+What you memorize is the "**false-ish values**." Only these are treated as `false`, and **everything else** is treated as `true`. There are 6 falsy values:
+
+```js
+false      // false itself
+0          // the number zero
+''         // an empty string (nothing inside)
+null       // a value meaning "nothing"
+undefined  // a value meaning "not there yet"
+NaN        // a number from a failed calculation (Not a Number)
+```
+
+Anything other than these 6 is **all truthy (true-ish)** — even `'0'` (the character zero), `[]` (an empty array), or `{}` (an empty object). This is where it clashes with intuition.
+
+<JsNote feature="truthy / falsy is 'how it's treated inside an if'">
+
+When you write `if (value)`, if that value is falsy it branches as "false," otherwise as "true." Understand that it's not strictly comparing like `if (value === true)` — it's judging by "-ishness."
+
+</JsNote>
+
+## Break it on purpose: 0 is false, but '0' is true {#break-zero}
+
+The number one trap is the difference between the number `0` and the string `'0'`. Let's compare in the console.
+
+```js
+if (0) console.log('entered')
+// → nothing prints (0 is falsy)
+
+if ('0') console.log('entered')
+// → entered ('0' is a string, so truthy)
+```
+
+The number `0` is falsy, so it doesn't enter the `if`. But `'0'` (a character zero wrapped in quotes) is a **string with contents**, so it's truthy and enters the `if`. "Looks like zero, but the result is the opposite" — this is a common source of confusion.
+
+Likewise, the **empty string `''` is falsy**. You can judge whether a form input is empty with `if (input)`, but there are situations where a `0` input causes trouble, so you need to use it knowing what it means.
+
+<Callout type="warn">
+
+When "there should be a value but it doesn't display," suspect that the value has become `0`, `''`, or `null`. In particular, **when a count or stock is `0`**, an accident happens where `if (count)` is false and the display vanishes.
+
+</Callout>
+
+## Relation to short-circuit evaluation (preview) {#preview}
+
+The `&&` you'll learn on the next page uses this truthy / falsy to do "return the right side only when the left is true-ish." It's the foundation of React's "display only when there's a value" pattern, so first lock in "only 6 are false-ish" here.
+
+<Together
+  task="In the console, use if to check whether an empty array [] and an empty object {} are truthy or falsy. See whether it matches your prediction."
+  hint="Write something like if ([]) console.log('array is true') and see whether the output appears."
+>
+
+```js
+if ([]) console.log('empty array is truthy')
+// → it prints (an empty array is truthy!)
+
+if ({}) console.log('empty object is truthy')
+// → it prints (an empty object is truthy too!)
+```
+
+It may be surprising, but **both an empty array and an empty object are truthy**. That's because they aren't among the 6 falsy values. When you want to know "whether an array is empty," judge by **length**, like `if (arr.length === 0)` (with `if (arr)`, it's true even when empty).
+
+</Together>
+
+## Syntax catalog: how to write your checks {#catalog}
+
+Write it differently based on "what you want to check." Presence-or-not is fine with a truthy check, but quantity or "whether it's empty" should be compared by meaning.
+
+```js
+if (user) { }               // does it exist (object) → truthy check is OK
+if (name) { }               // is the string non-empty ('' is falsy)
+if (count > 0) { }          // quantity compared by meaning (doesn't drag in 0)
+if (text.length > 0) { }    // is there content → judge by length
+if (items.length === 0) { } // explicitly for "when it's empty"
+if (isOpen) { }             // a boolean, as-is
+```
+
+Leaving it to truthy like `if (count)` or `if (items)` causes accidents with `0` or the empty array `[]`. For quantity and empty checks, write **what you want to look at** with `> 0` or `.length`.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="if (items) { display } (true even for an empty array)"
+  good="if (items.length > 0) { display }"
+  note="An empty array [] is truthy. If you want to know whether there's content, look at length."
+/>
+
+<Diff
+  bad="judge stock 0 with if (stock) and hide the display"
+  good="judge presence of stock by meaning, like if (stock > 0)"
+  note="0 is falsy. Leave a quantity check to truthy and it unintentionally vanishes when 0."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="'Does it exist' is fine with a truthy check, but 'quantity' and 'whether it's empty' are compared explicitly by meaning"
+  alt="If you only want to look at whether it's null / undefined, the ?? or == null from a later page lets you check without dragging in 0 or ''."
+>
+
+`if (user)` (is a user there) is natural as a truthy check. On the other hand `if (count)` (a quantity) or `if (text)` (an input) drags in `0` or `''`, so write **what you want to check** like `count > 0` or `text.length > 0`.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **There's a value but it doesn't display** … check whether the value has become `0`, `''`, `null`, or `undefined`.
+- **It's treated as "present" when it should be empty** … an empty array `[]` and empty object `{}` are truthy. Judge by `.length === 0` or by the contents.
+
+## Summary & practice {#summary}
+
+<Exercise answer="falsy is the 6: false / 0 / '' / null / undefined / NaN. '0' (string), [] (empty array), and {} (empty object) are all truthy.">
+
+Which of the following are falsy: `0` / `'0'` / `''` / `[]` / `null` / `{}`.
+
+</Exercise>
+
+<SummaryBox>
+
+- falsy is just the 6: `false` / `0` / `''` / `null` / `undefined` / `NaN`. Everything else is truthy
+- `'0'`, `[]`, and `{}` are truthy. Don't be fooled by appearances
+- Don't leave quantity or "whether it's empty" to truthy — judge explicitly with `> 0` or `.length`
+
+</SummaryBox>

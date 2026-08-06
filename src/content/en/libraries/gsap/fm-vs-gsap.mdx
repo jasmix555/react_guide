@@ -1,0 +1,74 @@
+---
+title: Framer Motion or GSAP — which one?
+minutes: 7
+slug: gsap-fm-vs-gsap
+section: gsap
+description: "When to use Framer Motion vs GSAP. State, gestures, and enter/exit go to Framer Motion; involved timelines and scroll-linked motion go to GSAP. Plus our standard."
+level: beginner
+prerequisites: ['libraries/gsap/goal', 'libraries/framer-motion/goal']
+---
+
+<LearnBox>
+
+- The difference in what each is good at
+- "I want to build this" → a guide to which one to pick
+- Our standard (how to choose when you have both)
+
+</LearnBox>
+
+## In one line {#tldr}
+
+- **Framer Motion** … animation that **stays close to React state**. Mount, hover, tap, and enter/exit (`AnimatePresence`), written declaratively on the component.
+- **GSAP** … animation that **designs the motion itself**. Involved timelines, scroll-linked motion (ScrollTrigger's scrub / pin), fine-grained control.
+
+Both are excellent, and the trick is **not trying to do everything with one of them**. Pick the one closer to what you want to build.
+
+## Quick reference {#table}
+
+| What you want to build | The one suited for it |
+| --- | --- |
+| A list fades in / lifts on hover | Framer Motion |
+| Smooth enter/exit on add and remove | Framer Motion (`AnimatePresence`) |
+| Interaction feedback on buttons and cards | Framer Motion (`whileHover` / `whileTap`) |
+| Flow several motions in order and with overlap | GSAP (`timeline`) |
+| Move / pin things to the scroll amount | GSAP (`ScrollTrigger`'s scrub / pin) |
+| An elaborate key-visual effect for an LP | GSAP |
+
+## Tips for choosing {#how-to-choose}
+
+1. **First, "does it really need to move?"** … Simple color or size changes are often enough with a CSS `transition` ([the "motion needs a reason" point we touched on in the Framer Motion goal](/libraries/framer-motion/goal)).
+2. **If it's tied to React state, Framer Motion** … Motion that follows a `state` change — "open/closed," "favorited" — is most natural with Framer Motion.
+3. **If it's scroll or an involved order, GSAP** … If you need scroll-linked motion, timelines, or fine playback control, reach for GSAP.
+
+<Callout type="note" title="Mixing is fine">
+
+You're free to use both in one app. It's natural to split them by role: **a component's visual motion with Framer Motion, the whole page's scroll effects with GSAP**. Just avoid driving the same single element with both at once, since they'll fight over it.
+
+</Callout>
+
+## Our standard {#standard}
+
+<Std
+  decision="Component-level motion (mount, hover, enter/exit) goes to Framer Motion. Scroll-linked motion and involved timelines go to GSAP"
+  alt="For a small project with little motion, Framer Motion alone gets the job done. Conversely, for a flashy scroll-driven LP, GSAP takes center stage. Lean toward whichever fits the project's character."
+>
+
+Keep both installed and pick **whichever is closer to the motion you want to build**. When in doubt, think "UI motion tied to state → Framer Motion, scroll or effects → GSAP," and it's easy to decide.
+
+</Std>
+
+## Summary & practice {#summary}
+
+<Exercise answer="Framer Motion is the fit. Favorite on/off is a change in React state, and Framer Motion — with AnimatePresence, whileTap, and the like — is most natural for motion that stays close to state and interaction. For scroll-linked motion or an involved timeline, pick GSAP.">
+
+"When you press a favorite button, a heart bounces and changes color" — is Framer Motion or GSAP the fit? Give your reason too.
+
+</Exercise>
+
+<SummaryBox>
+
+- Framer Motion = state, gestures, enter/exit (stays close to React). GSAP = timelines, scroll-linked motion (designs the motion)
+- First, "does it need to move?" If it's tied to state, Framer Motion; if it's scroll / an involved order, GSAP
+- You may use both. Split by role, and don't let two of them fight over the same element
+
+</SummaryBox>

@@ -1,0 +1,121 @@
+---
+title: How to choose a library
+minutes: 9
+slug: choosing-libraries
+section: libraries
+description: "Before adding one, check whether the built-in features are enough. If you do need it, look at the npm page for maintenance status, usage, type definitions, and size. A yardstick for not adding too many."
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- Check first whether you can get away with "just don't add it"
+- Once you decide to add one, what to look at when choosing (maintenance, usage, types, size)
+- Where on the npm page to look to make the call
+
+</LearnBox>
+
+## The best library is the one you don't add {#why}
+
+Libraries are handy, but the moment you add one it becomes **something you have to manage**. Updates stop and it goes stale, it clashes with other parts, a bug sneaks in without you noticing—that's one more thing to keep looking after.
+
+So, paradoxically, the first step in choosing is: "**can I get by without adding it?**" Think in this order.
+
+1. **Is a built-in browser or JavaScript feature enough?** (Dates, arrays, strings, and the like are well covered by the standard library.)
+2. **Is something you already have enough?** (Don't add a second part that does the same thing.)
+3. If you still need it, **then choose**.
+
+If you stop at one of the first two, that's the easiest right answer.
+
+<Callout type="analogy">
+
+It's like a toolbox. If you bought every handy-looking tool you spotted, the box would fill up fast and you'd lose track of what's where. Ask "can I do it with the tools I already have?" before buying, and the box stays tidy.
+
+</Callout>
+
+## First, check whether the built-in features are enough {#native-first}
+
+When you think "let's add a library," the standard features are often enough. Here are a few examples.
+
+- **Formatting a date** → `new Date().toLocaleDateString('en-US')` gives you something like "8/3/2026". You don't need a dedicated library until the calculations get complex.
+- **Transforming an array** → `map` / `filter` / `find` (we covered these in Part 2) handle most cases.
+- **Building class names** → This one is a little awkward with the standard tools, so we use a tiny part called `clsx` (next page).
+
+Just **spending 30 seconds** looking up "how would I write this with the standard features" often lets you drop one library.
+
+<Together
+  task="You want to show the price 1280 as '1,280 yen', with a thousands separator. Before reaching for a library, look for a way to do it with a built-in JavaScript feature and write it. (Hint: numbers have a method called toLocaleString.)"
+  hint="(1280).toLocaleString() gives you '1,280'. Add ' yen' at the end and you're done."
+>
+
+```js
+const price = 1280
+console.log(price.toLocaleString() + ' yen') // 1,280 yen
+```
+
+Thousands separators work with the built-in `toLocaleString()` alone. **No dedicated library needed.** Noticing "oh, the standard features can handle this" saves you from adding one more dependency. Suspect the standard library first—this habit pays off.
+
+</Together>
+
+## Once you decide to add one, look here {#criteria}
+
+Neither the standard features nor what you already have will do, and you've decided to add one. When that happens, compare the candidates across **four points**. You can check all of them on each library's page on npm (`npmjs.com`).
+
+- **Is it maintained?** … Is the last publish date (Last publish) stuck a few years back? Avoid abandoned parts.
+- **Is it being used?** … Weekly Downloads. The higher, the more information is out there and the more easily bugs get found.
+- **Does it have type definitions?** … We use TypeScript, so does it ship with types? (We cover this in detail on the next page.)
+- **Is it too big?** … The size (Unpacked Size) and how many dependencies it drags in itself. Smaller is safer.
+
+<Callout type="note">
+
+Open a library's npm page and you'll see "Weekly Downloads", "Unpacked Size", and "Last publish" lined up on the right. If there's a "TypeScript" badge or a `types` note on the left, it ships with type definitions. **Just looking at these three or four spots** gets you a reasonable judgment. GitHub star counts and recent issue activity are worth a look too.
+
+</Callout>
+
+## When in doubt, pick the small, battle-tested one {#prefer-small}
+
+When several candidates do the same thing, pick the one that is **small and battle-tested (used for a long time and stable)**. Feature-rich and new is tempting, but there's more to learn and more room to break.
+
+The parts we've picked for our stack (`clsx`, `sass`, `react-router`, `motion`) all have **a clear purpose and are widely used**. Not "popular, I guess," but a state where you can say "I use this, for this job."
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Add a big date library just to display a date"
+  good="First check whether the built-ins like toLocaleDateString are enough"
+  note="Don't add a dependency for a job the standard library handles. You need it only once the calculations get complex."
+/>
+
+<Diff
+  bad="Pick a part by name alone, though it was last updated 3 years ago and has few downloads"
+  good="Choose after checking Last publish / Weekly Downloads / whether it has type definitions"
+  note="An abandoned part won't get fixed when a bug appears. Always look at its maintenance status."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Before adding a dependency, always stop and think once about whether the standard library or something you already have can do it. Only add parts with a clear purpose whose maintenance, usage, types, and size you've checked"
+  alt="If there's already a part in use internally, don't add a different library for the same purpose—go with the existing one. The more unified things are, the lower both the learning cost and the maintenance cost."
+>
+
+The easiest option is "don't add it." Think first in terms of the standard features and the parts you already have. Once you decide to add one, check that it isn't abandoned, that it's widely used, that it ships with types, and that it isn't too big. Only put parts on the shelf that you can explain in one line: "here's why I added this."
+
+</Std>
+
+## Summary and practice {#summary}
+
+<Exercise answer="The built-in toLocaleString does thousands separators, so try that first. Consider a dedicated library only once you hit requirements the standard library makes awkward—currencies, units, rounding, and the like.">
+
+When you want to "show an amount with a thousands separator," should you immediately go looking for a number-formatting library? How do you decide?
+
+</Exercise>
+
+<SummaryBox>
+
+- The best option is "don't add it." First check whether the standard features and the parts you already have are enough
+- Once you decide to add one, check its maintenance status, usage, type definitions, and size on the npm page
+- When in doubt, go small and battle-tested. Keep only the parts you can explain "why I added this"
+
+</SummaryBox>

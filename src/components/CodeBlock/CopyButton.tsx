@@ -1,8 +1,11 @@
 import { useState } from 'react'
 
+import { useStrings } from '@/hooks/useLocale'
+
 import styles from './style.module.scss'
 
 export function CopyButton({ getText }: { getText: () => string }) {
+  const strings = useStrings()
   const [copied, setCopied] = useState(false)
 
   async function copy() {
@@ -17,7 +20,7 @@ export function CopyButton({ getText }: { getText: () => string }) {
 
   return (
     <button type="button" className={styles.copy} onClick={copy}>
-      {copied ? 'コピー済み' : 'コピー'}
+      {copied ? strings.mdx.copied : strings.mdx.copy}
     </button>
   )
 }

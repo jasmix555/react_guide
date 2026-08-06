@@ -1,0 +1,61 @@
+---
+title: Summary & practice
+minutes: 6
+slug: swiper-summary
+section: swiper
+description: "A Swiper recap. Review loading the CSS, Swiper/SwiperSlide, modules, and breakpoints, then self-check with the comprehension quiz. Plus a pointer to the library to read next."
+level: beginner
+prerequisites: ['libraries/swiper/goal']
+---
+
+<LearnBox>
+
+- A full review of the "build a slider" skill you gained with Swiper
+- A comprehension check (self-test the easy-to-stumble spots)
+- A pointer to a good library to read next
+
+</LearnBox>
+
+## Full review of this part {#recap}
+
+You can now assemble sliders and carousels with touch gestures using Swiper. Here are the key points.
+
+- **Setup** … after `npm install swiper`, **don't forget `import 'swiper/css'`** (the number one cause of a broken-looking layout).
+- **Basics** … outer `Swiper` + `SwiperSlide`s inside. `slidesPerView` / `spaceBetween` / `loop` are the basic settings. Lay out a list with `map` + `key`.
+- **Modules** … import from `swiper/modules`, pass to `modules={[...]}`, and add the CSS too. Navigation, Pagination, Autoplay, A11y.
+- **Responsive** … switch the number of slides with `breakpoints` (min-width).
+- **Accessibility** … for autoplay, use `useReducedMotion` and turn it off when the reduce setting is on.
+
+## Comprehension check {#quiz}
+
+<Exercise answer="You forgot import 'swiper/css'. Swiper keeps its appearance CSS separate, so without it the slides stack vertically and won't move sideways. If you use arrows or dots, you also need the extra CSS like swiper/css/navigation.">
+
+"The slides line up vertically and I can't swipe sideways." What do you suspect first?
+
+</Exercise>
+
+<Exercise answer="Import Navigation and so on from swiper/modules, and pass them to Swiper's modules as an array. Also load the dedicated CSS for arrows and dots (swiper/css/navigation, etc.). Configure with navigation and pagination={{ clickable: true }}.">
+
+To show arrows and dots, what do you import and what do you pass to `Swiper`?
+
+</Exercise>
+
+<Exercise answer="Write { width: { slidesPerView: N } } in breakpoints. The key is a px width meaning 'that width or wider' (min-width). Write the narrow-screen setting as the default, and override wide screens with breakpoints.">
+
+To change the number of slides by screen width, what do you write on `Swiper`? Touch on the direction (min/max) too.
+
+</Exercise>
+
+## Good things to read next {#next}
+
+That covers **Swiper** end to end. From loading the CSS through the basics, modules, and responsiveness, you can now assemble a real-world carousel yourself. 
+
+In the same **Libraries** section, we'll keep adding things like **Tailwind** (utility CSS), **React Icons** (icons), and **Lenis** (smooth scrolling, pairs great with GSAP). And if you want to think about "could I build it myself first," reading it side by side with the **[carousel recipe](/recipes/carousel)** will build your skills too.
+
+<SummaryBox>
+
+- Don't forget `import 'swiper/css'` / `Swiper` + `SwiperSlide` / add features with `modules`
+- Responsive with `breakpoints` (min-width); autoplay respects reduced-motion
+- A simple switch you build yourself (recipe); a full-featured slider goes to Swiper
+
+</SummaryBox>

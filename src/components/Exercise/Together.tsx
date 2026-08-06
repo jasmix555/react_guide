@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { strings } from '@/config/strings.ja'
+import { useStrings } from '@/hooks/useLocale'
 
 import styles from './style.module.scss'
 
@@ -18,6 +18,7 @@ export function Together({
   hint?: ReactNode
   children: ReactNode
 }) {
+  const strings = useStrings()
   return (
     <section className={styles.together}>
       <p className={styles.togetherHead}>

@@ -1,0 +1,60 @@
+---
+title: Summary & practice
+minutes: 6
+slug: gsap-summary
+section: gsap
+description: "A GSAP wrap-up. Review useGSAP, timeline, ScrollTrigger, and matchMedia, and self-check with a comprehension quiz. Plus a guide to the library to read next."
+level: beginner
+prerequisites: ['libraries/gsap/goal']
+---
+
+<LearnBox>
+
+- A full review of the "designing elaborate motion" skill you gained with GSAP
+- A comprehension check (self-check the spots that trip people up)
+- A guide to good libraries to read next
+
+</LearnBox>
+
+## Full review of this part {#recap}
+
+With GSAP, you can now build scroll-linked motion and sequenced effects. Here are the key points.
+
+- **useGSAP** … inside `useGSAP(() => { ... }, { scope })`, write `gsap.to` / `from` / `fromTo`. Cleanup and StrictMode are automatic, and `scope` limits selectors to inside the box.
+- **timeline** … chain onto `gsap.timeline()` to play in order. Create overlaps and gaps with the position parameter (`'-=0.2'` / `'+=0.1'`). Remember it in a `ref` and you can control it with `restart` and friends.
+- **ScrollTrigger** … `registerPlugin` first, then add `scrollTrigger`. How to read `start` / `end`, plus `scrub` (sync), `toggleActions` (play when visible), `pin` (fix in place), and `markers` (debug).
+- **matchMedia** … be considerate of reduced-motion with `gsap.matchMedia()`. Remove only the motion, keep the information.
+
+## Comprehension check {#quiz}
+
+<Exercise answer="Write useGSAP(() => { gsap.from('.item', { opacity: 0, y: 16, stagger: 0.1 }) }, { scope: container }) and attach ref={container} to the parent. Because there's a scope, .item targets only inside that box. useGSAP takes over cleanup and StrictMode.">
+
+Write the GSAP code to make a list "fade in one by one," using `useGSAP` and `scope`.
+
+</Exercise>
+
+<Exercise answer="Chain .from()/.to() onto gsap.timeline(). By default it plays in order. Add a position parameter (e.g. '-=0.2') and it starts with an overlap onto the previous motion. Separate gsap.to's all start at the same time.">
+
+To play several motions "in order, with a slight overlap," what do you use, and how do you create the overlap?
+
+</Exercise>
+
+<Exercise answer="Register it with gsap.registerPlugin(ScrollTrigger), then add scrollTrigger to the config. scrub: true syncs to the scroll progress; toggleActions: 'play none none reverse' plays when it comes into view and reverses when it goes back. start/end set the begin/end positions.">
+
+To link motion to scroll, what do you do first, and how do you use `scrub` versus `toggleActions`?
+
+</Exercise>
+
+## Good things to read next {#next}
+
+That's a full pass through **GSAP**. From the basics of `useGSAP` through timelines and ScrollTrigger, you can now assemble scroll-linked effects yourself.
+
+In the same **Libraries** part, we'll keep adding **Swiper** (slider / carousel), **Tailwind** (utility CSS), **React Icons** (icons), **Lenis** (smooth scroll, a great match with GSAP), and more. If you already have a UI in mind, working backward from the **[Recipes](/recipes/modal)** is a shortcut too.
+
+<SummaryBox>
+
+- Write it in `useGSAP` / order and overlap with `timeline` / scroll-linked with `ScrollTrigger` / care with `matchMedia`
+- Simple motion goes to Framer Motion; scroll-linked motion and involved effects go to GSAP
+- Next up, Swiper, Tailwind, and other libraries — pulled in as you need them
+
+</SummaryBox>

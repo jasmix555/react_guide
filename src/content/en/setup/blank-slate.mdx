@@ -1,0 +1,124 @@
+---
+title: Clear all the defaults and start from a blank slate
+minutes: 9
+slug: setup-blank-slate
+section: setup
+description: "Delete all the sample decorations and get to a blank slate where you can start writing your own code. Every step included."
+level: beginner
+prerequisites: ['setup/first-edit']
+---
+
+<LearnBox>
+
+- Cleanly delete all the samples Vite leaves behind
+- Which files to delete and which to reduce to the minimum
+- Confirm you've reached a blank slate
+
+</LearnBox>
+
+On the previous page you shrank App.tsx. But the now-unused sample CSS and images are still hanging around. **In real work, the first thing you do after creating a new project is this cleanup.** Let's do it together here so you have a blank slate to start writing your own code from in the next part.
+
+## What's left over {#leftover}
+
+You shrank App.tsx, but the following are still sitting there "unused":
+
+- `src/App.css` … decorative CSS that App.tsx no longer imports
+- `src/assets/` (`react.svg` `vite.svg` `hero.png`) … logos and images the sample used
+- `public/icons.svg` … the sample's icon set
+- `src/index.css` … still full of the sample's fancy styles
+
+Let's clean them up one by one.
+
+## Step 1: Check App.tsx {#step-app}
+
+App.tsx should be in this state from the previous page. Just to be safe, let's look at the whole thing.
+
+```tsx title="src/App.tsx (this state)"
+function App() {
+  return <h1>Product list app</h1>
+}
+
+export default App
+```
+
+Confirm there's no `import './App.css'` line (you deleted it on the previous page).
+
+## Step 2: Delete the unneeded files {#step-delete}
+
+In VS Code's Explorer on the left, right-click each of the following files and choose "Delete".
+
+- `src/App.css`
+- `src/assets/react.svg`
+- `src/assets/vite.svg`
+- `src/assets/hero.png`
+- `public/icons.svg`
+
+<Callout type="warn">
+
+**Do not** delete `public/favicon.svg` (that's the icon shown on the browser tab). Also, never delete foundation files like `src/main.tsx`, `index.html`, or `package.json`. The only things you may delete are the "sample decorations".
+
+</Callout>
+
+## Step 3: Reduce index.css to the minimum {#step-css}
+
+Open `src/index.css`, **delete its entire contents**, and replace it with this minimal version.
+
+```css title="src/index.css (replace entirely)"
+:root {
+  font-family: system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+}
+```
+
+Now you have a clean foundation with just some spacing and a basic font. `main.tsx` loads this with `import './index.css'`, so don't delete the file — just swap out its contents.
+
+## Step 4: Check {#step-check}
+
+If `npm run dev` is running, leave it; if you stopped it, start it up and look at the browser. If **just the heading "Product list app"** appears on a white background, you're done. This is your blank canvas. From the next part on, you'll add your own code here.
+
+The final file layout looks like this.
+
+```
+my-shop/src/
+├─ main.tsx      ← untouched (the startup entry point)
+├─ App.tsx       ← a blank slate with just <h1>
+├─ index.css     ← minimal
+└─ assets/       ← now empty
+```
+
+## Break it on purpose: change root's id and it won't start {#break-root-id}
+
+Let's deliberately trigger one of React's most famous errors. Rewrite `<div id="root">` in `index.html` to `<div id="app">` and save.
+
+```html title="index.html (break it on purpose: change the id)"
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+```
+
+The screen goes blank, and the console (`F12`) shows this.
+
+```
+Uncaught Error: Target container is not a DOM element.
+```
+
+Here's what it means. `main.tsx` looks for "the box called `root`" with `document.getElementById('root')`, but since you changed the `id` to `app`, **it can't find the box** and reports that "the thing to draw into (the Target container) isn't in the DOM". Change the `id` back to `root` and save to fix it. Remember that **`Target container is not a DOM element` is the signal that the box in `index.html` and the name `main.tsx` asks for have drifted apart** — this will definitely come in handy someday.
+
+## When things don't work {#trouble}
+
+- **After deleting, the error `Failed to resolve import "./assets/react.svg"`** … some file is still `import`ing that image. Open the file named in the error and delete that `import` line.
+- **The screen is blank and nothing appears in the console** … check whether `npm run dev` has stopped, or whether a different error is showing in the terminal.
+
+<SummaryBox>
+
+- Clean up first on a new project. Delete App.css, the sample images, and icons.svg, and reduce index.css to the minimum
+- Don't delete `favicon.svg` or the foundation files (main.tsx / index.html, etc.)
+- `Target container is not a DOM element` is the signal that the box id in `index.html` and the name main.tsx asks for have drifted apart
+
+</SummaryBox>

@@ -1,0 +1,115 @@
+---
+title: Running npm create vite
+minutes: 8
+slug: setup-create-vite
+section: setup
+description: "The real terminal output, in full. Launching create-vite up to the point where the three questions begin."
+level: beginner
+prerequisites: ['setup/why-vite']
+---
+
+<LearnBox>
+
+- Running the command that creates a project
+- What appears on screen when you run it (exactly as it really looks)
+- The point where the three questions begin
+
+</LearnBox>
+
+<Callout type="note">
+
+These steps were verified with **create-vite 9.1.2 / Vite 8 (as of 2026)**. As versions go up, the wording of the questions and the choices may change a little. Even if your screen looks slightly different, the ideas are the same.
+
+</Callout>
+
+Now we finally create the project. The goal is that after these steps, **you have one folder named after your project**.
+
+## Step 1: Move to where you want to create it {#step-cd}
+
+The project folder is created inside "where you are right now." First, move to the place where you want to create it. Here we use the Desktop as an example.
+
+```bash
+cd Desktop
+```
+
+<Callout type="warn">
+
+Even if you use XAMPP, **you do not need to create your practice project inside `htdocs`**. Vite has its own development server, so the location can be the Desktop or your documents folder — it doesn't matter. Choosing a location whose path has no Japanese characters or spaces makes trouble less likely later.
+
+</Callout>
+
+## Step 2: Run the creation command {#step-run}
+
+Type the following command and press `Enter`. `@latest` means "use the latest version of create-vite."
+
+```bash
+npm create vite@latest
+```
+
+The first time you run it, you'll be asked "Is it OK to download this tool?" Type `y` and press `Enter`.
+
+```
+Need to install the following packages:
+create-vite@9.1.2
+Ok to proceed? (y)
+```
+
+Then the creation wizard starts, and the **first question** appears.
+
+```
+│
+◇  Project name:
+│  vite-project
+│
+```
+
+From here you answer **three questions** (project name → framework → variant). We look at each one in detail over the next two pages, so here just get a feel for "this is the kind of screen that appears."
+
+## What it looks like once you've answered everything {#done}
+
+Once you answer the three questions, the folder is created, and at the end you see this (`my-shop` is the name you gave it).
+
+```
+◇  Scaffolding project in C:\Users\you\Desktop\my-shop...
+│
+└  Done. Now run:
+
+  cd my-shop
+  npm install
+  npm run dev
+```
+
+These three lines under "**Now run:**" are the guide for what to do next. You don't need to type them yet. We'll run them one line at a time from page 13 onward.
+
+## Breaking it on purpose: what happens if you mistype the command name {#break-typo}
+
+Let's experience what happens if you get the command name wrong. Try typing `create` as `creat`.
+
+```bash
+npm creat vite@latest
+```
+
+When you run it (not save it), this comes back.
+
+```
+Unknown command: "creat"
+
+To see a list of supported npm commands, run:
+  npm help
+```
+
+It's telling you "I don't know any command called `creat`." npm won't fix your typo for you. **When red text appears, first suspect the spelling of the command** — that's the basic first move. Retype it correctly as `npm create vite@latest` and it works.
+
+## When it doesn't work {#trouble}
+
+- **It stops at `Ok to proceed?` and won't move on** … Most of the time this just means you haven't typed `y` and pressed `Enter`.
+- **`npm : The term 'npm' is ... not recognized`** … Node.js isn't installed. Go back to pages 4–5.
+- **The download never finishes** … This can be caused by a corporate network proxy, or by being offline. Trying a different network helps you narrow it down.
+
+<SummaryBox>
+
+- `cd` to where you want to create it, then run `npm create vite@latest`
+- On the first run, answer `Ok to proceed? (y)` with `y`
+- After that, the three questions (name, framework, variant) begin. You answer them over the next two pages
+
+</SummaryBox>

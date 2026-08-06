@@ -3,8 +3,8 @@ import type { ReactNode } from 'react'
 import styles from './Tooltip.module.scss'
 
 /**
- * ホバーとフォーカスで出るツールチップ。state も JavaScript も使わず、CSS の
- * :hover / :focus-within だけで出し入れする。中身の要素をそのまま包むだけ。
+ * A tooltip shown on hover and focus. It uses no state and no JavaScript, showing
+ * and hiding purely with CSS :hover / :focus-within. It just wraps its children.
  */
 export function Tooltip({ label, children }: { label: string; children: ReactNode }) {
   return (

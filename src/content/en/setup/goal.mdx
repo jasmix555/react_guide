@@ -1,0 +1,73 @@
+---
+title: Goal of this part
+minutes: 4
+slug: setup-goal
+section: setup
+description: "By the end of this part, what will be on your screen and what you will be able to do."
+level: beginner
+prerequisites: []
+---
+
+<LearnBox>
+
+- What will be on your screen when this part is done
+- Why "environment setup" comes first, and why it matters most
+- What you will do, step by step, across the 21 pages of this part
+
+</LearnBox>
+
+<Callout type="note" title="Already set up? (You can skip)">
+
+This part is written in the most careful, step-by-step way for people who **haven't installed Node.js or `npm` yet**. If you already have the tools in place, feel free to jump in from further down.
+
+- **Node / npm (or pnpm) is already installed** → [Start from `npm create vite`](/guide/setup/create-vite)
+- **You can set up the environment yourself (you can create a Vite project)** → [Go to Part 2 "JavaScript you need before React"](/guide/javascript/const-let) (if you already know JS, go to [Part 3 "Your first React"](/guide/components/goal))
+
+</Callout>
+
+Most people who get stuck learning React don't get stuck on `useState` or `props` — they get stuck **before that**, at "getting a working project running on my own PC." Once you clear this hurdle, the rest is downhill. That's why this part is written so carefully.
+
+## What you'll have when you're done {#goal}
+
+Once you finish this part, your PC will have these three things:
+
+1. **A running React project** — open `http://localhost:5173` in your browser, and the app you made will show up.
+2. **An understanding of what's inside** — you'll be past the "I'm scared of files I don't recognize" stage of not knowing what `main.tsx` or `vite.config.ts` are.
+3. **A blank canvas** — with all the sample files Vite drops in at the start deleted, ready for you to start writing your own code from the next part.
+
+First, let me show you a glimpse of the scenery along the way. When you run `npm run dev` and open the browser, you'll first see a screen like this (it's the sample page Vite prepares for you).
+
+<Callout type="note">
+
+You'll see a page with a purple logo and buttons labeled "Get started" and "Count is 0." Press the button and the number goes up. This is **proof that React is working properly** — it is not your app. Later in this part, we'll delete all of it and go back to a blank slate.
+
+</Callout>
+
+## Why setup matters most {#why}
+
+Think back to building an LP. You made an `index.html`, dragged it into the browser, and it showed up. No build, no install needed.
+
+React is different. The `.tsx` you write can't be read by the browser as-is. Unless you first prepare the **tools that convert (build)** it, you can't display a single character. This work of "preparing the tools" is the environment setup. If this doesn't run, every page after this is just theory on paper.
+
+<Callout type="analogy">
+
+It's the same as how there's no point teaching someone how to hold a knife if they don't own a knife. First you get the knife (a working project). That's what this part is about.
+
+</Callout>
+
+## How this part flows {#roadmap}
+
+The 21 pages are split into four big chunks. Don't rush — go through them in order from the top.
+
+1. **Checking the tools (pages 2–5)** — what Node.js is, how to open the terminal, how to check whether it's installed, and how to install it if it isn't.
+2. **Creating the project (pages 6–15)** — why Vite, running `npm create vite`, a full explanation of every choice you're asked about, and `npm install` and `npm run dev`.
+3. **Understanding what's inside (pages 16–19)** — reading the generated files one by one, feeling HMR with your first edit, going back to a blank slate, and tidying up the editor.
+4. **A stitch in time (pages 20–21)** — handling the error that always shows up on Windows, plus the summary and exercises.
+
+<SummaryBox>
+
+- The goal of this part is "a working React project + an understanding of what's inside + a blank canvas"
+- Environment setup is a step that didn't exist in LP work; if you can't clear it, you can't move on
+- Go through 21 pages in order from the top, without rushing
+
+</SummaryBox>

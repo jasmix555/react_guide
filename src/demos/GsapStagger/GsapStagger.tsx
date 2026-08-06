@@ -3,15 +3,17 @@ import gsap from 'gsap'
 import { useRef } from 'react'
 
 import products from '@/data/products.json'
+import { useLocale } from '@/hooks/useLocale'
 
 import styles from './GsapStagger.module.scss'
 
 /**
- * useGSAP の基本。マウント時にカードが少しずつ（stagger）フワッと出る。
- * scope でセレクタを箱の中に限定し、後片付けは useGSAP が自動でやる。
- * 「動きを減らす」設定のときは matchMedia で動かさない。
+ * useGSAP basics. On mount the cards fade in one after another (stagger).
+ * scope limits the selectors to inside the box, and useGSAP handles cleanup for you.
+ * When "reduce motion" is set, matchMedia keeps it from moving.
  */
 export function GsapStagger() {
+  const en = useLocale() === 'en'
   const container = useRef<HTMLUListElement>(null)
   const anim = useRef<gsap.core.Timeline | null>(null)
   const items = products.slice(0, 4)
@@ -37,13 +39,15 @@ export function GsapStagger() {
       <ul className={styles.grid} ref={container}>
         {items.map((p) => (
           <li key={p.id} className={styles.card}>
-            <span className={styles.name}>{p.name}</span>
-            <span className={styles.price}>{p.price.toLocaleString()}円</span>
+            <span className={styles.name}>{en ? p.nameEn : p.name}</span>
+            <span className={styles.price}>
+              {en ? `${p.price.toLocaleString()}` : `${p.price.toLocaleString()}円`}
+            </span>
           </li>
         ))}
       </ul>
       <button type="button" className={styles.replay} onClick={() => anim.current?.restart()}>
-        もう一度
+        {en ? 'Play again' : 'もう一度'}
       </button>
     </div>
   )

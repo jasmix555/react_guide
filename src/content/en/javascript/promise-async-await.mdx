@@ -1,0 +1,195 @@
+---
+title: Promise and async / await
+minutes: 10
+slug: promise-async-await
+section: javascript
+description: "How to wait for slow operations. A Promise delivers a result later, and async / await lets you write that plainly — plus the classic forgotten-await trap."
+level: beginner
+prerequisites: ['javascript/functions-as-values']
+---
+
+<LearnBox>
+
+- An operation that "delivers a result later" = a `Promise`
+- `async` / `await` let you wait for it to arrive, then receive it
+- What you actually get when you forget to write `await`
+
+</LearnBox>
+
+## Why we need a way to "wait" {#why}
+
+Operations like fetching product data from a server **don't finish instantly**. They can take a few hundred milliseconds. Since you can't freeze the whole program during that time, JavaScript returns a **`Promise`** up front — a promise that says "**the result will arrive later**." And the way you receive it once it arrives is **`async` / `await`**.
+
+This page is about getting the "shape" of it. We do actual data fetching in detail in Part 11 (more on that later).
+
+<Callout type="analogy">
+
+When you order at a restaurant, you're first handed a **number ticket**, not the food itself. That's a `Promise`. When it's ready they call your number and you receive the food. `await` is like "waiting right there until your number is called."
+
+</Callout>
+
+## The shape of async / await {#shape}
+
+For a function that "waits for a slow operation and then uses the result," put **`async`** in front. Then place **`await`** before the operation you want to wait for.
+
+```ts title="src/api/products.ts (illustration)"
+async function getProducts() {
+  const res = await fetch('/products.json') // wait until it arrives
+  const data = await res.json() // extracting the contents also waits
+  return data
+}
+```
+
+Here's a single `await` line broken into pieces and labeled.
+
+```ts
+const data = await fetch(url)
+//    ↑      ↑     ↑
+//    │      │     └─ the slow operation (returns a Promise)
+//    │      └─ await = wait here until the result arrives (only inside an async function)
+//    └─ the "contents" of what we waited for (the actual value, not a Promise)
+```
+
+- **`const data`** … holds the **contents** of the result we waited for (because of `await`, it's the actual value, not a Promise)
+- **`await`** … **wait here** until the result arrives. Usable only inside a function marked `async`
+- **`fetch(url)`** … the slow operation. It doesn't return the result right away; it returns a `Promise` (a promise to deliver later)
+
+`await fetch(...)` means "wait here until `fetch`'s result arrives, then move on." When you write `await`, you receive the **contents themselves** instead of the `Promise` (the number ticket). `await` can only be used inside a function marked `async`.
+
+<JsNote feature="A Promise is a box wrapping a 'result that arrives later'">
+
+`fetch(...)` doesn't return a result right away — it returns a `Promise` (a promise to deliver later). `await` opens that box, waits until the contents arrive, and takes them out. `async` is a declaration that says "inside this function, we wait."
+
+</JsNote>
+
+## Complete code you can run as-is {#runnable}
+
+The `fetch` above needs a server, but if you just want to see how `await` behaves, you can paste the following code straight into the console (it makes its own `wait`, so it's self-contained).
+
+```ts title="paste straight into the console and it runs"
+// build a "wait ms milliseconds" operation ourselves, with a Promise
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function run() {
+  console.log('start')
+  await wait(1000) // wait 1 second here
+  console.log('1 second passed')
+}
+
+run()
+```
+
+When you call `run()`, "start" appears immediately, and "1 second passed" appears one second later. Because `await wait(1000)` "won't move on until the wait is over," things display in order. Remove the `await` and the two lines print one after another without waiting.
+
+## Break it on purpose: forgetting await {#break-no-await}
+
+The most common mistake is **forgetting to write `await`**. If you receive the result without waiting, you get the "number ticket" (`Promise`) itself instead of the contents.
+
+```ts
+async function getProducts() {
+  const data = fetch('/products.json') // forgot the await
+  console.log(data) // Promise { <pending> }  ← not the data
+  return data
+}
+```
+
+`data` was supposed to hold the product list, but it holds `Promise { <pending> }` (a promise that hasn't been delivered yet). No error appears, but if you try to `map` over that `data` as an array, it fails with "not an array." **When you see "`Promise { <pending> }`" or "can't `.map`," suspect a forgotten `await` first.** Add `await` and the array contents go in.
+
+## Preparing for errors: try / catch {#try-catch}
+
+Networking can fail (bad signal, server down, and so on). To prepare for failure, wrap it in `try` / `catch`.
+
+```ts
+async function getProducts() {
+  try {
+    const res = await fetch('/products.json')
+    const data = await res.json()
+    return data
+  } catch (error) {
+    console.error('Failed to fetch', error)
+    return [] // return an empty array on failure
+  }
+}
+```
+
+If a failure happens inside the `try`, control jumps to `catch`. It's insurance so that a failure **doesn't take down the whole app**.
+
+<Together
+  task="Assume there's a wait(ms) operation that 'waits ms milliseconds.' Inside an async function, write the shape of a run function that waits 1 second and then displays 'done.' (Assume wait returns a Promise.)"
+  hint="Inside async function run(), do await wait(1000), then console.log('done')."
+>
+
+```ts
+async function run() {
+  await wait(1000) // wait 1 second
+  console.log('done') // prints after the wait is over
+}
+```
+
+`await wait(1000)` "stops here until the 1-second wait is over," then moves on to `console.log('done')`. Without `await`, "done" prints immediately, without waiting.
+
+</Together>
+
+## Syntax catalog: the many forms of async / await {#catalog}
+
+Use `await` inside a function marked `async` — that combination is the foundation. Here are the forms you'll use often.
+
+```ts
+async function load() { }                      // async: a function where await can be used
+const res = await fetch(url)                    // await: wait until it arrives, receive the contents
+const data = await res.json()                   // await again (parsing JSON also waits)
+const [a, b] = await Promise.all([f1(), f2()])  // run them at once and wait for all
+const items = await load().catch(() => [])      // provide a fallback on failure
+const bad = fetch(url)                          // ✗ no await → Promise { <pending> } goes in
+```
+
+Add `await` and you get the contents; forget it and a `Promise` goes in as-is. For networking, prepare for failure with `try` / `catch` (or `.catch`).
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="const data = fetch(url)"
+  good="const data = await fetch(url)"
+  note="Without await you get a Promise, not the contents. Use await inside an async function."
+/>
+
+<Diff
+  bad="Using await inside a normal (non-async) function"
+  good="Mark the function async, then use await"
+  note="await is only for inside an async function. Forget it and you get a syntax error."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Write async work with async / await rather than .then chains, and wrap networking in try / catch"
+  alt="For cases like running several fetches at once and waiting for all of them, use Promise.all. To start, being able to read async / await is enough."
+>
+
+The advantage of `async` / `await` is that you can **read it top to bottom in procedural order** — "wait, receive, next." It's easier to follow for newcomers than a `.then().then()` chain. Pair it with `try` / `catch` to prepare for failure.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **You get `Promise { <pending> }` / the result isn't an array** … You forgot to write `await`. Use `await` inside an `async` function.
+- **`await is only valid in async functions`** … You used `await` in a function that isn't marked `async`. Mark the function `async`.
+- **`Uncaught (in promise)`** … A failure isn't being caught. Wrap it in `try` / `catch`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Mark the function async and add await, as in const res = await fetch(url). Without await, data holds a Promise, and it later fails when you try to map over it.">
+
+Why doesn't `function load() { const data = fetch(url); return data }` work as expected? How would you fix it?
+
+</Exercise>
+
+<SummaryBox>
+
+- A slow operation doesn't wait for the result; it returns a `Promise` (a promise to deliver later) up front
+- Use `await` inside a function marked `async` and you wait for it to arrive, then receive the contents
+- Forget `await` and you get a `Promise` instead of the contents. For networking, prepare for failure with `try` / `catch`
+
+</SummaryBox>

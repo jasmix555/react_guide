@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 
-import { strings } from '@/config/strings.ja'
+import { useStrings } from '@/hooks/useLocale'
 import type { NavHeading } from '@/types/nav'
 
 import styles from './style.module.scss'
@@ -13,6 +13,8 @@ export function Toc({
   headings: NavHeading[]
   activeId: string | null
 }) {
+  const strings = useStrings()
+
   function onClick(e: React.MouseEvent, id: string) {
     e.preventDefault()
     const el = document.getElementById(id)

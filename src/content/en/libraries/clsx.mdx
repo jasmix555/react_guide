@@ -1,0 +1,147 @@
+---
+title: Building class names with clsx
+minutes: 8
+slug: clsx
+section: libraries
+description: "Build class names that get added or removed by condition safely with clsx, instead of concatenating strings. clsx avoids the trap where && returns false and leaks into the class name."
+level: beginner
+prerequisites: ['libraries/sass', 'javascript/symbols']
+---
+
+<LearnBox>
+
+- Why building conditional class names by "adding strings" breaks
+- Add `clsx` and build conditional classes safely
+- Why `false` and `undefined` don't leak into the class name
+
+</LearnBox>
+
+## You want to add and remove classes by condition {#why}
+
+On screen you often want to **swap classes based on state**—"in stock → `in-stock`, out of stock → `sold-out`", for example. Write that in plain JavaScript by adding strings together and it quickly becomes hard to read and easy to break.
+
+Let's see that "easy to break" first, then fix it with `clsx`.
+
+## Break it on purpose: building classes with string concatenation {#break-concat}
+
+Let's naively add strings to say "always apply `card`, and also apply `on` if `inStock` is true." Here the **`&&` gotcha** we covered in Part 2, on the symbols page, bares its teeth.
+
+```js
+const inStock = false
+const className = 'card ' + (inStock && 'on')
+
+console.log(className) // 'card false'  ← false turns into text and sneaks in
+```
+
+When `inStock` is `false`, `inStock && 'on'` returns `false` (as we saw in [How to read symbols](/guide/javascript/symbols)). Add that to a string and you get `'card false'`—a **nonexistent class name `false`**. Conversely, if `inStock` is true you get `'card on'`, but every time you add a condition, managing the spaces and this `false` contamination becomes a nightmare.
+
+<Callout type="warn">
+
+`'string' + (condition && 'class')` sneaks `false` or `undefined` into the string when the condition is falsy. Writing class-name concatenation by hand is a breeding ground for this kind of bug.
+
+</Callout>
+
+## Adding clsx {#install}
+
+The small part that takes this hassle off your hands is `clsx`. It's needed for the screen to work, so install it as a `dependencies` entry (no `-D`).
+
+```bash
+npm install clsx
+```
+
+`clsx` is very small, and its types are bundled in the package itself. It's a staple that's often added to `create vite` projects too.
+
+## Building with clsx {#use}
+
+`clsx(...)` is a function that **joins whatever you pass into a nice class-name string**. It **automatically ignores** `false` / `undefined` / `null`.
+
+```ts
+import clsx from 'clsx'
+
+const inStock = false
+const className = clsx('card', inStock && 'on')
+
+console.log(className) // 'card'  ← false is ignored, and no extra space either
+```
+
+If `inStock` is falsy, `inStock && 'on'` is `false`, but `clsx` **ignores** it, so the result is just `'card'`. If `inStock` is true, you get `'card on'`. No more worrying by hand about spaces or `false`.
+
+You can also use the object form: "the key is the class name, applied only when the value is true."
+
+```ts
+const className = clsx('card', {
+  on: inStock,      // apply 'on' if inStock is true
+  'sold-out': !inStock, // apply 'sold-out' if false
+})
+```
+
+<JsNote feature="clsx throws away false / undefined for you">
+
+`clsx` joins **only the truthy strings** among the arguments it receives, with spaces, and returns the result. It throws away `false`, `undefined`, `null`, `0`, and `''`. So you can pass `condition && 'class'` as-is, and nothing gets applied when it's falsy. Your knowledge of [truthy and falsy](/guide/javascript/truthy-falsy) pays off directly here.
+
+</JsNote>
+
+<Together
+  task="On a product card, always apply 'badge', and add 'badge--sold' only when it's out of stock (inStock is false). Build that class name with clsx."
+  hint="It's the form clsx('badge', !inStock && 'badge--sold'). Out of stock = !inStock is true."
+>
+
+```ts
+import clsx from 'clsx'
+
+const inStock = false
+const className = clsx('badge', !inStock && 'badge--sold')
+
+console.log(className) // 'badge badge--sold' (out of stock, so it got added)
+```
+
+`'badge--sold'` is added only when `!inStock` (out of stock, expressed with `!`) is true. If it's in stock (`inStock` is true), `!inStock` is false, `clsx` ignores it, and you get just `'badge'`. `!` is the "flip it" symbol we covered in [How to read symbols](/guide/javascript/symbols).
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="'card ' + (active && 'on') (becomes 'card false' when active is falsy)"
+  good="clsx('card', active && 'on')"
+  note="&& returns false when falsy. String concatenation lets false sneak in. clsx ignores it."
+/>
+
+<Diff
+  bad="className={'card' + (big ? ' big' : '')} (managing spaces by hand)"
+  good="className={clsx('card', big && 'big')}"
+  note="Adding spaces and conditions by hand invites mistakes. Leave it to clsx and it handles spacing too."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Build conditional class names with clsx, not string concatenation"
+  alt="If there's a single class with no condition, plainly writing className='card' is enough—you don't need clsx. Use clsx only when conditions are involved."
+>
+
+If a condition is involved in `className`, reach for `clsx`. It drops `false` and `undefined` for you, so you avoid the `&&` trap and are freed from managing spaces. It's a small, fast part, so the cost of adding it is next to nothing.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`false` or `undefined` shows up in the class name** … You're building it with string concatenation. Replace it with `clsx`.
+- **`clsx is not a function`** … Check that it's `import clsx from 'clsx'` (a default import, no curly braces).
+- **A conditional class is always/never applied** … Check that the condition you're passing really is a boolean (that no `0` or the like has sneaked in).
+
+## Summary and practice {#summary}
+
+<Exercise answer="Write clsx('row', isSelected && 'row--selected'). If isSelected is falsy, clsx ignores the false and you get just 'row'. String concatenation could give you 'row false'.">
+
+How would you write, with `clsx`, a class name for a `row` that adds `row--selected` only when it's selected (`isSelected`)?
+
+</Exercise>
+
+<SummaryBox>
+
+- Build conditional classes with string concatenation and the `false` that `&&` returns sneaks in and breaks things
+- `clsx(...)` ignores `false` / `undefined` / `null` and joins class names safely
+- A small, staple part you install as a `dependencies` entry. Leave class names with conditions to `clsx`
+
+</SummaryBox>

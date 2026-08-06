@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-import { strings } from '@/config/strings.ja'
+import { useLocale, useStrings } from '@/hooks/useLocale'
 import { useReadProgress } from '@/hooks/useReadProgress'
 import { prevNext } from '@/lib/nav'
 
@@ -8,12 +8,14 @@ import styles from './style.module.scss'
 
 /** Prev / Next derived from the flattened navigation order of the current tab. */
 export function PrevNext({ route }: { route: string }) {
-  const { prev, next } = prevNext(route)
+  const locale = useLocale()
+  const strings = useStrings()
+  const { prev, next } = prevNext(locale, route)
   const { markRead } = useReadProgress()
   if (!prev && !next) return null
 
   return (
-    <nav className={styles.wrap} aria-label="前後のページ">
+    <nav className={styles.wrap} aria-label={strings.nav.prevNextAria}>
       {prev ? (
         <Link to={prev.href} className={`${styles.link} ${styles.prev}`}>
           <span className={styles.dir}>← {strings.nav.prev}</span>

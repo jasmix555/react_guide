@@ -1,0 +1,157 @@
+---
+title: Sequencing with a timeline
+minutes: 10
+slug: gsap-timeline
+section: gsap
+description: "Play several motions in order with gsap.timeline(). Create overlaps with the position parameter, and control it with restart and friends. The feature where GSAP shines most."
+level: intermediate
+prerequisites: ['libraries/gsap/usegsap']
+---
+
+import { GsapTimeline } from '@/demos/GsapTimeline'
+
+<LearnBox>
+
+- Chain motions onto `gsap.timeline()` and play them in order
+- Create overlaps with the **position parameter** (`'+=0.2'` / `'-=0.2'`)
+- Control the timeline with `restart` / `pause` / `reverse`
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Press "Play again" and ① → ② → ③ come in one after another, and after a short pause "Done" bounces in. Building this "**order**" and "**gaps**" is what a timeline is for.
+
+<Demo title="gsap.timeline (order and overlap)">
+  <GsapTimeline />
+</Demo>
+
+## Chain onto a timeline {#chain}
+
+If you write `gsap.to` / `from` one at a time separately, they all start at the **same time**. Create a **`gsap.timeline()`** and **chain** `.from()` / `.to()` onto it, and they play **one after another** in the order you wrote them.
+
+```tsx
+const tl = gsap.timeline()
+
+tl.from('.a', { opacity: 0, x: -24 }) // A first
+  .from('.b', { opacity: 0, x: -24 }) // then B
+  .from('.c', { opacity: 0, x: -24 }) // then C
+```
+
+You can chain them like `tl.from(...).from(...)` (method chaining). By default, "the next one starts after the previous motion finishes."
+
+## Create overlaps with the position parameter {#position}
+
+"After the previous one finishes" feels a little sluggish. Add a **position specification** at the end of each line and you can shift the start timing. This is the **position parameter**.
+
+```tsx
+tl.from('.a', { x: -24 })
+  .from('.b', { x: -24 }, '-=0.2') // start 0.2s "before" the previous one ends
+  .from('.c', { x: -24 }, '+=0.1') // start 0.1s "after" the previous one ends
+```
+
+```tsx
+.from('.b', { x: -24 }, '-=0.2')
+//                       └─ start with a 0.2s overlap onto the previous motion
+```
+
+- **`'-=0.2'`** … start **0.2s earlier** than the previous motion ends (overlaps).
+- **`'+=0.1'`** … start **0.1s later** than the previous motion ends (leaves a gap).
+- **`0.5` (a number)** … the position **0.5s from the start** of the timeline (absolute).
+
+Combined with `stagger` (offset each one a little), you can bring out several elements together on a time-lag. The ① ② ③ in the demo is one `from` with `stagger: 0.25` on it.
+
+## Control the timeline {#control}
+
+A timeline you've created can be **controlled** afterward. The demo's "Play again" is `restart()`.
+
+```tsx
+tl.pause() // stop
+tl.play() // play
+tl.restart() // from the start
+tl.reverse() // play in reverse
+```
+
+For that, you **remember the timeline in a ref**. Here's the finished code.
+
+```tsx title="src/demos/GsapTimeline/GsapTimeline.tsx (full)"
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { useRef } from 'react'
+
+import styles from './GsapTimeline.module.scss'
+
+export function GsapTimeline() {
+  const container = useRef<HTMLDivElement>(null)
+  const tl = useRef<gsap.core.Timeline | null>(null)
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia()
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        tl.current = gsap
+          .timeline()
+          .from(`.${styles.step}`, {
+            opacity: 0,
+            x: -24,
+            duration: 0.4,
+            stagger: 0.25,
+            ease: 'power2.out',
+          })
+          .from(
+            `.${styles.done}`,
+            { opacity: 0, scale: 0.6, duration: 0.4, ease: 'back.out(2)' },
+            '+=0.1',
+          )
+      })
+    },
+    { scope: container },
+  )
+
+  return (
+    <div className={styles.wrap} ref={container}>
+      <div className={styles.row}>
+        <span className={styles.step}>① Prepare</span>
+        <span className={styles.step}>② Run</span>
+        <span className={styles.step}>③ Check</span>
+        <span className={styles.done}>✓ Done</span>
+      </div>
+      <button type="button" className={styles.replay} onClick={() => tl.current?.restart()}>
+        Play again
+      </button>
+    </div>
+  )
+}
+```
+
+`stagger: 0.25` brings in ① ② ③ on a time-lag, and `.from(..., '+=0.1')` follows up with "Done" at the end. `ease: 'back.out(2)'` is a bouncy "overshoot and come back" motion.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Writing three gsap.to's side by side (they all start at the same time)"
+  good="Chaining onto gsap.timeline() (they play in order)"
+  note="Motion with an order belongs on a timeline. Separate to's all fire at once and won't run in the intended order."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Everything moves at once** … Check that you're **chaining** onto `gsap.timeline()`. Lining up individual `gsap.to`'s plays them simultaneously.
+- **Sluggish / too crammed** … Adjust the overlaps and gaps with the position parameter (`'-=0.2'` / `'+=0.1'`).
+- **`restart` doesn't work** … Check that you put the timeline in a `ref` (`tl.current`).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Create a gsap.timeline() and chain like .from(...).from(..., '-=0.2'). Setting the second one's position to '-=0.2' starts it with a 0.2s overlap onto the previous motion, so it flows in right after. '+=0.2' would leave a gap instead.">
+
+To make two elements "appear in sequence with a slight overlap," how do you chain onto `gsap.timeline()`, and what do you specify for the position?
+
+</Exercise>
+
+<SummaryBox>
+
+- Chain `.from()` / `.to()` onto `gsap.timeline()` and they play in the order you wrote them
+- Adjust with the position parameter (`'-=0.2'` to overlap / `'+=0.1'` to leave a gap / a number is an absolute position)
+- Remember the timeline in a `ref` and you can control it with `restart` / `pause` / `reverse`
+
+</SummaryBox>

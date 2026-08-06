@@ -1,0 +1,66 @@
+---
+title: Adding motion
+minutes: 4
+slug: motion
+section: libraries
+description: "Add motion, the animation part. What it's for and how to install it. The actual usage is covered in the Framer Motion part."
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- What the animation part `motion` is for
+- Adding `motion`
+- The plan: how to use it comes in the Framer Motion part
+
+</LearnBox>
+
+## Adding animation the React way {#why}
+
+When building LPs, you've probably used plenty of animations, things like fading elements in or moving them on scroll. You can write these with CSS `transition` or `@keyframes`, but for motion tied to React's display changes, like "**the moment something appears or disappears**" or "list items showing up one after another," having a dedicated part makes it dramatically easier.
+
+The one we use is **`motion`**. It lets you write "move this element like this" declaratively.
+
+<Callout type="analogy">
+
+If CSS animation is "moving things by hand while watching a stopwatch," then `motion` is the assistant you tell the start and end states to, and it smoothly connects the in-between for you. You can hand off the fine-grained timing math.
+
+</Callout>
+
+## Install {#install}
+
+Since it affects how the app runs, install it as a `dependencies` (no `-D`).
+
+```bash
+npm install motion
+```
+
+`motion` gets added to `dependencies` in `package.json`. The types ship with the package itself.
+
+## How to use it comes in the Framer Motion part {#later}
+
+Using `motion` clicks into place better once you understand components and state (the screen's state). Motions like "opens when you press a button" or "the list appears in sequence" are tied to React's state. So **here we'll stop at installing it**, and cover the actual way to write it in detail in the [Framer Motion part](/libraries/framer-motion/goal).
+
+For now, it's enough to just remember "when you want to add animation, reach for `motion`."
+
+## Our standard {#standard}
+
+<Std
+  decision="Use motion for animation. That said, a simple hover or fade is often fine with a CSS transition"
+  alt="A small change in color or size is fine with just a CSS transition. Use motion for cases that are awkward in CSS, like toggling things in and out or chaining movements together."
+>
+
+We keep `motion` on hand as the go-to for animation. Even so, first considering whether CSS is enough is the same as with other libraries. Reach for `motion` when you need more elaborate motion, in that order of judgment. How to use it is in the Framer Motion part.
+
+</Std>
+
+## Summary and practice {#summary}
+
+<SummaryBox>
+
+- `motion` is the part for writing animations tied to React's display changes
+- Install it with `npm install motion` (dependencies). Types are included
+- How to use it is in the Framer Motion part. Simple motion is often fine with a CSS transition
+
+</SummaryBox>

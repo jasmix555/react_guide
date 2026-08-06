@@ -1,0 +1,100 @@
+---
+title: Enter/exit animation (AnimatePresence)
+minutes: 9
+slug: exit-animation
+section: framer-motion
+description: "With AnimatePresence, things exit smoothly too. Make adds and removes slide in and out instead of snapping. The roles of key and exit."
+level: intermediate
+prerequisites: ['libraries/framer-motion/motion-basics']
+---
+
+import { MotionExitDemo } from '@/demos/MotionExit'
+
+<LearnBox>
+
+- Why animating "when something disappears" takes an extra step
+- Adding an exit motion with `AnimatePresence` and `exit`
+- Why it matters that `key` is set correctly
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+"Add" opens smoothly and "Remove" closes smoothly. The point is that nothing snaps out of existence.
+
+<Demo title="AnimatePresence (enter/exit)">
+  <MotionExitDemo />
+</Demo>
+
+## "Disappearing" is the hard part {#why}
+
+`initial` / `animate` were the motion for "when something appears." But **animating something as it disappears** doesn't work out of the box. Here's why: when you remove an element from a list, React **removes it from the DOM immediately**, so there's **no moment** to show a "fading out" animation.
+
+That's where **`AnimatePresence`** comes in. It's the piece that **keeps a disappearing element in the DOM until its animation finishes**.
+
+## AnimatePresence and exit {#animate-presence}
+
+Wrap the elements that might disappear in `<AnimatePresence>`, and give each element an **`exit`** (the state it heads toward as it disappears).
+
+```tsx
+import { AnimatePresence, motion } from 'motion/react'
+
+<AnimatePresence>
+  {items.map((item) => (
+    <motion.li
+      key={item.id} // ← this is critical (explained below)
+      initial={{ opacity: 0, height: 0 }} // when appearing
+      animate={{ opacity: 1, height: 'auto' }} // while shown
+      exit={{ opacity: 0, height: 0 }} // when disappearing
+      transition={{ duration: 0.25 }}
+    >
+      {item.name}
+    </motion.li>
+  ))}
+</AnimatePresence>
+```
+
+- **`AnimatePresence`** … keeps a disappearing element around until its `exit` animation finishes.
+- **`exit`** … the state to head toward when disappearing (transparent, height 0, so it closes smoothly).
+
+Now when you remove one item from `items`, that element **doesn't vanish right away — it shows its `exit` motion first**, then goes away.
+
+## key is everything {#key}
+
+What lets `AnimatePresence` tell "which one disappeared" is the **`key`** (same idea as [keys in lists](/guide/components/rendering-lists), but even more important here). If the `key` isn't correctly **unique per element**, a different element may look like it disappeared, or `exit` may not run at all.
+
+<Callout type="warn" title="Don't use index as key">
+
+Avoid `key={index}`. Removing an item shifts the numbers, and `AnimatePresence` mistakes elements for different ones. Use a **unique value tied to the element itself**, like `key={item.id}`.
+
+</Callout>
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="You wrote exit but didn't wrap it in AnimatePresence"
+  good="Wrap the disappearing elements in <AnimatePresence> and give each one an exit"
+  note="Without AnimatePresence, React removes it from the DOM immediately, so exit is never seen."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Removal snaps out (exit has no effect)** … check that it's wrapped in `<AnimatePresence>` and each element has a `key` and an `exit`.
+- **It disappears but moves oddly** … check that you aren't using an index as the `key`. Use a unique value like `item.id`.
+- **The height animation is jerky** … add `overflow: hidden` to the element (so its contents don't spill out at height 0).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Wrap the disappearing elements in <AnimatePresence> and give each element an exit (the state it heads toward when disappearing) and a unique key (like item.id). AnimatePresence keeps them in the DOM until the exit animation finishes, so you can see the disappearing motion.">
+
+To make a list removal "close smoothly, then disappear," what do you wrap it in, and what do you add to each element?
+
+</Exercise>
+
+<SummaryBox>
+
+- Exit animations need `AnimatePresence` (it keeps the element in the DOM until exit finishes)
+- Give each element an `exit` (the state when disappearing)
+- The `key` must be unique per element (`item.id`). Don't use index
+
+</SummaryBox>

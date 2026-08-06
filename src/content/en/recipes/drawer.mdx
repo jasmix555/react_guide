@@ -1,0 +1,152 @@
+---
+title: Drawer / hamburger menu
+minutes: 10
+slug: drawer
+section: recipes
+description: "A side menu that opens from a hamburger button. Uses the dialog element so focus trapping, Esc, and backdrop clicks come from built-in features."
+level: intermediate
+prerequisites: ['recipes/modal']
+---
+
+import { DrawerDemo } from '@/demos/Drawer'
+
+<LearnBox>
+
+- A menu that slides in from the side, built with `<dialog>`
+- Getting focus trapping, Esc, and backdrop clicks from **built-in features**
+- The slide animation, and locking background scroll
+
+</LearnBox>
+
+## See the finished version first {#goal}
+
+The one you know from phones: press the hamburger and a menu slides out from the right. It closes on a link inside it, the ✕, Esc, or a backdrop click.
+
+<Demo title="Drawer">
+  <DrawerDemo />
+</Demo>
+
+## Don't build it yourself — hand it to `<dialog>` {#native-first}
+
+Build a drawer or modal from scratch and you end up writing all of **focus trapping** (Tab keys can't escape to the page behind), **close on Esc**, and the **dimmed backdrop** yourself. It's quietly a lot of work, and easy to get wrong.
+
+Open a `<dialog>` element with `showModal()` and these come **built in from the start**. Opening and closing is just two methods.
+
+```ts title="Open and close"
+ref.current?.showModal() // open (with backdrop, focus trapping, and Esc)
+ref.current?.close() // close
+```
+
+## The Drawer component {#drawer-body}
+
+Create a new file at `src/components/Drawer/Drawer.tsx` and paste in the whole thing.
+
+```tsx title="src/components/Drawer/Drawer.tsx (new file, full source)"
+import { useRef } from 'react'
+
+import styles from './Drawer.module.scss'
+
+interface DrawerLink {
+  label: string
+  href: string
+}
+
+export function Drawer({ items }: { items: DrawerLink[] }) {
+  const ref = useRef<HTMLDialogElement>(null)
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Open menu"
+        onClick={() => ref.current?.showModal()}
+      >
+        Menu
+      </button>
+
+      <dialog ref={ref} className={styles.drawer} aria-label="Menu">
+        <button type="button" aria-label="Close" onClick={() => ref.current?.close()}>
+          ✕
+        </button>
+        <nav>
+          {items.map((item) => (
+            <a key={item.href} href={item.href} onClick={() => ref.current?.close()}>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      </dialog>
+    </>
+  )
+}
+```
+
+There are two things to note. Grab the real `<dialog>` with `ref` and call `showModal()` from the hamburger's `onClick`. And **close it with `close()` when a link is pressed** (it's natural for a menu to close once you pick something).
+
+## Slide it in from the side {#animate}
+
+By default a `<dialog>` appears in the center of the screen. Turn it into a tall sheet at the right edge and make it slide. Take the closed state (off to the right = `translateX(100%)`) as the base, and move it to `translateX(0)` once `[open]` is applied.
+
+```scss title="Drawer.module.scss (key parts)"
+.drawer {
+  position: fixed;
+  inset: 0 0 0 auto; // pinned to the right edge, full height
+  width: min(320px, 85vw);
+  margin: 0;
+  transform: translateX(100%);
+  transition:
+    transform 0.25s ease,
+    display 0.25s ease allow-discrete,
+    overlay 0.25s ease allow-discrete;
+}
+
+.drawer[open] {
+  transform: translateX(0);
+}
+
+// The "starting position" for opening. Without this it just pops in.
+@starting-style {
+  .drawer[open] {
+    transform: translateX(100%);
+  }
+}
+```
+
+<JsNote feature="@starting-style and allow-discrete">
+
+Because opening a `<dialog>` switches its `display`, an ordinary `transition` alone won't animate it. `@starting-style` sets the "starting position at the moment it opens," and `allow-discrete` says "keep showing it all the way through while closing." On older browsers that don't support these, it just pops open and closed with no animation (i.e. nothing breaks).
+
+</JsNote>
+
+## Lock background scroll {#scroll-lock}
+
+While it's open, being able to scroll the page behind it is distracting. Without adding any JavaScript, you can target "a page with an open `<dialog>`" using CSS `:has` and stop it.
+
+```scss title="Drawer.module.scss (addition)"
+:global(html:has(dialog[open])) {
+  overflow: hidden;
+}
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Building the overlay with a div and hand-rolling Esc, focus, and the backdrop yourself"
+  good="Opening a <dialog> with showModal() and leaving it to built-in features"
+  note="A hand-built version easily leaks focus trapping. With dialog, focus is trapped correctly from the start."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Clicking the background doesn't close it** … Are you opening with `showModal()`? (`show()` gives you neither the backdrop nor focus trapping.)
+- **It doesn't animate** … Check that `@starting-style` and `allow-discrete` are present. Opening and closing still work without them.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Don't build a drawer yourself — use `<dialog>` + `showModal()` / `close()`. Esc, focus, and the backdrop come built in
+- Position it with `inset: 0 0 0 auto` at the right edge. Slide it with `transform` + `@starting-style`
+- Lock background scroll with `overflow: hidden` on `html:has(dialog[open])`
+
+</SummaryBox>

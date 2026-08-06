@@ -1,0 +1,182 @@
+---
+title: Updating object state
+minutes: 9
+slug: updating-objects
+section: state
+description: "You build object state anew with {...prev, the part you change}. Break down the syntax and write a form in full. The reason direct rewriting doesn't re-render is reference and copy from Part 2. Includes a writing catalog."
+level: beginner
+prerequisites: ['state/use-state/basics', 'javascript/reference-vs-copy']
+---
+
+<LearnBox>
+
+- Hold several values together in one piece of state (an object)
+- Break down the `{...prev, the part you change}` syntax and write a form in full
+- Why direct rewriting doesn't re-render (reference and copy from Part 2), plus a writing catalog
+
+</LearnBox>
+
+## Hold several values together {#why}
+
+State can hold objects too. In an input form, you can combine "name" and "email" into a single piece of state.
+
+```tsx
+const [form, setForm] = useState({ name: '', email: '' })
+```
+
+Now you can manage `form.name` and `form.email` with one piece of state. The question is how to write it "**when you want to update just one of them**." Here's where the [reference and copy](/guide/javascript/reference-vs-copy) from Part 2 pays off.
+
+## Break down the syntax for updating just one spot {#anatomy}
+
+When you "want to change just the name," don't rewrite it directly as `form.name = '...'` (why comes later). You **copy the original and build a new object with only the spot you want to change overwritten**. Let's break down the syntax.
+
+```tsx
+setForm((prev) => ({ ...prev, name: newName }))
+//       ↑           ↑         ↑
+//       │           │         └─ overwrite only the spot you want to change (last one wins)
+//       │           └─ copy all of the previous contents (spread)
+//       └─ the previous value (the latest form React passes in)
+```
+
+- **`(prev) =>`** … the functional form that receives the previous value ([previous page](/guide/state/use-state/functional-updates)).
+- **`...prev`** … spreads out all of the previous object's contents (`email` and so on carry over as-is).
+- **`name: newName`** … writing the same key afterward overwrites it (last one wins).
+
+<Callout type="warn">
+
+When an arrow function **returns an object**, wrap it in `({ ... })` with **parentheses**. Without them, JavaScript mistakes the braces for "the function body."
+
+</Callout>
+
+## Write the form in full {#build}
+
+Create a new file `src/components/ProfileForm/ProfileForm.tsx` and paste in **this entire file**.
+
+```tsx title="src/components/ProfileForm/ProfileForm.tsx (new file, full source)"
+import { useState } from 'react'
+
+export function ProfileForm() {
+  const [form, setForm] = useState({ name: '', email: '' })
+
+  return (
+    <div>
+      <input
+        value={form.name}
+        onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+        placeholder="Name"
+      />
+      <input
+        value={form.email}
+        onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+        placeholder="Email"
+      />
+      <p>
+        {form.name} ({form.email})
+      </p>
+    </div>
+  )
+}
+```
+
+## What happens when you save {#result}
+
+Type in the name field and `onChange` builds "a new object with only `name` swapped for the input value," `setForm` updates the state, and it re-renders. The `<p>` below reflects it. The email field works the same way, and **typing in one field doesn't wipe out the other, because it carries over via `...prev`**.
+
+## Break it on purpose: rewrite the object directly {#break-mutate}
+
+Let's check why you shouldn't rewrite it directly. We tamper with `form`'s contents directly and pass it to `setForm`.
+
+```tsx
+function updateName(newName: string) {
+  form.name = newName // ← rewriting the original object directly
+  setForm(form) // ← passing the same object
+}
+```
+
+Type all you want and **the screen doesn't change**. No error, either. `form.name = newName` only rewrote the contents, and the `form` passed to `setForm(form)` is **the same object as before (the same reference)**. React judges "same reference = nothing changed" and skips the re-render.
+
+This is exactly the [reference and copy](/guide/javascript/reference-vs-copy) story from Part 2. To tell React about a change, you need to build a **new container** with `{ ...prev }`.
+
+## Writing catalog: updating objects {#catalog}
+
+Here's a roundup of the "change just one spot without breaking the original" pattern.
+
+```tsx
+// change just one spot
+setForm((prev) => ({ ...prev, name: 'Tanaka' }))
+
+// increment a numeric field
+setUser((prev) => ({ ...prev, age: prev.age + 1 }))
+
+// flip a boolean field
+setUser((prev) => ({ ...prev, active: !prev.active }))
+
+// update with an input's value (an event)
+onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+```
+
+The common thread is "`{ ...prev, the part you change }`." Copy everything first, then overwrite the key you want to change.
+
+<Together
+  task="With state of { name: '', age: 0 }, write a function that updates only age to 20 without breaking the original."
+  hint="The form is setUser((prev) => ({ ...prev, age: 20 })). Don't forget the parentheses."
+>
+
+```tsx
+const [user, setUser] = useState({ name: '', age: 0 })
+
+function setAge20() {
+  setUser((prev) => ({ ...prev, age: 20 }))
+}
+```
+
+With `{ ...prev, age: 20 }`, you build a new object that keeps `name` as-is and sets only `age` to `20`. Notice too that since the arrow function returns an object, it's wrapped in parentheses as `({ ... })`.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="form.name = x; setForm(form) (direct rewrite → no re-render)"
+  good="setForm((prev) => ({ ...prev, name: x }))"
+  note="Passing the same reference doesn't make React notice the change. Build a new object."
+/>
+
+<Diff
+  bad="setForm({ name: x }) (other fields disappear)"
+  good="setForm((prev) => ({ ...prev, name: x }))"
+  note="Forget ...prev and other properties like email disappear. Spread everything first, then overwrite."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Always update object state by building a new object with { ...prev, the part you change }"
+  alt="When deeply nested objects are updated so often that it's hard to write, options like immer exist, but spread is plenty to start. Designing state to stay shallow comes first anyway."
+>
+
+"Don't rewrite the original—build a new container" is the same golden rule for both arrays and objects. Memorize `{ ...prev, the part you change }` as a template. Forget `...prev` and other fields disappear, so write in the order **spread everything first, then overwrite**.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **The screen doesn't change after an update** … Are you rewriting the object directly? Build it anew with `{ ...prev, ... }`.
+- **Other fields disappeared after an update** … You forgot `...prev`. Spread first, then overwrite the spot you're changing.
+- **Syntax errors like `Unexpected token`** … When an arrow function returns an object, check that the `({ ... })` parentheses aren't missing.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write setUser((prev) => ({ ...prev, name: 'Tanaka' })). ...prev carries over all properties, and you build a new object with only name overwritten. Rewriting directly doesn't re-render.">
+
+With state of `{ name: '', age: 0 }`, how do you set only `name` to `'Tanaka'` without changing `age`?
+
+</Exercise>
+
+<SummaryBox>
+
+- Update object state by building a new object with `{ ...prev, the part you change }`
+- Rewrite it directly and the reference stays the same, so React doesn't re-render (reference and copy from Part 2)
+- Forget `...prev` and other fields disappear. Spread everything first, then overwrite
+
+</SummaryBox>

@@ -1,0 +1,121 @@
+---
+title: Shared layout and Outlet
+minutes: 9
+slug: layout-outlet
+section: routing
+description: "Put the nav that every page shares in one place. Use nested routes and Outlet to slot each page into a shared layout. Includes index routes."
+level: beginner
+prerequisites: ['routing/route-params']
+---
+
+<LearnBox>
+
+- Gather the nav and frame shared by every page into one place
+- Use nested routes and `<Outlet>` to slot each page into a shared layout
+- The `index` route that renders at the same URL as its parent
+
+</LearnBox>
+
+## You don't want to write the same nav on every page {#why}
+
+List, detail, favorites. You want the same top nav (logo, links) on every page. But copy-pasting the same header into every page is a pain, and fixing it means fixing every copy.
+
+In react-router you can gather this into one place by making **the shared frame (layout) the parent route and each page a child route**.
+
+## Nested routes: put children inside a parent {#nested}
+
+Register routes as a "parent → child" nesting. The parent's `element` is the shared layout, and its `children` are the individual pages.
+
+```tsx
+createBrowserRouter([
+  {
+    path: '/',
+    element: <Layout />, // the shared frame
+    children: [
+      { index: true, element: <ProductListPage /> }, // '/' (same URL as the parent)
+      { path: 'product/:id', element: <ProductDetailPage /> }, // '/product/:id'
+      { path: 'favorites', element: <FavoritesPage /> }, // '/favorites'
+    ],
+  },
+])
+```
+
+For a child's `path`, write only the part that follows the parent's `/` (`product/:id` → actually `/product/:id`). `index: true` means "**the child that renders at the same URL as the parent (`/`)**".
+
+## Outlet: the children go here {#outlet}
+
+The parent `Layout` draws the shared nav and uses `<Outlet>` to mark **where the child page goes**.
+
+```tsx title="src/components/Layout.tsx (full file)"
+import { NavLink, Outlet } from 'react-router-dom'
+
+export function Layout() {
+  return (
+    <div>
+      <header>
+        <NavLink to="/">List</NavLink>
+        <NavLink to="/favorites">Favorites</NavLink>
+      </header>
+
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+```
+
+```tsx
+<Outlet />
+//   ↑
+//   └─ the "child route's screen" for the current URL goes here
+```
+
+At `/`, `<ProductListPage>` goes where `<Outlet>` is; at `/favorites`, `<FavoritesPage>` goes there. The header always stays the same, and only the contents swap out.
+
+## Break it on purpose: forget the Outlet {#break}
+
+Try removing `<Outlet />` from `Layout`.
+
+```tsx title="Break it on purpose: remove the Outlet"
+export function Layout() {
+  return (
+    <div>
+      <header>{/* nav */}</header>
+      <main>{/* no Outlet */}</main>
+    </div>
+  )
+}
+```
+
+The nav shows up, but **each page's content appears nowhere**. There's no error, but you get a blank `<main>`. The reason: there's no place (`<Outlet>`) to put the child route's screen. Put `<Outlet />` back and the content reappears.
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="Write the same <header> into every page component, every time"
+  good="Make the parent route a Layout, with the shared nav + <Outlet /> in one place"
+  note="The shared frame belongs on the parent of the nested routes. Each page goes in children and slots into the Outlet."
+/>
+
+## When it doesn't work {#trouble}
+
+- **The nav shows but no content** … You forgot to put `<Outlet />` in the parent's `element`.
+- **The list doesn't show at `/`** … Check that the list's child route is `{ index: true, element: ... }`.
+- **The child's `path` produces a double slash** … A child is only the continuation from the parent (`product/:id`). Don't add a leading `/`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Make the parent route's element a <Layout />, and put the shared nav and <Outlet /> inside Layout. Register each page in the parent's children. The child page for the current URL goes where the Outlet is.">
+
+To gather the header shared by every page into one place, how do you set up the route structure and the `Layout`? What do you put `<Outlet>` there for?
+
+</Exercise>
+
+<SummaryBox>
+
+- Make the shared frame the "parent route = Layout" and each page a "child route = children"
+- Put the shared nav and `<Outlet />` in `Layout`. The child page goes where `<Outlet>` is
+- The child that renders at the same URL as the parent is `{ index: true }`
+
+</SummaryBox>

@@ -1,0 +1,154 @@
+---
+title: Typing props
+minutes: 9
+slug: typing-props
+section: typescript
+description: "Express the shape of props with an interface and receive them by destructuring. Optional props (?), default values, and children (ReactNode)."
+level: beginner
+prerequisites: ['typescript/interface']
+---
+
+<LearnBox>
+
+- Express the shape of props with an `interface` and receive them by destructuring
+- Combining optional props (`?`) with default values
+- Receiving the content (JSX) with `children: ReactNode`
+
+</LearnBox>
+
+## Props are one object. Give it a shape with interface {#props-interface}
+
+Props arrive as "one object" (just as you saw on the [destructuring page](/guide/javascript/destructuring)). So **expressing that shape with an `interface`** is the basics of typing in React.
+
+```tsx
+interface ProductCardProps {
+  name: string
+  price: number
+}
+
+function ProductCard({ name, price }: ProductCardProps) {
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()} yen</p>
+    </article>
+  )
+}
+```
+
+Let's break it apart.
+
+```tsx
+function ProductCard({ name, price }: ProductCardProps) {
+//                   ↑                ↑
+//                   │                └─ the shape of the props (interface)
+//                   └─ pull the arrived props out by destructuring
+```
+
+`{ name, price }` pulls out the contents, and `: ProductCardProps` decides "these props have this shape." If the caller forgets to pass `name`, or passes a string to `price`, a red squiggle appears.
+
+## Optional props (?) and default values {#optional}
+
+For props that "may or may not be passed," add `?`. The **default value** for when it isn't passed is written with `=` on the destructuring side.
+
+```tsx
+interface ButtonProps {
+  label: string
+  variant?: 'primary' | 'secondary' // optional
+}
+
+function Button({ label, variant = 'primary' }: ButtonProps) {
+  // if variant isn't passed, it's 'primary'
+  return <button className={variant}>{label}</button>
+}
+```
+
+`variant?` means "can be absent," and `variant = 'primary'` means "if absent, use this value." These two are often used together as a set.
+
+## children: receiving the content {#children}
+
+To receive **JSX placed inside a tag**, like `<Card>content here</Card>`, use a prop with the fixed name `children`. Its type is `ReactNode`.
+
+```tsx
+import type { ReactNode } from 'react'
+
+interface CardProps {
+  title: string
+  children: ReactNode // the JSX placed inside (a string, an element, several, anything)
+}
+
+function Card({ title, children }: CardProps) {
+  return (
+    <section>
+      <h2>{title}</h2>
+      <div>{children}</div>
+    </section>
+  )
+}
+```
+
+`ReactNode` is the type for "everything React can put on screen" (strings, numbers, JSX elements, arrays of those, and so on). Use it for components that receive content.
+
+## Break it on purpose: forget to pass a required prop {#break}
+
+Let's watch types guard props. We'll call a `ProductCard` where `price` is required, passing only `name`.
+
+```tsx title="Forgetting to pass a prop"
+<ProductCard name="Tote bag" /> // ← price is missing
+```
+
+A red squiggle appears on `ProductCard`, saying:
+
+```
+Property 'price' is missing in type '{ name: string; }'
+but required in type 'ProductCardProps'.
+```
+
+"The required `price` isn't passed." Add `price={3200}` and it disappears. **It stopped the missing prop before you ran the code.**
+
+## Syntax catalog: prop types {#catalog}
+
+```tsx
+import type { ReactNode } from 'react'
+
+interface Props {
+  title: string // required
+  count?: number // optional (?)
+  onClose: () => void // function (no arguments, no return value)
+  children: ReactNode // the content JSX
+}
+
+function Panel({ title, count = 0, onClose, children }: Props) {
+  return <div>{/* ... */}</div>
+}
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="function Card(props) { ... } (props has no type)"
+  good="Create interface CardProps and write function Card({ ... }: CardProps)"
+  note="Without a type, props become any, so a missing or wrong-typed prop slips through. Always give it a shape."
+/>
+
+## When things go wrong {#trouble}
+
+- **`Property 'x' is missing`** … You forgot to pass a required prop. Pass it, or make it `x?` in the `interface`.
+- **`children` goes red when you pass it** … You forgot to add `children: ReactNode` to the `interface`.
+- **Types for functions like `onClick`** … `() => void` (no arguments, no return value) is the basic form.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Add count?: number to the interface. The ? makes it optional, and writing a default value on the receiving side like { count = 0 } makes it 0 when it isn't passed.">
+
+To add an optional prop `count` (a number, 0 if not passed) to a `Badge` component, how would you write the type and the receiving side?
+
+</Exercise>
+
+<SummaryBox>
+
+- Props are one object. Express the shape with an `interface` and receive it with `{ ... }: Props`
+- Optional is `?`, and the default value is `=` in the destructuring. These two go together as a set
+- Receiving the content JSX is `children: ReactNode`
+
+</SummaryBox>

@@ -2,13 +2,16 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { useRef } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './GsapTimeline.module.scss'
 
 /**
- * gsap.timeline() の実演。① → ② → ③ が順番に入り、最後に「完了」が弾んで出る。
- * タイムラインに繋げるだけで「順番」と「重なり」を作れる。
+ * gsap.timeline() demo. ① → ② → ③ enter in order, then "Done" pops in with a bounce.
+ * Just chaining onto the timeline gives you "order" and "overlap".
  */
 export function GsapTimeline() {
+  const en = useLocale() === 'en'
   const container = useRef<HTMLDivElement>(null)
   const tl = useRef<gsap.core.Timeline | null>(null)
 
@@ -38,13 +41,13 @@ export function GsapTimeline() {
   return (
     <div className={styles.wrap} ref={container}>
       <div className={styles.row}>
-        <span className={styles.step}>① 準備</span>
-        <span className={styles.step}>② 実行</span>
-        <span className={styles.step}>③ 確認</span>
-        <span className={styles.done}>✓ 完了</span>
+        <span className={styles.step}>{en ? '① Prepare' : '① 準備'}</span>
+        <span className={styles.step}>{en ? '② Run' : '② 実行'}</span>
+        <span className={styles.step}>{en ? '③ Check' : '③ 確認'}</span>
+        <span className={styles.done}>{en ? '✓ Done' : '✓ 完了'}</span>
       </div>
       <button type="button" className={styles.replay} onClick={() => tl.current?.restart()}>
-        もう一度
+        {en ? 'Play again' : 'もう一度'}
       </button>
     </div>
   )

@@ -1,27 +1,32 @@
 import { useState } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './ArrayStateDemo.module.scss'
 
 // Add / remove / reorder — all without mutating the original array.
 export function ArrayStateDemo() {
-  const [items, setItems] = useState<string[]>(['トマト', 'たまご', '牛乳'])
+  const en = useLocale() === 'en'
+  const [items, setItems] = useState<string[]>(
+    en ? ['Tomatoes', 'Eggs', 'Milk'] : ['トマト', 'たまご', '牛乳'],
+  )
   const [text, setText] = useState('')
 
   function add() {
     const value = text.trim()
     if (!value) return
-    setItems((prev) => [...prev, value]) // 追加：新しい配列を作る
+    setItems((prev) => [...prev, value]) // add: build a new array
     setText('')
   }
 
   function remove(index: number) {
-    setItems((prev) => prev.filter((_, i) => i !== index)) // 削除：filter
+    setItems((prev) => prev.filter((_, i) => i !== index)) // remove: filter
   }
 
   function moveUp(index: number) {
     if (index === 0) return
     setItems((prev) => {
-      const next = [...prev] // コピーしてから入れ替える
+      const next = [...prev] // copy first, then swap
       ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
       return next
     })
@@ -35,11 +40,11 @@ export function ArrayStateDemo() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="買うものを入力"
-          aria-label="買うもの"
+          placeholder={en ? 'Enter an item' : '買うものを入力'}
+          aria-label={en ? 'Item to buy' : '買うもの'}
         />
         <button type="button" className={styles.add} onClick={add}>
-          追加
+          {en ? 'Add' : '追加'}
         </button>
       </div>
 
@@ -52,12 +57,12 @@ export function ArrayStateDemo() {
                 ↑
               </button>
               <button type="button" onClick={() => remove(i)}>
-                削除
+                {en ? 'Remove' : '削除'}
               </button>
             </span>
           </li>
         ))}
-        {items.length === 0 && <li className={styles.empty}>リストは空です</li>}
+        {items.length === 0 && <li className={styles.empty}>{en ? 'The list is empty' : 'リストは空です'}</li>}
       </ul>
     </div>
   )

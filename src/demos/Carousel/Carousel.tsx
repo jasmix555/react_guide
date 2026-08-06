@@ -1,5 +1,7 @@
 import { useRef } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './Carousel.module.scss'
 
 interface Slide {
@@ -8,10 +10,12 @@ interface Slide {
 }
 
 /**
- * 横スクロールのカルーセル。スクロール自体は CSS の scroll-snap に任せ（タッチの
- * スワイプ・キーボードは自動）、デスクトップ用に前後ボタンとマウスのドラッグを足す。
+ * A horizontal carousel. Scrolling itself is left to CSS scroll-snap (touch
+ * swipe and keyboard work automatically); prev/next buttons and mouse drag are
+ * added for the desktop experience.
  */
 export function Carousel({ slides }: { slides: Slide[] }) {
+  const en = useLocale() === 'en'
   const trackRef = useRef<HTMLDivElement>(null)
   const drag = useRef({ down: false, startX: 0, startLeft: 0 })
 
@@ -23,7 +27,7 @@ export function Carousel({ slides }: { slides: Slide[] }) {
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    if (e.pointerType !== 'mouse') return // タッチはネイティブのスクロールに任せる
+    if (e.pointerType !== 'mouse') return // leave touch to native scrolling
     const track = trackRef.current
     if (!track) return
     drag.current = { down: true, startX: e.clientX, startLeft: track.scrollLeft }
@@ -57,10 +61,20 @@ export function Carousel({ slides }: { slides: Slide[] }) {
         ))}
       </div>
       <div className={styles.controls}>
-        <button type="button" className={styles.arrow} aria-label="前へ" onClick={() => step(-1)}>
+        <button
+          type="button"
+          className={styles.arrow}
+          aria-label={en ? 'Previous' : '前へ'}
+          onClick={() => step(-1)}
+        >
           ‹
         </button>
-        <button type="button" className={styles.arrow} aria-label="次へ" onClick={() => step(1)}>
+        <button
+          type="button"
+          className={styles.arrow}
+          aria-label={en ? 'Next' : '次へ'}
+          onClick={() => step(1)}
+        >
           ›
         </button>
       </div>

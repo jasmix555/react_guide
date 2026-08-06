@@ -1,0 +1,144 @@
+---
+title: Loops
+minutes: 8
+slug: loops
+section: javascript
+description: "The basics of for...of and for. Then, by writing them side by side, understand why React builds lists with map instead of for."
+level: beginner
+prerequisites: ['javascript/array-methods']
+---
+
+<LearnBox>
+
+- Processing an array one at a time with `for...of`
+- The classic `for` for when you want the number (index)
+- Why React uses `map` instead of `for`
+
+</LearnBox>
+
+## The most readable loop: for...of {#for-of}
+
+If you want to "take an array one at a time and do something," `for...of` is the most readable way to write it.
+
+```js
+const tags = ['Cookware', 'IH-compatible', 'Lightweight']
+
+for (const tag of tags) {
+  console.log(tag) // prints 3 times: Cookware → IH-compatible → Lightweight
+}
+```
+
+```js
+for (const tag of tags) {
+//        ↑       ↑
+//        │       └─ the array to pull from
+//        └─ the variable that comes in one at a time (name is your choice)
+```
+
+Elements come out of `tags` into `tag` one at a time, and the contents of the `{ }` run repeatedly.
+
+## for, for when you want the number {#classic-for}
+
+When you want to use "which position," use the classic `for`. It has a few more symbols.
+
+```js
+for (let i = 0; i < tags.length; i++) {
+  console.log(i, tags[i]) // 0 'Cookware' → 1 'IH-compatible' → 2 'Lightweight'
+}
+```
+
+- **`let i = 0`** … start the counter at 0.
+- **`i < tags.length`** … repeat while this condition is `true`.
+- **`i++`** … increase `i` by 1 each time ([reading the symbols](/guide/javascript/symbols)).
+
+<Callout type="note" title="for...of is enough to start">
+
+If you don't need the number, `for...of` is more readable and safer (no chance of miswriting `i < length`). Only reach for the classic `for` when you absolutely need the number.
+
+</Callout>
+
+## React uses map {#why-map}
+
+This is the important part. When you put a list on screen in React, you use **`map`** ([map / filter / find](/guide/javascript/array-methods)) instead of `for`. The reason: **`for` "returns no value," whereas `map` "returns a new array."**
+
+Let's write the same "build an array of names" both ways side by side.
+
+```js
+const products = [
+  { name: 'Tote' },
+  { name: 'Wallet' },
+]
+
+// for: prepare an empty array and push one at a time (3 steps)
+const names1 = []
+for (const p of products) {
+  names1.push(p.name)
+}
+
+// map: a new array is returned in one line
+const names2 = products.map((p) => p.name)
+```
+
+Both become `['Tote', 'Wallet']`. But you can't write a `for` statement inside JSX (`for` is a "statement" and returns no value). `map` is an **expression that returns a value (an array)**, so you can embed it directly in JSX. That's why React uses `map`.
+
+<Diff
+  bad="create an empty array and push in a for loop to assemble the list array"
+  good="one line with map. a new array is returned directly"
+  note="You can't write the statement for inside JSX. With map, which returns a value, you can embed it directly as {items.map(...)}."
+/>
+
+## Syntax catalog: choosing your loop {#catalog}
+
+```js
+// process one at a time (don't need the number)
+for (const item of items) {
+  /* ... */
+}
+
+// want the number
+for (let i = 0; i < items.length; i++) {
+  /* items[i] */
+}
+
+// put a list on screen / build a new array (React uses this)
+const names = items.map((item) => item.name)
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="try to write a for statement inside JSX"
+  good="loop over the array with map and line up the returned elements"
+  note="for returns no value, so it can't go in JSX. map returns an array, so you can write {list.map(...)}."
+/>
+
+## When things go wrong {#trouble}
+
+- **Error on `for (const i = 0; ...)`** … the counter gets incremented, so it's `let` (because `i++` reassigns it).
+- **The list doesn't display** … in JSX, use `map` instead of `for`, in the form `{items.map((x) => ...)}`.
+
+## Summary & practice {#summary}
+
+<Together
+  task="In the console, display the numeric array [10, 20, 30] one at a time with for...of."
+  hint="The form is for (const n of nums) { console.log(n) }."
+>
+
+```js
+const nums = [10, 20, 30]
+for (const n of nums) {
+  console.log(n) // 10 → 20 → 30
+}
+```
+
+Elements come out of `nums` into `n` one at a time, and `console.log` runs 3 times.
+
+</Together>
+
+<SummaryBox>
+
+- To process one at a time, use `for...of` (readable). Only use the classic `for` when you need the number
+- React's list rendering uses `map`, not `for`. `map` **returns** a new array, so it can go in JSX
+- A `for` counter is `let` (because `i++` reassigns it)
+
+</SummaryBox>

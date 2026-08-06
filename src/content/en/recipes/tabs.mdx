@@ -1,0 +1,124 @@
+---
+title: Tabs
+minutes: 8
+slug: tabs
+section: recipes
+description: "A tab switcher that shows only the selected tab. Hold one active index, and wire the tabs to their panels with aria."
+level: beginner
+prerequisites: ['state/use-state/basics', 'components/rendering-lists']
+---
+
+import { TabsDemo } from '@/demos/Tabs'
+
+<LearnBox>
+
+- The idea of holding "which tab is active" as a single index
+- Rendering only the selected panel (don't hide with `display:none`)
+- Wiring tabs to panels with `aria` for screen reader support
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+The description / specs / reviews switcher you often see on product pages. Press a tab and the content swaps.
+
+<Demo title="Tabs">
+  <TabsDemo />
+</Demo>
+
+## The state is one thing: "the selected number" {#state}
+
+The only state a tab switcher holds is **the number of the currently selected tab**. Press a tab and it switches to that number. The content is just one panel: "the panel for that number."
+
+```tsx
+const [active, setActive] = useState(0)
+//     ↑       ↑                    ↑
+//     │       │                    └─ initial value. Tab 0 to start
+//     │       └─ the function that switches the selected tab
+//     └─ the number of the currently selected tab
+```
+
+## The Tabs itself {#tabs-body}
+
+Create a new `src/components/Tabs/Tabs.tsx` and paste this in.
+
+```tsx title="src/components/Tabs/Tabs.tsx (new file, full)"
+import { useState } from 'react'
+
+interface Tab {
+  label: string
+  content: string
+}
+
+export function Tabs({ tabs }: { tabs: Tab[] }) {
+  const [active, setActive] = useState(0)
+
+  return (
+    <div>
+      <div role="tablist">
+        {tabs.map((tab, i) => (
+          <button
+            key={tab.label}
+            type="button"
+            role="tab"
+            id={`tab-${i}`}
+            aria-selected={i === active}
+            aria-controls={`panel-${i}`}
+            onClick={() => setActive(i)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" id={`panel-${active}`} aria-labelledby={`tab-${active}`}>
+        {tabs[active].content}
+      </div>
+    </div>
+  )
+}
+```
+
+There are two things worth noticing. The button's `aria-selected={i === active}` computes "is this tab selected?" each time. And `{tabs[active].content}` renders **only the selected panel**. The content of the tabs that aren't pressed is never rendered in the first place.
+
+The caller just passes an array of tabs.
+
+```tsx title="The caller"
+const tabs = [
+  { label: 'Description', content: '100% cotton tote bag.' },
+  { label: 'Specs', content: 'Size: 35 cm tall × 40 cm wide' },
+  { label: 'Reviews', content: '★4.6 (128 reviews)' },
+]
+
+<Tabs tabs={tabs} />
+```
+
+## Wire tabs to panels with aria {#a11y}
+
+If only the appearance switches, a screen reader has no way to know which tab goes with which content. Connect these three things.
+
+- **`role="tablist"` / `role="tab"` / `role="tabpanel"`** … announce that this is a tab UI.
+- **`aria-selected`** … indicate which tab is currently selected.
+- **`aria-controls` and `aria-labelledby`** … link "this tab controls this panel" by id.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Render all panels and hide them with display:none"
+  good="Render only the selected panel (the one tabs[active])"
+  note="Just hiding them leaves the hidden panels' content in the screen reader and Tab order. Cleanly render just one."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Pressing doesn't switch it** … check that it is `onClick={() => setActive(i)}`, and that `aria-selected` is looking at `i === active`.
+- **A `key` warning appears** … make the `key` in `tabs.map` a non-duplicate value such as the label.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- The state you hold is just one thing: "the selected number"
+- Render only the selected panel. Don't render them all and hide with `display:none`
+- Link tabs and panels with `role` and `aria-selected` / `aria-controls` for screen reader support
+
+</SummaryBox>

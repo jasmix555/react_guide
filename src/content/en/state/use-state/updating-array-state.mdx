@@ -1,0 +1,238 @@
+---
+title: Updating array state
+minutes: 12
+slug: updating-array-state
+section: state
+description: "Add, remove, and reorder without mutating the original array. See exactly why push doesn't update the screen by breaking it on purpose."
+level: beginner
+prerequisites: ['javascript/destructuring']
+---
+
+import { ArrayStateDemo } from '@/demos/ArrayStateDemo'
+
+<LearnBox>
+
+- How to add, remove, and reorder items in array state
+- Why `push` doesn't update the screen (we'll break it on purpose to see)
+- When to reach for spread `[...]` and `filter`
+
+</LearnBox>
+
+## What we'll build {#goal}
+
+We're building a shopping list. You type something in and click "Add", and each row has an "↑ (reorder)" and a "Remove" button. We'll **build it up in code** in this order — add, then remove, then reorder — and play with the finished version at the end. There's only ever one rule to keep in mind: **don't mutate the original array**.
+
+## Why "don't mutate" matters {#why}
+
+React decides whether to re-render by checking **whether the array became a different object**. If you change the contents but the array itself (the container) stays the same, React concludes "nothing changed" and doesn't update the screen.
+
+<Callout type="analogy">
+
+Back in the jQuery days you'd write `$('ul').append('<li>…</li>')` and rewrite the DOM yourself. In React you never touch the DOM directly. You just **hand React new data and say "re-draw with this"**. Preparing that "new data" is what this whole page is about.
+
+</Callout>
+
+## Step 0: Just showing the list {#baseline}
+
+Let's start from a version that only displays the list. `src/demos/ArrayStateDemo/ArrayStateDemo.tsx` is this skeleton (full file).
+
+```tsx title="ArrayStateDemo.tsx (starting point, full file)"
+import { useState } from 'react'
+
+export function ArrayStateDemo() {
+  const [items, setItems] = useState<string[]>(['Tomatoes', 'Eggs', 'Milk'])
+
+  return (
+    <ul>
+      {items.map((item, i) => (
+        <li key={item + i}>{item}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+`useState<string[]>([...])` holds an array of strings as state. `items.map(...)` lays out each element as an `<li>`. From here we'll add "add", "remove", and "reorder".
+
+## Step 1: Adding (spread) {#add}
+
+Let's add an `add` function that appends to the end.
+
+```tsx title="ArrayStateDemo.tsx (added / changed)"
+function add(text: string) {
+  setItems((prev) => [...prev, text])
+}
+```
+
+Let's break down the syntax.
+
+```tsx
+setItems((prev) => [...prev, text])
+//        ↑         ↑        ↑
+//        │         │        └─ the new element to append at the end
+//        │         └─ spread out the whole previous array (spread)
+//        └─ the previous value (the latest items React hands you)
+```
+
+`[...prev, text]` means "a **new array** made by spreading out everything in `prev` and adding `text` after it". The original `prev` is left untouched. When you hand this new array to `setItems`, React decides "it became a different object", re-draws the screen, and one row is added.
+
+<JsNote feature="the [...prev, text] spread">
+
+`...prev` means "spread everything in prev right here". Adding `text` after it gives you a new array with one more item, without mutating prev.
+
+</JsNote>
+
+## Step 2: Removing (filter) {#remove}
+
+Think of it as keeping everything *except* the element you want to delete. `filter` fits perfectly.
+
+```tsx title="ArrayStateDemo.tsx (added / changed)"
+function remove(target: number) {
+  setItems((prev) => prev.filter((_, i) => i !== target))
+}
+```
+
+`filter` returns a **new array** collecting only the elements where the condition is `true`. Here it's "keep only the elements whose index differs from `target`" — which means "delete the element at `target`".
+
+<JsNote feature="filter keeps only the elements that match">
+
+The trick is to think in terms of "keep" rather than "delete". `_` is the conventional name for an "unused argument"; here we don't use the element's value, so we name it `_`.
+
+</JsNote>
+
+## Step 3: Reordering (copy first) {#reorder}
+
+Swapping also starts with a copy. We never touch the original array.
+
+```tsx title="ArrayStateDemo.tsx (added / changed)"
+function moveUp(i: number) {
+  if (i === 0) return // can't move the first item up
+  setItems((prev) => {
+    const next = [...prev] // copy first
+    ;[next[i - 1], next[i]] = [next[i], next[i - 1]] // swap
+    return next
+  })
+}
+```
+
+`[...prev]` makes a copy, we swap two elements inside that copy, and `return next` returns the new array. Here too, the original `prev` is unharmed.
+
+<Together
+  task="Write an addTop function that adds to the FRONT instead of the end, without mutating the original array. (Hint: change the order of the spread.)"
+  hint="It's the setItems((prev) => [new element, ...prev]) shape. Put text before prev."
+>
+
+```tsx
+function addTop(text: string) {
+  setItems((prev) => [text, ...prev])
+}
+```
+
+`[text, ...prev]` means "put the new element first, then spread all of prev after it". It's just the reverse order of the append-to-end `[...prev, text]`. Neither one mutates the original `prev`.
+
+</Together>
+
+## See it in action {#demo}
+
+Here's everything so far — add, remove, and reorder — all together. Type something in and click "Add", then try the "↑" and "Remove" buttons on each row.
+
+<Demo title="Array state">
+  <ArrayStateDemo />
+</Demo>
+
+## Break it on purpose: adding with push doesn't update the screen {#break-push}
+
+Let's actually watch "mutate the original and the screen won't change". We'll write `add` with `push` instead of spread.
+
+```tsx title="ArrayStateDemo.tsx (breaking it on purpose: adding with push)"
+function add(text: string) {
+  items.push(text) // ← adds directly to the original array
+  setItems(items) // ← passes the same array
+}
+```
+
+Save, type "Beef" into the input, and click "Add". **The list on screen does not grow.** No error appears either. Nothing just happens.
+
+Here's why. `items.push(text)` rewrote the contents of the original array `items`. Its contents are now up to 4 items. But the `items` you passed to `setItems(items)` is **the same array (the same container) as before**. React looks at whether the container is the same, concludes "same as before = no change", and skips the re-draw. That's why the item was added but you can't see it.
+
+Switch back to `[...prev, text]` and you hand React a **new container** every time, so React always re-draws.
+
+```tsx title="ArrayStateDemo.tsx (the fix: make a new array)"
+function add(text: string) {
+  setItems((prev) => [...prev, text])
+}
+```
+
+<Callout type="warn">
+
+`push` is the "nothing happens" kind of bug, and because there's no error it's hard to notice what went wrong. **When you update something but the screen doesn't change, the first thing to suspect is whether you mutated an array or object directly** — that's the golden rule.
+
+</Callout>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="items.push(text); setItems(items)"
+  good="setItems((prev) => [...prev, text])"
+  note="push just rewrites the same array. React doesn't notice the change, so the screen doesn't update."
+/>
+
+<Diff
+  bad="items.sort(); setItems(items)"
+  good="setItems((prev) => [...prev].sort())"
+  note="sort also reorders the original array. Copy first, then sort."
+/>
+
+## Cheat sheet: updating arrays {#catalog}
+
+For array state, "make a new array" is the pattern shared by every case. Here are the shapes you'll use most.
+
+```tsx
+// append to the end
+setItems((prev) => [...prev, newItem])
+
+// prepend to the front
+setItems((prev) => [newItem, ...prev])
+
+// delete items matching a condition (write the "keep" side)
+setItems((prev) => prev.filter((item) => item.id !== targetId))
+
+// rewrite just one specific element
+setItems((prev) =>
+  prev.map((item) => (item.id === targetId ? { ...item, done: true } : item)),
+)
+```
+
+Don't use "mutate the original" methods like `push`, `splice`, or `sort`. If you build a new array with `[...]`, `filter`, and `map`, React always re-renders.
+
+## Our standard {#standard}
+
+<Std
+  decision="For array state, always build a new array and pass it (never mutate the original)"
+  alt="Only if you measure and find it slow with huge amounts of data is there an option to change the writing style with a library like immer. Spread and filter are plenty to start."
+>
+
+We don't use "mutate the original" methods like `push`, `sort`, or `splice` on state. Build a **new array** with spread `[...]`, `filter`, and `map`, and React always re-renders.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **Adding or removing doesn't change the screen** … Check whether you mutated the original array with `push` or `splice`. Build a new array with `[...prev, x]` or `filter`.
+- **A `key` warning shows up in the console** … Add a `key` to each element in `map`. Since there's reordering, prefer a stable value over the index if you can (more on this in the lists part).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write setItems((prev) => prev.map((v, i) => (i === target ? newValue : v))). map builds a new array with only that position swapped out.">
+
+How would you rewrite just the item at index `target` in the list to `newValue`? (Hint: `map`)
+
+</Exercise>
+
+<SummaryBox>
+
+- React decides whether to re-render by "is the array a different object", so always make a new array
+- Add with `[...prev, x]`, remove with `filter`, reorder by copying first
+- `push` is the "no error but the screen doesn't change" bug. If an update doesn't change anything, suspect direct mutation first
+
+</SummaryBox>

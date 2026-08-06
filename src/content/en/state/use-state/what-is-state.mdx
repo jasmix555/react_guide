@@ -1,0 +1,147 @@
+---
+title: What is state (why a plain variable won't do)
+minutes: 9
+slug: what-is-state
+section: state
+description: "Rewriting a plain variable doesn't change the screen. We put both side by side in one full component, read the code, then confirm the behavior. The signal that tells React to redraw is state."
+level: beginner
+prerequisites: ['state/goal']
+---
+
+import { PlainVsStateDemo } from '@/demos/PlainVsState'
+
+<LearnBox>
+
+- Why rewriting "just a variable" doesn't change the screen
+- The "trigger" that makes React redraw the screen = state
+- Compare state and a plain variable side by side in a single component
+
+</LearnBox>
+
+## The conclusion first: a plain variable won't change the screen {#why}
+
+This is the very first place people trip up in React. **Rewriting a plain variable doesn't change the screen.** That's by design, not a bug.
+
+A React screen is made of "**the JSX returned by a component function**." React calls that function again and redraws the screen **only when there's a special signal**. If you rewrite a plain variable declared as `let count = 0`, that "signal" isn't sent, so React can't tell that it "needs to redraw."
+
+The thing that sends that signal is **state**. In the next piece of code, we'll put both side by side and check.
+
+## See it in code: a plain variable vs state {#code}
+
+Create a new file `src/components/PlainVsState/PlainVsState.tsx` and paste in **this entire file**. The left side is "just a variable," the right side is "state."
+
+```tsx title="src/components/PlainVsState/PlainVsState.tsx (new file, full source)"
+import { useState } from 'react'
+
+export function PlainVsState() {
+  let plain = 0 // ❌ just a variable
+  const [count, setCount] = useState(0) // ✅ state (we'll break this down on the next page)
+
+  return (
+    <div>
+      <p>Just a variable: {plain}</p>
+      <button
+        type="button"
+        onClick={() => {
+          plain = plain + 1
+          console.log('plain =', plain)
+        }}
+      >
+        +1 (doesn't change)
+      </button>
+
+      <p>state: {count}</p>
+      <button type="button" onClick={() => setCount(count + 1)}>
+        +1 (changes)
+      </button>
+    </div>
+  )
+}
+```
+
+There's only one difference. On the left, we rewrite the **plain variable** `let plain = 0` with `plain = plain + 1`. On the right, we update the **state** from `useState` with `setCount` (we'll break down the details of `useState` one piece at a time on the next page—here the goal is to feel that "with state, it works").
+
+## What happens when you save {#result}
+
+No matter how many times you press "+1" on the left, the screen **stays at `0`**. The "+1" on the right goes up every time you press it. Same "+1," yet completely different results.
+
+Now press the left button while watching **the browser console (`F12`)**. You'll see `plain = 1`, `= 2`… so **the value itself really is going up**. In other words, **the value is increasing inside the variable, but you just can't see it because the screen isn't being redrawn**. This is the core of the understanding.
+
+## The actual behavior {#demo}
+
+Here's that same code running as-is. Press the left one (just a variable) and the right one (state) a few times each.
+
+<Demo title="Just a variable vs state">
+  <PlainVsStateDemo />
+</Demo>
+
+<Callout type="analogy">
+
+It's like updating a number written on a whiteboard only inside your head. Even if you know in your head "it's now 3," it stays at `0` for anyone looking unless you rewrite the board. state is the mechanism that tells React "rewrite the board."
+
+</Callout>
+
+## Why it works this way {#model}
+
+If React redrew the screen every time any variable changed, it wouldn't know when—or what triggered—an update. By **deciding "redraw only when state changes,"** React can update the screen efficiently and accurately.
+
+<JsNote feature="A component is a function that gets called over and over">
+
+Until now, a function was something that "runs once when it's called." A component function is different: **it gets re-called over and over every time state changes**. Each time it's re-called, it rebuilds the JSX with the state value at that moment—this "rebuilding" is called a **re-render**.
+
+</JsNote>
+
+<Together
+  task="After pressing the left button (just a variable) 5 times, predict what the console (F12) shows and what number is on the screen, then check for real."
+  hint="The console counts up 1 to 5, but the number on the screen doesn't change."
+>
+
+The console prints `plain = 1` through `= 5` in order. But the number on the screen **stays at `0`**. **"The value changes, yet it isn't reflected on the screen"**—that's the true nature of "a plain variable won't change the screen." If you want the screen to move, you need state. Learn it in your bones.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="let count = 0 … count = count + 1 (the screen doesn't change)"
+  good="const [count, setCount] = useState(0) … setCount(count + 1)"
+  note="Rewriting a plain variable doesn't re-render. Use the state updater function."
+/>
+
+<Diff
+  bad="Screen doesn't change after an update → worry that the value is wrong"
+  good="Screen doesn't change after an update → first suspect 'am I using state?'"
+  note="The value is usually correct. It doesn't change because the redraw signal wasn't sent."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Any value that changes together with what's shown on screen must be held in state"
+  alt="A temporary value used purely for calculation that has nothing to do with the display (a loop counter, for example) can be a plain variable. Only values that appear on screen or change the screen should be state."
+>
+
+"This value—if it changes, do I want the screen to change too?" If the answer is "yes," it's state. Use plain variables only for "calculations unrelated to the screen." Once you can draw this line, everything ahead gets much easier.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **You changed a value but the screen doesn't change** … Are you rewriting a plain variable? Use state (`useState`).
+- **It's correct in the console but the screen is stale** … This is exactly the case where no re-render is happening. Do updates through the state updater function.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Because rewriting a plain variable sends no 'redraw signal' to React, so no re-render happens. Hold values tied to the screen in useState, and change them with the updater function.">
+
+You increment `let count = 0` with `count = count + 1`, but the screen doesn't change. Why? And how do you make it change?
+
+</Exercise>
+
+<SummaryBox>
+
+- Rewriting a plain variable doesn't make React re-render (the screen won't change)
+- Update state, and React re-calls the component and redraws the screen
+- Hold values tied to the screen in state; everything else can be a plain variable
+
+</SummaryBox>

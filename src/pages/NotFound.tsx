@@ -1,17 +1,18 @@
 import { Link } from 'react-router-dom'
 
 import { TopBar } from '@/components/TopBar'
+import { useLocale, useStrings } from '@/hooks/useLocale'
 
 /** Body-only 404, used inside DocsLayout when a route has no page. */
 export function NotFound() {
+  const locale = useLocale()
+  const strings = useStrings()
   return (
     <div style={{ padding: 'var(--sp-8) 0' }}>
-      <h1 style={{ fontSize: 'var(--fs-h1)' }}>ページが見つかりません</h1>
-      <p style={{ color: 'var(--c-muted)', marginTop: 'var(--sp-3)' }}>
-        URL が変わったか、まだ書かれていないページです。
-      </p>
+      <h1 style={{ fontSize: 'var(--fs-h1)' }}>{strings.notFound.title}</h1>
+      <p style={{ color: 'var(--c-muted)', marginTop: 'var(--sp-3)' }}>{strings.notFound.body}</p>
       <p style={{ marginTop: 'var(--sp-4)' }}>
-        <Link to="/">← トップへ戻る</Link>
+        <Link to={`/${locale}`}>{strings.notFound.back}</Link>
       </p>
     </div>
   )

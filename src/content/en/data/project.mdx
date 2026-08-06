@@ -1,0 +1,102 @@
+---
+title: "Capstone: fetch the list"
+minutes: 9
+slug: data-project
+section: data
+description: "Replace ProductListPage's direct import with useProducts and show the three states on screen. Put products.json in public to make it a real request."
+level: beginner
+prerequisites: ['data/custom-hook']
+---
+
+<LearnBox>
+
+- Put `products.json` in `public/` so you can grab it with `fetch`
+- Replace `ProductListPage`'s direct import with `useProducts()`
+- Switch between the three states — loading, error, success — on the list page
+
+</LearnBox>
+
+## 1. Move products.json into public {#public}
+
+Until now we've been directly importing `src/data/products.json`. To grab it with `fetch`, we move it into `public/`. Files in `public/` are served at the URL `/filename`.
+
+```
+my-shop/
+├─ public/
+│  └─ products.json    ← move it here (fetch via /products.json)
+└─ src/
+   ├─ hooks/useProducts.ts
+   └─ pages/ProductListPage.tsx
+```
+
+Now `fetch('/products.json')` goes and grabs this JSON. When you switch to a real API, you just swap out the URL inside `useProducts`.
+
+## 2. before: the direct import {#before}
+
+Through Part 7, `ProductListPage` looked like this. It assumed the data was available instantly.
+
+```tsx title="src/pages/ProductListPage.tsx (before)"
+import products from '../data/products.json'
+
+export function ProductListPage() {
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+## 3. after: fetch with useProducts {#after}
+
+Drop the direct import and fetch with `useProducts()`. Then **switch between the three states**.
+
+```tsx title="src/pages/ProductListPage.tsx (after — full file)"
+import { ProductCard } from '@/components/ProductCard/ProductCard'
+import { useProducts } from '@/hooks/useProducts'
+
+import styles from './ProductListPage.module.scss'
+
+export function ProductListPage() {
+  const { products, status } = useProducts()
+
+  if (status === 'loading') {
+    return <p className={styles.msg}>Loading…</p>
+  }
+  if (status === 'error') {
+    return <p className={styles.error}>Failed to load. Please wait a moment and try again.</p>
+  }
+
+  return (
+    <div className={styles.list}>
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  )
+}
+```
+
+The `import`s are `@/hooks/useProducts` and `@/components/...` thanks to [Part 1's `@/` setup](/guide/setup/path-alias), too. No more `../../`.
+
+## 4. Run it {#run}
+
+Open it with `npm run dev` and the list page briefly shows "Loading…", then the cards line up once `products.json` arrives (if it's too fast to see, throttle the network in your browser's dev tools to check). If you deliberately rename `public/products.json`, `res.ok` becomes `false` and "Failed to load" shows up. **The list that used to be a direct import now runs on a real request.**
+
+<Callout type="note" title="The detail page works the same way">
+
+The product detail page (`/product/:id`) can also be shaped as "fetch the one item with that id." It's the same work (`useEffect` + three states), so once you've got the flow down on the list, you can apply it here.
+
+</Callout>
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Put `products.json` in `public/` and you can `fetch` it at `/products.json`
+- `ProductListPage` fetches with `useProducts()` and switches between `loading` / `error` / success
+- To use a real API, just swap out the URL inside `useProducts`
+
+</SummaryBox>

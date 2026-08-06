@@ -1,0 +1,204 @@
+---
+title: What is useEffect (side effects)
+minutes: 11
+slug: use-effect-basics
+section: state
+description: "Write side effects that run after rendering with useEffect. Break down the syntax, write a clock as a full file, and organize the dependency array and cleanup. The trap of forgetting the dependency array and getting an infinite loop, plus a cheat sheet."
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { ClockDemo } from '@/demos/Clock'
+
+<LearnBox>
+
+- What a "side effect" is, and why you need `useEffect`
+- Breaking down the `useEffect` syntax (the work, the dependency array, the cleanup)
+- The trap of forgetting the dependency array and getting an infinite loop, plus a cheat sheet
+
+</LearnBox>
+
+## A side effect is "work outside of rendering" {#why}
+
+So far our components have only "taken state and returned JSX". But real apps have other work too — **running a timer, fetching data from a server, changing `document.title`**, and so on. This kind of "**work other than drawing the screen**" is called a **side effect**.
+
+You can't write side effects in the middle of returning JSX (it makes rendering unstable). Instead, the dedicated place to **run them after rendering finishes** is **`useEffect`**.
+
+## Breaking down the useEffect syntax {#anatomy}
+
+`useEffect` takes "the work you want to run" and "a dependency array". Let's name the parts of the skeleton.
+
+```tsx
+useEffect(() => {
+  // ① the work you want to run (runs after rendering)
+  return () => {
+    // ② cleanup: runs before the next run, and when the component goes away
+  }
+}, [running])
+//  ↑
+//  └─ ③ dependency array: when a value in here changes, run again ([] means only the first time)
+```
+
+- **① The work** … what you want to run after rendering (start a timer, fetch data, etc.).
+- **② Cleanup (`return () => {...}`)** … stop what you started (timers, subscriptions). **Optional**, but required for timers.
+- **③ Dependency array `[...]`** … decides "when to run". Empty `[]` means only the first time; `[running]` means every time `running` changes.
+
+## Writing a clock as a full file {#build}
+
+Create a new file `src/components/Clock/Clock.tsx` and paste in **this full file**. It's a clock whose number goes up every second.
+
+```tsx title="src/components/Clock/Clock.tsx (new file, full)"
+import { useEffect, useState } from 'react'
+
+export function Clock() {
+  const [seconds, setSeconds] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000) // ① start
+    return () => clearInterval(id) // ② cleanup
+  }, []) // ③ only the first time
+
+  return <p>{seconds} sec</p>
+}
+```
+
+`setInterval` calls `setSeconds` every second, and `clearInterval` stops it. `setSeconds((s) => s + 1)` is the functional form for the same reason as on [the previous page](/guide/state/use-state/functional-updates) (updating from the previous value).
+
+## What happens when you save {#result}
+
+`0 sec` appears on screen and goes up every second — `1 sec`, `2 sec`, and so on. **After** the component is displayed, `useEffect` runs and starts the timer, and since `setSeconds` updates state every second, it re-renders each time and the number advances.
+
+## See it in action {#demo}
+
+Below is the same thing with "stop / start" added (`running` is in the dependency array). Try it out.
+
+<Demo title="A useEffect timer">
+  <ClockDemo />
+</Demo>
+
+## The dependency array decides "when it runs" {#deps}
+
+The second `[ ]` specifies "**when a value in here changes, run again**". There are three patterns.
+
+- **`[]` (empty)** … only the first time. For an initial data fetch or starting a timer.
+- **`[query]`** … re-run every time `query` changes.
+- **Leaving it out** … **runs on every render**. Almost always a mistake, and a cause of infinite loops (we'll see this next).
+
+## Clean up with return {#cleanup}
+
+`return () => {...}` is called **before the next re-run** and **when the component goes away**. If you don't stop the timer or subscription you started, it can run twice over or keep running even after the component is gone.
+
+```tsx
+useEffect(() => {
+  const id = setInterval(() => setSeconds((s) => s + 1), 1000)
+  return () => clearInterval(id) // without this, timers keep piling up
+}, [])
+```
+
+<Callout type="analogy">
+
+It's the same as turning off the light when you leave a room. Once you `setInterval` (turn it on), you're responsible through `clearInterval` (turn it off). Getting into the habit of writing cleanup is what makes your code safe.
+
+</Callout>
+
+## Break it on purpose: forget the dependency array and get an infinite loop {#break-loop}
+
+Let's see what happens when you don't write a dependency array and update state inside.
+
+```tsx
+useEffect(() => {
+  setSeconds(seconds + 1) // no dependency array
+})
+```
+
+Save, and this shows up in the console and the screen freezes.
+
+```
+Warning: Maximum update depth exceeded.
+```
+
+That's "**the update depth is too deep (an infinite loop)**". It happens because: render → `useEffect` runs `setSeconds` → state changes and re-renders → `useEffect` runs again → `setSeconds` again … forever. The cause is that leaving out the dependency array means "run every time". **Always specify "when it runs" with `[ ]`**.
+
+## Cheat sheet: the 3 useEffect patterns {#catalog}
+
+The shapes you use are roughly these three. Memorize them together.
+
+```tsx
+// ① once on mount (initial data fetch, etc.)
+useEffect(() => {
+  console.log('only the first time')
+}, [])
+
+// ② every time a specific value changes
+useEffect(() => {
+  console.log('query changed:', query)
+}, [query])
+
+// ③ things that need cleanup (timers, subscriptions)
+useEffect(() => {
+  const id = setInterval(tick, 1000)
+  return () => clearInterval(id)
+}, [])
+```
+
+<Together
+  task="Write a useEffect that changes document.title to 'Product list app' just once when the page opens. (You can change it with document.title = '...'.)"
+  hint="useEffect(() => { document.title = 'Product list app' }, []) — an empty dependency array [] means 'only the first time'."
+>
+
+```tsx
+useEffect(() => {
+  document.title = 'Product list app'
+}, [])
+```
+
+Changing `document.title` is "work other than drawing the screen" — a side effect — so you write it inside `useEffect`. The dependency array `[]` makes it run just once, the first time.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="useEffect(() => { setX(x + 1) }) (no dependency array + state update)"
+  good="useEffect(() => { setX(x + 1) }, [])"
+  note="Forget the dependency array and it runs every time. If you update state, it becomes an infinite loop."
+/>
+
+<Diff
+  bad="const id = setInterval(...) (no cleanup)"
+  good="return () => clearInterval(id)"
+  note="Stop the timers and subscriptions you started with return. Leave them and they run multiple times over."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Write side effects in useEffect, always specify the dependency array, and clean up what you started (timers, subscriptions) with return"
+  alt="You can fetch data from a server with useEffect too, but as things grow a data-fetching library becomes easier (we cover it in the data part). First, get a feel for the shape of useEffect."
+>
+
+`useEffect(work, dependency array)`. The dependency array is "when it runs" — `[]` for only the first time, `[value]` to react to a specific value. Don't leave it out. Stop what you started with `return`. Keep these three points and you'll prevent almost all `useEffect` accidents.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`Maximum update depth exceeded`** … A `useEffect` with no dependency array is updating state. Add a dependency array like `[]`.
+- **The timer runs twice / keeps running after it's gone** … You didn't write the `return` cleanup. Stop it with `clearInterval` or similar.
+- **It runs many times when you meant just once** … Check that the dependency array is `[]`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Without a dependency array it runs on every render, and calling setState inside causes re-render → run again … an infinite loop (Maximum update depth exceeded). Add a dependency array like [].">
+
+You're calling `setState` inside a `useEffect` and got `Maximum update depth exceeded`. Explain the cause and the fix.
+
+</Exercise>
+
+<SummaryBox>
+
+- Write side effects (timers, data fetching, `document.title`, etc.) in `useEffect`. They run after rendering
+- The syntax is `useEffect(work, dependency array)`. `[]` is only the first time, `[value]` is every time that value changes
+- Clean up what you started with `return`. Forgetting the dependency array is the source of infinite loops
+
+</SummaryBox>

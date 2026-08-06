@@ -1,0 +1,64 @@
+---
+title: Summary & practice
+minutes: 6
+slug: routing-summary
+section: routing
+description: "A routing recap. Review setup, Link, URL parameters, shared layouts, and useNavigate, then self-check with a comprehension quiz. Data fetching is next."
+level: beginner
+prerequisites: ['routing/goal']
+---
+
+<LearnBox>
+
+- A full review of the "build multiple pages" skill you picked up in this part
+- A comprehension quiz (self-check the spots people trip on)
+- A bridge to the next part (data fetching)
+
+</LearnBox>
+
+## Full review of this part {#recap}
+
+You turned the one-screen `my-shop` into a multi-page app that switches by URL. Here are the key points.
+
+- **Setup** … Pass `createBrowserRouter([{ path, element }])` to the `RouterProvider` in `main.tsx`.
+- **Link** … For moving inside the app, use `<Link to>` (`<a>` does a full reload and wipes state). For the current page, use `NavLink`.
+- **URL parameters** … Pull out the `:id` from `/product/:id` with `useParams`. The result of `find` might be `undefined`, so check for it.
+- **Shared layout** … The shared nav goes on the parent route `Layout` + `<Outlet />`. Each page is a `children`.
+- **Navigating in code** … To move after some work, use `useNavigate`. `navigate('/x')`, `navigate(-1)`.
+- **404** … `{ path: '*' }` is the catch-all for when nothing matches the URL.
+
+Mapping "a URL to its screen"—once that clicks, you can build an app with any number of pages.
+
+## Comprehension quiz {#quiz}
+
+<Exercise answer="Use <Link to='...'>. <a href> reloads the whole app, so the screen flashes white and any state you held is lost. <Link> only swaps the content, so it doesn't reload. Use <a> only for links to external sites.">
+
+What happens if you use `<a href>` to move between pages inside the app? What do you use instead?
+
+</Exercise>
+
+<Exercise answer="Make the route { path: 'product/:id', ... } and pull the id out in the page with const { id } = useParams(). The result of find might be undefined, so handle the missing case first with if (!product) return ... before using product.name and so on.">
+
+Explain the flow for a `/product/:id` detail page that takes the id from the URL and displays the product. Note the gotchas too.
+
+</Exercise>
+
+<Exercise answer="Make the parent route's element a Layout, and put the shared nav and <Outlet /> inside Layout. Register each page in the parent's children. The child page for the current URL is slotted in where the Outlet is.">
+
+To gather the header shared by every page into one place, how do you set up the route structure and the `Layout`? What is the role of `<Outlet>`?
+
+</Exercise>
+
+## On to the next part {#next}
+
+The pages are in place, but the product data is still **imported directly** from `products.json`. In a real app, the data almost always **comes from a server**.
+
+The next part is **data fetching**. You'll learn how to load data from a server with `fetch` and how to handle the "loading", "error", and "success" states. The app you've built so far will start running on real data.
+
+<SummaryBox>
+
+- Routing is registering "URL → screen" (`createBrowserRouter` + `RouterProvider`)
+- Moving inside the app is `<Link>`, parameters are `:id` + `useParams`, the shared frame is `Layout` + `<Outlet>`
+- Moving after some work is `useNavigate`, and the catch-all is a `{ path: '*' }` 404
+
+</SummaryBox>

@@ -50,10 +50,18 @@ function listMdx(dir) {
   return out
 }
 
-// Content path → URL. recipes live under /recipes; everything else is a /guide page.
+// Content path → URL. Files live under a per-locale folder (ja/…, en/…). The
+// locale becomes the URL's first segment; tabs with their own prefix keep it,
+// everything else is a /guide page. e.g. en/recipes/modal → /en/recipes/modal,
+// ja/javascript/const-let → /ja/guide/javascript/const-let.
+const NON_GUIDE_PREFIXES = ['recipes/', 'standards/', 'project/', 'libraries/']
 function routeFor(file) {
   const rel = path.relative(contentRoot, file).replace(/\\/g, '/').replace(/\.mdx$/, '')
-  return rel.startsWith('recipes/') ? `/${rel}` : `/guide/${rel}`
+  const slash = rel.indexOf('/')
+  const locale = rel.slice(0, slash)
+  const rest = rel.slice(slash + 1)
+  const neutral = NON_GUIDE_PREFIXES.some((p) => rest.startsWith(p)) ? `/${rest}` : `/guide/${rest}`
+  return `/${locale}${neutral}`
 }
 
 async function main() {

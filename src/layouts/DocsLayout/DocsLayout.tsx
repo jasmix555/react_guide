@@ -5,8 +5,9 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { Sidebar } from '@/components/Sidebar'
 import { Toc } from '@/components/Toc'
 import { TopBar } from '@/components/TopBar'
+import { useLocale, useStrings } from '@/hooks/useLocale'
 import { useScrollSpy } from '@/hooks/useScrollSpy'
-import { getPage, routeIdFromPath, tabForRoute, tabsNav } from '@/lib/nav'
+import { getPage, getTabs, routeIdFromPath, tabForRoute } from '@/lib/nav'
 
 import styles from './style.module.scss'
 
@@ -17,9 +18,11 @@ import styles from './style.module.scss'
  */
 export function DocsLayout() {
   const location = useLocation()
+  const locale = useLocale()
+  const strings = useStrings()
   const route = routeIdFromPath(location.pathname)
-  const page = getPage(route)
-  const tab = tabForRoute(route) ?? tabsNav[0]
+  const page = getPage(locale, route)
+  const tab = tabForRoute(locale, route) ?? getTabs(locale)[0]
 
   const headingIds = useMemo(() => page?.headings.map((h) => h.id) ?? [], [page])
   const activeHeading = useScrollSpy(headingIds)
@@ -80,7 +83,7 @@ export function DocsLayout() {
           <button
             type="button"
             className={styles.scrim}
-            aria-label="ナビゲーションを閉じる"
+            aria-label={strings.nav.closeMenu}
             onClick={() => setMenuOpen(false)}
           />
         )}

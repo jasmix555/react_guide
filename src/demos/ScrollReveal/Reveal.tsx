@@ -3,8 +3,9 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import styles from './ScrollReveal.module.scss'
 
 /**
- * 画面に入ったら 1 度だけフワッと出す。スクロール位置は自分で計算せず、
- * IntersectionObserver（要素が見えたら教えてくれるブラウザの機能）に任せる。
+ * Fades in once, the first time the element enters the viewport. It does not
+ * compute the scroll position itself; it leaves that to IntersectionObserver
+ * (the browser feature that notifies you when an element becomes visible).
  */
 export function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -18,7 +19,7 @@ export function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: n
       ([entry]) => {
         if (entry.isIntersecting) {
           setShown(true)
-          io.disconnect() // 一度出したら監視をやめる
+          io.disconnect() // stop observing once it has been shown
         }
       },
       { threshold: 0.2 },

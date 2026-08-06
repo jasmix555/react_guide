@@ -1,0 +1,107 @@
+---
+title: Why SCSS Modules
+minutes: 7
+slug: why-scss-modules
+section: styling
+description: "Global CSS causes class-name collisions. See the problem where the same .card overrides itself across files, and understand how SCSS Modules solve it."
+level: beginner
+prerequisites: ['styling/goal']
+---
+
+<LearnBox>
+
+- The "class-name collision" problem that happens with global CSS
+- How SCSS Modules scope styles to each component
+- How the `S` in SCSS (nesting, variables, grouping) makes CSS easier to write
+
+</LearnBox>
+
+## How is this different from LP CSS? {#global-problem}
+
+When building an LP, you wrote CSS like this.
+
+```css title="style.css (global CSS)"
+.card {
+  border: 1px solid #ccc;
+}
+```
+
+This `.card` **applies everywhere on the page**. For a single LP that's fine. But as components pile up in React, this becomes a source of accidents.
+
+## The same name collides across files {#collision}
+
+Say two different people built a product card and a notice card. Both used the name `.card`.
+
+```css title="ProductCard.css"
+.card {
+  border: 1px solid #ccc;
+}
+```
+
+```css title="NoticeCard.css"
+.card {
+  background: #fff3cd; /* yellow warning color */
+}
+```
+
+Because both are global, **the two `.card` rules mix together**. A yellow background ends up on the product card, or whichever loaded later wins. "For some reason the style doesn't apply / something extra got added" — a lot of the time, this **class-name collision** is the cause. You can avoid it by making every name unique (`.product-card`, `.notice-card`, …), but naming gets harder the more components you have.
+
+<Callout type="mistake" title="Global CSS is 'last one wins'">
+
+When two classes have the same specificity, **whichever loaded later** wins. Which one is "later" can change depending on the build, which is how "it worked until yesterday" happens. There's a limit to how far naming discipline can take you.
+
+</Callout>
+
+## SCSS Modules scope names {#modules}
+
+**SCSS Modules** eliminate this problem at the root. If you name a file `ProductCard.module.scss` — ending in **`.module.scss`** — the class names inside become **specific to that file**.
+
+Here's how it works. At build time, `.card` is automatically converted into a **globally unique name** like `ProductCard_card_a1b2c`. You write `.card`, but what actually gets output is a collision-free unique name. So it **never clashes** with a `.card` in another file.
+
+```scss title="ProductCard.module.scss"
+.card {
+  border: 1px solid #ccc;
+}
+```
+
+```tsx title="ProductCard.tsx"
+import styles from './ProductCard.module.scss'
+
+// styles.card is converted to a unique name like 'ProductCard_card_a1b2c'
+;<article className={styles.card}>...</article>
+```
+
+You get to write **short names like `.card`**, and no collisions happen. No more burning energy on naming — that's the number one reason to use SCSS Modules.
+
+## The "S" in SCSS = easier to write {#scss}
+
+One more thing: why "SCSS" instead of "CSS"? SCSS is your usual CSS plus **nesting, variables, and grouping (mixins)**. Anything valid as CSS can be written as-is in SCSS (CSS is a subset of SCSS). So **the CSS knowledge you already have carries over unchanged**, with convenient features layered on top. We'll look at the specific features one by one on the following pages.
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="Write .card in global CSS and try to avoid collisions with naming"
+  good="Write .card in a .module.scss (the name is auto-scoped and won't collide)"
+  note="Global naming breaks down the more components you have. Modules keep the scope closed."
+/>
+
+## When things don't work {#trouble}
+
+- **Other components' styles bleed in** … Check that you aren't using global CSS. Keep each component's styles scoped inside its `.module.scss`.
+- **You can't tell where a style is coming from** … With `.module.scss`, you only need to look at "that component's file." That's the advantage of Modules.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Name the file .module.scss. Then its class names are automatically converted to unique names at build time, so they won't collide with same-named classes in other files. You can safely keep short names like .card.">
+
+If two components both use a class called `.card`, what should you do with the CSS file so they don't collide?
+
+</Exercise>
+
+<SummaryBox>
+
+- Global CSS causes class-name collisions and the "last one loaded wins" accident
+- With `.module.scss`, class names are converted to unique names at build time and scoped to each component
+- SCSS is CSS + (nesting, variables, grouping). Your current CSS knowledge carries over unchanged
+
+</SummaryBox>

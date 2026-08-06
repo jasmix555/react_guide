@@ -1,0 +1,188 @@
+---
+title: Render a list with map
+minutes: 10
+slug: rendering-lists
+section: components
+description: "Turn an array into an array of JSX with map to display a list. Why you need key, and why you use a stable id rather than the index for key. You'll also see the warning for a forgotten key."
+level: beginner
+prerequisites: ['components/props', 'javascript/array-methods']
+---
+
+import { ProductListDemo } from '@/demos/ProductList'
+
+<LearnBox>
+
+- Turn an array into JSX with `map` to display a list
+- Why a list needs a `key`
+- Why you use a stable id for `key` rather than the index
+
+</LearnBox>
+
+## What we build on this page {#goal}
+
+We'll build a list of cards from an array of product data. Instead of writing `<ProductCard />` by hand six times, we'll **loop over the array of product data with `map` and lay out cards automatically, one per piece of data**. Even if you grow to 100 products, the code doesn't gain a single line. First we'll write the code, then see the working thing at the end.
+
+## Turn an array into JSX with map {#map}
+
+In Part 2 we said `map` "transforms each element of an array into something else to build a new array." Here, we **transform each piece of product data into a `<ProductCard />`**.
+
+```tsx title="src/App.tsx (full)"
+import products from './data/products.json'
+
+import { ProductCard } from './components/ProductCard/ProductCard'
+
+function App() {
+  return (
+    <div>
+      {products.map((product) => (
+        <ProductCard name={product.name} price={product.price} key={product.id} />
+      ))}
+    </div>
+  )
+}
+
+export default App
+```
+
+Let's break down the one `map` line.
+
+```tsx
+products.map((product) => <ProductCard key={product.id} ... />)
+//            ↑            ↑            ↑
+//            │            │            └─ key: React's marker for telling elements apart (a unique id)
+//            │            └─ transform each product into a <ProductCard> and return it
+//            └─ receive the array's elements one at a time (product)
+```
+
+Inside curly braces `{ }` you loop with `products.map(...)`, transforming each `product` into a `<ProductCard ... />`. What `map` returns is **an array of JSX**, and React lines it up and displays it as-is. It does "one piece of data → one card" for the whole array automatically.
+
+<JsNote feature="{products.map(...)} returns an array of JSX">
+
+The result of `map` is an array. Put an array inside JSX and React lines up its contents in order and displays them. So `{products.map((p) => <ProductCard ... />)}` builds "an array of cards," and that becomes the list. This is where the `map` from Part 2 pays off directly in building screens.
+
+</JsNote>
+
+## How it actually works {#demo}
+
+Here's the code above running as-is. Six cards line up.
+
+<Demo title="Build a card list from an array">
+  <ProductListDemo />
+</Demo>
+
+## Break it on purpose: no key means a warning {#break-no-key}
+
+The code above had `key={product.id}`. Let's remove it on purpose.
+
+```tsx
+{products.map((product) => (
+  <ProductCard name={product.name} price={product.price} />
+))}
+```
+
+The screen does display, but the browser console (`F12`) shows a warning like this.
+
+```
+Warning: Each child in a list should have a unique "key" prop.
+```
+
+It means "**give each element of a list a unique key.**" `key` is a **marker** React uses to tell "which card is which piece of data." Without it, when you reorder the list or remove part of it, React can mix up the contents and the display can break. Because it doesn't stop with an error, it's easy to overlook -- but **once you build a list, always add a `key`**.
+
+## Use a stable id for key {#stable-key}
+
+For `key`, use **a value that will always point to that element uniquely** -- usually each piece of data's `id`.
+
+```tsx
+<ProductCard ... key={product.id} /> // an id unique to each product
+```
+
+<Callout type="warn">
+
+Avoid using the array's position (index) for `key`. You can write `products.map((product, index) => ... key={index})`, but when reordering or deletion **changes the order, the target the key points to shifts**, and that causes display bugs. Use a value that doesn't change even when the contents move around, like `product.id`.
+
+</Callout>
+
+<Together
+  task="Display a product's tags (an array of strings, e.g. ['Cookware', 'IH-compatible']) as a list of <li>. Watch out for how you add the key."
+  hint="The form tags.map((tag) => <li key={tag}>{tag}</li>). If the tag itself is unique, you can use it as the key."
+>
+
+```tsx
+<ul>
+  {product.tags.map((tag) => (
+    <li key={tag}>{tag}</li>
+  ))}
+</ul>
+```
+
+`tags` is an array of strings, so `map` transforms each `tag` into an `<li>`. If tag names don't duplicate, you can use the `tag` itself as the `key` (if they can duplicate, make it data with ids). Remember "array → `map`, made into a list → `key`" as one set.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="{products.map((p) => <ProductCard name={p.name} />)} (no key)"
+  good="{products.map((p) => <ProductCard name={p.name} key={p.id} />)}"
+  note="A list requires a key. Without one you get a console warning plus reordering bugs."
+/>
+
+<Diff
+  bad="key={index} (using the array position as the key)"
+  good="key={product.id} (using the data's unique id as the key)"
+  note="index shifts on reorder/delete. Use an id that doesn't change even when contents move."
+/>
+
+## Syntax catalog: how to build a list {#catalog}
+
+```tsx
+// array → a list of parts (key is id)
+{products.map((product) => (
+  <ProductCard key={product.id} name={product.name} />
+))}
+
+// array → a list of <li>
+{tags.map((tag) => (
+  <li key={tag}>{tag}</li>
+))}
+
+// filter first, then lay out (filter → map)
+{products
+  .filter((product) => product.inStock)
+  .map((product) => <ProductCard key={product.id} name={product.name} />)}
+```
+
+"array → `map` → each element into JSX → `key`" is one set.
+
+## Our standard {#standard}
+
+<Std
+  decision="Build lists with map, and always use a data-unique id for key (never the index)"
+  alt="For a static list whose data has no id and whose order never changes at all, index causes no real harm, but by default give the data an id and use that id as the key."
+>
+
+Make "array → `map` → `key`" a single continuous pattern you internalize. `key` is an id. Just following this avoids most of the confusing bugs around lists. Products, users, carts -- lists show up all over an app, so you'll use this again and again.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`Each child in a list should have a unique "key" prop`** ... you didn't add a `key` to the element inside `map`. Add `key={item.id}`.
+- **The display breaks on reorder/delete** ... you might be using an index for `key`. Change it to a unique id.
+- **The list shows nothing** ... check that you put the result of `map` inside curly braces `{ }`, and that you return JSX with `return` (or the arrow function's implicit return).
+
+## Summary & practice {#summary}
+
+<Exercise answer="key is React's marker for telling elements apart. index shifts the target it points to on reorder or delete, so use product.id, which doesn't change even when contents move.">
+
+Why do you use `product.id` rather than `index` for a list's `key`?
+
+</Exercise>
+
+<SummaryBox>
+
+- Build a list by transforming an array into an array of JSX with `map` (it lays out automatically, one per piece of data)
+- Each element of a list needs a `key`. Without one you get a console warning plus mix-up bugs
+- Use a stable id for `key`. Avoid index, which shifts on reorder/delete
+
+</SummaryBox>

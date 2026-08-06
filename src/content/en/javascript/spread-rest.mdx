@@ -1,0 +1,204 @@
+---
+title: Spread and rest
+minutes: 9
+slug: spread-rest
+section: javascript
+description: "The two faces of ... . Spread expands arrays and objects; rest gathers up the leftovers. Watch the order of overwrites."
+level: beginner
+prerequisites: ['javascript/destructuring']
+---
+
+<LearnBox>
+
+- Spread — using `...` to "expand" arrays and objects
+- rest — gathering up the leftovers into one
+- The "order of overwrites" when expanding objects
+
+</LearnBox>
+
+## ... has two faces {#why}
+
+You'll see `...` (three dots) every single day in React code. It's one symbol, yet its meaning splits into two depending on where you use it.
+
+- **Spread**: "**expands into the contents**" of an array or object (the opening side)
+- **rest**: "**gathers into one**" the leftover elements (the receiving side)
+
+They look identical — both `...` — but the roles are opposite: "expanding" versus "gathering." Let's take them in order.
+
+## Spread ①: expand an array {#spread-array}
+
+Put `...` in front of an array and its contents get **spread out into place**. This is the basic form for "creating a new array without breaking the original."
+
+```js
+const base = ['Tomato', 'Egg']
+const added = [...base, 'Milk']
+
+console.log(added) // ['Tomato', 'Egg', 'Milk']
+console.log(base) // ['Tomato', 'Egg']  ← original untouched
+```
+
+`[...base, 'Milk']` means "expand all of `base`'s contents, then add `'Milk'` after it — as a **new array**." `base` itself is never touched. When you update array state in React, this form is the main player (it pays off in a later part).
+
+Let's break this `...` into pieces and label them, for arrays and objects each.
+
+```js
+   [...base, 'Milk']
+// ↑        ↑
+// │        └─ the element you want to add after (goes into the new array)
+// └─ ... "expands all of base's contents into place"
+```
+
+```js
+   { ...product, price: 80 }
+//   ↑           ↑
+//   │           └─ overwrite (replacement). written "after" the ..., it wins
+//   └─ ... expands all of product's contents
+```
+
+- **`...` (spread)** … **expands all** the contents of an array or object into place
+- **`[...base, x]`** … a **new array** with `x` added after the expanded `base`
+- **`{ ...obj, key: v }`** … a **new object** with only `key` replaced after expanding `obj`
+- Always write the replacement **after** the `...` (whatever is written later wins)
+
+<JsNote feature="[...base] expands the contents, then puts them into a new array">
+
+`[...base]` means "expand all of `base`'s contents right here." The outer `[]` is the new array, and the original contents get copied and lined up inside it. That's why it becomes a separate thing from the original array.
+
+</JsNote>
+
+## Spread ②: expand an object {#spread-object}
+
+You can do the same thing with objects. Use `{...obj}` to expand the contents and create a new object with just part of it replaced.
+
+```js
+const product = { name: 'Tomato', price: 100, inStock: true }
+const cheaper = { ...product, price: 80 }
+
+console.log(cheaper) // { name: 'Tomato', price: 100 is now price: 80 }
+console.log(product) // original untouched
+```
+
+`{ ...product, price: 80 }` means "expand all of `product`'s contents, then overwrite just `price` to `80` — a new object." `name` and `inStock` carry over from the original unchanged.
+
+## Break it on purpose: reverse the order of the overwrite {#break-override-order}
+
+The number one trap with object spread is the **order you write things in**. Reverse the order of `...product` and the value you want to replace, and the replacement won't take effect.
+
+```js
+const product = { name: 'Tomato', price: 100 }
+
+// let's reverse it
+const result = { price: 80, ...product }
+
+console.log(result) // { price: 100, name: 'Tomato' }  ← the 80 vanished
+```
+
+Even though we wrote `price: 80` first, `...product` expands afterward and **overwrites** it with `price: 100`. No error appears, but the result differs from what you intended.
+
+The rule is "**whatever is written later wins**." Always write the value you want to replace **after** `...product`.
+
+```js
+const result = { ...product, price: 80 } // now price becomes 80
+```
+
+<Callout type="warn">
+
+When "I replaced just one part with spread, but it didn't change," suspect that **the order of `...` and the replacement is reversed**. Whatever is written later wins.
+
+</Callout>
+
+## rest: gather the leftovers into one {#rest}
+
+Write the same `...` on the **receiving side** of a value and it does the opposite job: it gathers the leftover elements into one. It's handy combined with destructuring.
+
+```js
+const product = { name: 'Tomato', price: 100, category: 'kitchen' }
+
+const { name, ...others } = product
+
+console.log(name) // 'Tomato'
+console.log(others) // { price: 100, category: 'kitchen' }
+```
+
+We pulled out just `name` and gathered **everything else** into `others`. That's rest. In the "building components" part, we lean on this heavily to bundle up leftover attributes like `onClick` and pass them along.
+
+<Together
+  task="From a product object (with name / price / inStock), use spread to create a new object soldOut with only inStock replaced with false. Don't change the original product."
+  hint="Use the form { ...product, inStock: false }. Write the replacement after ...product."
+>
+
+```js
+const product = { name: 'Tomato', price: 100, inStock: true }
+const soldOut = { ...product, inStock: false }
+
+console.log(soldOut) // { name: 'Tomato', price: 100, inStock: false }
+console.log(product) // { ... inStock: true }  ← original untouched
+```
+
+We expand `...product` first, then overwrite with `inStock: false` after it. Careful — reverse the order and `...product` wins, flipping it back to `true`.
+
+</Together>
+
+## Syntax catalog: variations of expanding and gathering {#catalog}
+
+`...` works for both "expanding (spread)" and "gathering (rest)." Here are the common forms.
+
+```js
+const arr = ['a', 'b']
+const obj = { name: 'Tomato', price: 100 }
+
+const added = [...arr, 'c']            // add to the end
+const prepended = ['z', ...arr]        // add to the front
+const joined = [...arr, ...['c', 'd']] // join two arrays
+const cheaper = { ...obj, price: 80 }  // overwrite part of it
+const withTag = { ...obj, tag: 'sale' } // add a key
+const { name, ...others } = obj        // rest: gather the leftovers
+```
+
+The first five above are "expanding (spread)"; only the last one is "gathering (rest)." Same `...`, but the role flips depending on where you write it.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="{ price: 80, ...product }"
+  good="{ ...product, price: 80 }"
+  note="The value you want to replace goes after ...product. Whatever is written later wins."
+/>
+
+<Diff
+  bad="base.push('Milk'); then use it"
+  good="const next = [...base, 'Milk']"
+  note="push rewrites the original array. Spread creates a new array without breaking the original."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="For arrays and objects, make 'never rewrite the original, create a new one with spread' the default"
+  alt="Only when copying huge data proves measurably heavy should you consider other approaches. Spread is plenty to start."
+>
+
+React updates the screen based on "did it become a different thing." Instead of `push` or direct rewriting, create a **new container** with `[...]` or `{...}` and the update is conveyed correctly. Remember: the replacement always goes after the `...`.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **You replaced with spread but nothing changed** … the order of `...` and the replacement is reversed. Write the replacement after.
+- **You added `...` and got `Unexpected token`** … use it inside `{}` when expanding an object, inside `[]` for an array. It can't be used standalone on the outside.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write const next = [...items, newItem]. Expand the original items and add newItem after it, creating a new array. items itself doesn't change.">
+
+To create a new array `next` with `newItem` added to the end of the array `items` — without breaking the original `items` — how would you write it?
+
+</Exercise>
+
+<SummaryBox>
+
+- Spread `...` "expands" arrays and objects to create a new container (the original isn't broken)
+- Overwriting an object: "whatever is written later wins." Write the replacement after the `...`
+- The `...` written on the receiving side is rest. It gathers the leftovers into one
+
+</SummaryBox>

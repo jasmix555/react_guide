@@ -1,0 +1,156 @@
+---
+title: Expressing the shape of an object with interface
+minutes: 8
+slug: interface
+section: typescript
+description: "Define the 'shape' of an object with interface. Required and optional (?) properties, all the way to when to use interface versus type."
+level: beginner
+prerequisites: ['typescript/basic-types']
+---
+
+<LearnBox>
+
+- Turn an object's "shape" into a named type with `interface`
+- Required properties and optional (`?`) properties
+- A rough guide to when to use `interface` versus `type`
+
+</LearnBox>
+
+## Turning an object's "shape" into a type {#interface}
+
+An object like `{ name: 'Sato', age: 30 }` has a **shape** — "which properties, with which types." Giving that shape a name is what `interface` does.
+
+```ts
+interface User {
+  name: string
+  age: number
+}
+```
+
+Let's break it apart.
+
+```ts
+interface User {
+  name: string
+}
+//   ↑    ↑     ↑
+//   │    │     └─ the type of that property
+//   │    └─ property name
+//   └─ the type's name (starting with a capital letter is the convention)
+```
+
+You use this `User` type like `const user: User = { ... }`. If the shape doesn't match, it's stopped with a red squiggle.
+
+```ts
+const user: User = { name: 'Sato', age: 30 } // OK
+```
+
+## Required and optional (?) {#optional}
+
+In the `User` above, both `name` and `age` are **required**. Leaving either out is an error. For a property that "may or may not be there," add `?` after the name.
+
+```ts
+interface User {
+  name: string
+  age?: number // optional: may or may not be there
+}
+
+const a: User = { name: 'Sato' } // OK (age can be absent)
+const b: User = { name: 'Suzuki', age: 30 } // OK
+```
+
+<JsNote feature="An optional property marked with ? may be undefined">
+
+`age?: number` means "`number` or `undefined`." When you use it the value might be missing, so [guarding against undefined](/guide/javascript/optional-chaining) — like `user.age ?? 0` — is safer.
+
+</JsNote>
+
+## Break it on purpose: a required property is missing {#break}
+
+Let's watch `interface` guard the shape. We'll keep `age` required and build an object with only `name`.
+
+```ts title="Missing a required property"
+interface User {
+  name: string
+  age: number // required
+}
+
+const user: User = { name: 'Sato' } // ← age is missing
+```
+
+A red squiggle appears on `{ name: 'Sato' }`, saying:
+
+```
+Property 'age' is missing in type '{ name: string; }'
+but required in type 'User'.
+```
+
+"The `age` required by the `User` type is missing." Add `age`, or make it `age?` in the `interface`, and it disappears. **It tells you about the shape mismatch before you run.**
+
+## When to use interface versus type {#interface-vs-type}
+
+You can also write an object's shape with `type`.
+
+```ts
+type User = {
+  name: string
+  age: number
+}
+```
+
+Both do almost the same thing. A rough guide:
+
+- **Object shape** → `interface` (easy to extend, and commonly used for defining props)
+- **Types like "one of these"** → `type` (a union such as `'a' | 'b'` uses `type`; that's the next page)
+
+When in doubt, starting with "**`interface` for object shapes, `type` for unions**" is plenty.
+
+## Syntax catalog: interface {#catalog}
+
+```ts
+interface Product {
+  id: string
+  name: string
+  price: number
+  inStock: boolean
+  imageUrl?: string // optional (?)
+  tags: string[] // array
+}
+
+const p: Product = {
+  id: 'p1',
+  name: 'Tote bag',
+  price: 3200,
+  inStock: true,
+  tags: ['fabric'],
+}
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Writing the object shape { name: string; age: number } inline every time"
+  good="Give it a name with interface User and reuse the User type"
+  note="Naming it saves you from rewriting the same shape over and over, and changes happen in one place."
+/>
+
+## When things go wrong {#trouble}
+
+- **`Property 'x' is missing`** … A required property is missing. Add it, or make it `x?` in the `interface`.
+- **`Object literal may only specify known properties`** … You wrote a property that isn't on the `interface`. Either a typo, or you forgot to add it to the `interface`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Add a ? after imageUrl to make it imageUrl?: string. The ? means 'may or may not be there' (string or undefined), and leaving it out is not an error.">
+
+In `interface Product`, how would you make `imageUrl` a "may or may not be there" property?
+
+</Exercise>
+
+<SummaryBox>
+
+- `interface` is a type that gives a name to an object's "shape"
+- Required properties stay as they are; optional ones get a `?` after the name (may be `undefined`)
+- Use `interface` for object shapes, and `type` for unions like `'a' | 'b'`
+
+</SummaryBox>

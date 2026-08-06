@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { useStrings } from '@/hooks/useLocale'
+
 import styles from './style.module.scss'
 
 /**
@@ -11,21 +13,22 @@ export function Std({
   decision,
   children,
   alt,
-  altLabel = 'これ以外を選ぶ場合',
+  altLabel,
 }: {
   decision: string
   children?: ReactNode
   alt?: ReactNode
   altLabel?: string
 }) {
+  const strings = useStrings()
   return (
     <aside className={styles.std}>
-      <span className={styles.pill}>うちの標準</span>
+      <span className={styles.pill}>{strings.callout.stdPill}</span>
       <p className={styles.decision}>{decision}</p>
       {children && <div className={styles.reason}>{children}</div>}
       {alt && (
         <details className={styles.stdAlt}>
-          <summary>{altLabel}</summary>
+          <summary>{altLabel ?? strings.callout.stdAltDefault}</summary>
           <div className={styles.stdAltBody}>{alt}</div>
         </details>
       )}

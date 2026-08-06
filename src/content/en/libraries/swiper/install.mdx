@@ -1,0 +1,68 @@
+---
+title: adding swiper
+minutes: 5
+slug: swiper-install
+section: swiper
+description: "Install the package with npm install swiper. The React components and types are bundled in. Cover the easy-to-forget CSS import swiper/css, the first thing people trip on."
+level: beginner
+prerequisites: ['libraries/swiper/goal', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- Install `swiper` once and you get both the React components and the types
+- Import `Swiper` and `SwiperSlide` from `swiper/react`
+- Nail the most easily forgotten step first: **loading the CSS**
+
+</LearnBox>
+
+## Install {#install}
+
+Swiper is a single package. Because it affects how the screen behaves, don't add `-D` ([put it in dependencies](/libraries/npm-install-writes)).
+
+```bash
+npm install swiper
+```
+
+The React components (`swiper/react`) and the type definitions are both bundled into the package. You don't need to install `@types/*` separately ([the types are not a separate package](/libraries/types-packages)).
+
+## Import from React {#import}
+
+Import the slider itself, `Swiper`, and the individual slide, `SwiperSlide`, from `swiper/react`.
+
+```tsx
+import { Swiper, SwiperSlide } from 'swiper/react'
+```
+
+## Don't forget the CSS {#css}
+
+Swiper keeps **its appearance CSS separate**. If you don't load it, the slides look stacked vertically and you panic thinking "it's not working!" — **this is the most common stumble**. Load the base CSS once, at the top of your component.
+
+```tsx
+import 'swiper/css'
+```
+
+<Callout type="mistake" title="When it looks broken, suspect a missing CSS import">
+
+When "all the slides line up vertically" or "I can't swipe sideways," it's usually a missing `import 'swiper/css'`. When you use arrows or dots, you also add their CSS (`swiper/css/navigation`, and so on) — we cover that on the next page, about modules.
+
+</Callout>
+
+## Our standard {#standard}
+
+<Std
+  decision="For Swiper, put the single swiper package in dependencies, and always load swiper/css at the top of the component that uses it"
+  alt="If you only need a simple switch between 2 or 3 slides, you can build it yourself like the carousel recipe. If you need sideways scrolling, autoplay, or responsiveness, Swiper is quicker."
+>
+
+One package, types bundled in. After that, just **don't forget to load the CSS** — nail that and your Swiper setup is done.
+
+</Std>
+
+<SummaryBox>
+
+- `npm install swiper`. The React components and types are bundled in; put it in `dependencies`
+- `import { Swiper, SwiperSlide } from 'swiper/react'`
+- **Don't forget `import 'swiper/css'`** (the number one cause of a broken-looking layout)
+
+</SummaryBox>

@@ -7,14 +7,17 @@ import { A11y, Autoplay, Navigation, Pagination } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
 
 import products from '@/data/products.json'
+import { useLocale } from '@/hooks/useLocale'
 
 import styles from './SwiperCarousel.module.scss'
 
 /**
- * 実務でよく作る商品カルーセル。modules で機能を足し、breakpoints で画面幅ごとに
- * 表示枚数を変える。自動再生は「動きを減らす」設定のとき止める（reduced-motion 配慮）。
+ * A product carousel commonly built in real projects. Add features via modules,
+ * and change the number of slides shown per screen width via breakpoints.
+ * Autoplay stops when "reduce motion" is enabled (reduced-motion consideration).
  */
 export function SwiperCarousel() {
+  const en = useLocale() === 'en'
   const reduce = useReducedMotion()
   const items = products.slice(0, 8)
 
@@ -35,8 +38,10 @@ export function SwiperCarousel() {
     >
       {items.map((p) => (
         <SwiperSlide key={p.id} className={styles.slide}>
-          <span className={styles.name}>{p.name}</span>
-          <span className={styles.price}>{p.price.toLocaleString()}円</span>
+          <span className={styles.name}>{en ? p.nameEn : p.name}</span>
+          <span className={styles.price}>
+            {en ? `${p.price.toLocaleString()}` : `${p.price.toLocaleString()}円`}
+          </span>
         </SwiperSlide>
       ))}
     </Swiper>

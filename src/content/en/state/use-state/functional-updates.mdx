@@ -1,0 +1,190 @@
+---
+title: Updating from the previous value
+minutes: 9
+slug: functional-updates
+section: state
+description: "Why calling setCount(count + 1) three times only adds 1 (batching and stale values). Write the functional form setCount(c => c + 1) as a full file, break down the syntax, and organize updating from the previous value in a cheat sheet."
+level: beginner
+prerequisites: ['state/use-state/basics']
+---
+
+import { TripleClickDemo } from '@/demos/TripleClick'
+
+<LearnBox>
+
+- Why calling `setCount(count + 1)` three times only adds 1
+- The functional form `setCount(c => c + 1)` for updating from "the previous value"
+- When to use the functional form (cheat sheet)
+
+</LearnBox>
+
+## Code that means +3 but does +1 {#problem}
+
+First, let's look at the full file of some code that causes a puzzling result. Create a new file `src/components/TripleClick/TripleClick.tsx`. The left button calls `setStale(stale + 1)` **three times** on a single click.
+
+```tsx title="src/components/TripleClick/TripleClick.tsx (new file, full)"
+import { useState } from 'react'
+
+export function TripleClick() {
+  const [stale, setStale] = useState(0)
+  const [fresh, setFresh] = useState(0)
+
+  function addThreeStale() {
+    setStale(stale + 1) // ← called 3 times
+    setStale(stale + 1)
+    setStale(stale + 1)
+  }
+
+  function addThreeFresh() {
+    setFresh((c) => c + 1) // ← the functional form, called 3 times
+    setFresh((c) => c + 1)
+    setFresh((c) => c + 1)
+  }
+
+  return (
+    <div>
+      <p>stale: {stale}</p>
+      <button type="button" onClick={addThreeStale}>Meant to be +3</button>
+
+      <p>fresh: {fresh}</p>
+      <button type="button" onClick={addThreeFresh}>+3</button>
+    </div>
+  )
+}
+```
+
+## What happens when you save {#result}
+
+Press the left button (`addThreeStale`) once and, even though it was called three times, it only **goes up by 1**. The right one (`addThreeFresh`) is also called three times and properly **goes up by 3**. The only difference is what you pass to `setState`.
+
+## See it in action {#demo}
+
+The code above is running as-is. Press each button once and compare how they count up.
+
+<Demo title="Meant to be +3 vs actually +3">
+  <TripleClickDemo />
+</Demo>
+
+## Why it only goes up by 1 {#why}
+
+There are two points. One is that React **processes multiple `setState` calls together** (batching). The other is that the `stale` inside `addThreeStale` is **all the same stale value**.
+
+If `stale` is `0` right now, the three lines actually behave like this.
+
+```tsx
+setStale(0 + 1) // 1
+setStale(0 + 1) // 1 (stale is still 0)
+setStale(0 + 1) // 1 (still 0)
+```
+
+`stale` stays `0` the whole time this function runs (the re-render happens after the function finishes). So all three are "`0 + 1`", and the result is `1`.
+
+## The fix: pass a function that receives the previous value {#fix}
+
+Instead of a value, you can pass `setState` **"a function that receives the previous value and returns the new value"**. Let's break down the syntax.
+
+```tsx
+setFresh((c) => c + 1)
+//        ↑     ↑
+//        │     └─ returns the new value (the previous value + 1)
+//        └─ the "current latest value" React hands you
+```
+
+React puts **the latest value at that moment** into the `c` of `(c) => c + 1`. On the first call `0 → 1`, on the second it receives the latest `1` and does `1 → 2`, and the third does `2 → 3`. That's why it properly goes up by 3. **When the new value is determined by the previous value, use the functional form** — that's the takeaway.
+
+<Callout type="note">
+
+The `setFavorite((prev) => !prev)` from the previous page is also this functional form. "Flip the previous value" means the new value is determined by the previous value, so the functional form was the safe choice. It also doesn't drop updates even when you toggle quickly and repeatedly.
+
+</Callout>
+
+## Cheat sheet: updating from the previous value {#catalog}
+
+"Update based on the previous value" isn't just for numbers. Here are the shapes you'll use most.
+
+```tsx
+// increase a number
+setCount((c) => c + 1)
+
+// flip a boolean (toggle)
+setOpen((o) => !o)
+
+// add to an array (next page)
+setItems((prev) => [...prev, newItem])
+
+// change one spot in an object (next page)
+setForm((prev) => ({ ...prev, name: 'New name' }))
+```
+
+What they share is the `(previous value) => new value` shape. Arrays and objects update with the same idea (we'll actually write these on the next pages).
+
+<Together
+  task="You wanted one click to add 2, but writing setCount(count + 1) twice only added 1. Fix it so it adds 2."
+  hint="Pass a function instead of a value. setCount((c) => c + 1) twice."
+>
+
+```tsx
+function addTwo() {
+  setCount((c) => c + 1)
+  setCount((c) => c + 1)
+}
+```
+
+Write `setCount((c) => c + 1)` twice and it adds 2, because React hands the result of the first call (the latest value) to the `c` of the second. With `setCount(count + 1)` twice, both look at the same stale `count`, so it only adds 1.
+
+</Together>
+
+## When to use the functional form {#when}
+
+You don't need to use this form every time. The rule of thumb is simple.
+
+- **The new value is determined by "the previous value"** (add 1, flip, add to an array) → **functional form** `set(prev => ...)`
+- **The new value goes in as-is, unrelated to the previous value** (put in the input field's value directly) → plain `set(value)` is fine
+
+When in doubt, going with the functional form is the safe choice.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="calling setCount(count + 1) several times in a row (stays on the stale value)"
+  good="setCount((c) => c + 1)"
+  note="If you update multiple times in the same function, use the functional form. Passing a value looks at the stale count and drops updates."
+/>
+
+<Diff
+  bad="calling setItems([...items, x]) in a row"
+  good="setItems((prev) => [...prev, x])"
+  note="Same for arrays and objects. When you build from the previous value, receive prev."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="When the new value is determined by the previous value, always use the functional form set(prev => ...)"
+  alt="For updates that don't depend on the previous value at all, like putting an input field's value in directly, set(value) is enough. Stick to the functional form only when you add to, flip, or append to the previous value."
+>
+
+Every "previous value → new value" update uses the functional form. `setCount((c) => c + 1)`, `setItems((prev) => [...prev, x])`, `setOpen((o) => !o)`. Keep to this shape and you won't drop values under batching or rapid updates.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **You updated multiple times but only one update took effect** … You're calling the value form (`set(count + 1)`) in a row. Switch to the functional form `set(c => c + 1)`.
+- **The count gets off when you tap quickly** … Same fix: the functional form updates based on the latest value.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Because all three setStale(stale + 1) calls look at the same stale stale (e.g. 0). Switch to the functional form setStale((c) => c + 1) and React hands you the latest value, so it adds 3.">
+
+Why does calling `setStale(stale + 1)` three times only add 1? How do you fix it to add 3?
+
+</Exercise>
+
+<SummaryBox>
+
+- Calling `set(value)` in a row within the same function makes them all look at the same stale value and drop updates
+- When the new value is determined by the previous value, use the functional form `set(prev => ...)`
+- Numbers, booleans, arrays, objects — for all of them, "previous value → new value" uses the functional form
+
+</SummaryBox>

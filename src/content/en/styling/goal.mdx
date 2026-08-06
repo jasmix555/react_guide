@@ -1,0 +1,76 @@
+---
+title: Goal of this part
+minutes: 5
+slug: styling-goal
+section: styling
+description: "Add visual style with SCSS Modules. Scope styles to each component so you never worry about class-name collisions. By the end of this part, you can turn a plain list into clean cards."
+level: beginner
+prerequisites: ['state/summary']
+---
+
+import { ProductCardDemo } from '@/demos/ProductCard'
+
+<PartIntro>
+
+By the end of the previous part, `ProductCard` became a **working** component (the favorite toggles on and off). But it still looks **plain**. In this part, we'll use **SCSS Modules** to turn this list into "proper cards."
+
+Your project is `my-shop`. Right now it should look like this.
+
+```
+my-shop/src/
+├─ App.tsx                       ← maps over products to render the list
+├─ components/ProductCard/
+│  └─ ProductCard.tsx            ← has favorite state (looks plain)
+└─ data/products.json            ← 12 product records
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- What SCSS Modules are, and why class names don't collide
+- What you'll be able to build by the end of this part
+- How this part is structured
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+By the end of this part, the plain list becomes the **cards** below. Image, category, price, favorite, sold-out label — we'll add all of it with SCSS Modules. Press the heart to toggle it.
+
+<Demo title="Finished product card">
+  <ProductCardDemo />
+</Demo>
+
+We'll **build up this card's look piece by piece across the pages of this part** (this page is just a preview of the finished image). Keep the goal in mind as you go: "a plain list becomes this polished."
+
+## Why make "styling" its own part {#why}
+
+When building LPs, you wrote CSS directly. You'll still write CSS in React, but **how you write and manage it** changes. The biggest headache is **class-name collisions**, which show up as a project grows.
+
+- `A.css` has `.card`, and `B.css` also has `.card`. One overrides the other.
+- "Which file is this `.title` style actually coming from?" becomes impossible to answer.
+
+SCSS Modules solve this by **scoping styles to each component**. The `.card` you write in `ProductCard.module.scss` only applies inside `ProductCard`, and it will never clash with a `.card` in another file. This "collision-free peace of mind" is the foundation for writing styles in React.
+
+## How this part is structured {#roadmap}
+
+Working top to bottom, we'll build up SCSS Modules step by step.
+
+1. **Why SCSS Modules** — actually trigger a global CSS collision and see it happen.
+2. **Your first .module.scss** — `import styles` and apply it with `className={styles.card}`.
+3. **SCSS features** — make styles easier to write with nesting, `&`, `$` variables, and `@mixin`.
+4. **Design tokens and theming** — group colors into CSS variables (`--x`) and support light/dark.
+5. **Responsive** — line things up nicely on phones too, with media queries and grid.
+6. **Conditional classes** — switch classes based on stock and favorite state (clsx).
+7. **Capstone** — actually finish off the list and the cards.
+
+Each page has the **full code** and **practice**. Don't just read — write it yourself in `my-shop` and watch the screen change.
+
+<SummaryBox>
+
+- SCSS Modules scope styles to each component and eliminate class-name collisions
+- In this part, you'll turn a plain list into cards with images, prices, and status labels
+- Write the full code as you go and finish `ProductCard` step by step
+
+</SummaryBox>

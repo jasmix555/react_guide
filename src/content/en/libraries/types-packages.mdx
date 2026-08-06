@@ -1,0 +1,127 @@
+---
+title: When types are in a separate package (@types/*)
+minutes: 8
+slug: types-packages
+section: libraries
+description: "When using it with TypeScript, some parts include types in the package itself, and others need you to add a separate @types/xxx. How to read and fix the Could not find a declaration file error."
+level: beginner
+prerequisites: ['libraries/choosing']
+---
+
+<LearnBox>
+
+- Libraries come in two kinds: "types included in the package" and "types shipped separately"
+- What the `Could not find a declaration file for module` error means
+- What `@types/xxx` is, and where it goes
+
+</LearnBox>
+
+## Why "there are no types" happens {#why}
+
+We write in TypeScript. TypeScript relies on **types**—whether a value is a string or a number, say—to tell you about mistakes ahead of time (we cover this in detail in Part 8). When you use a library too, you need type information: "what does this function take and what does it return?"
+
+But for historical reasons, the library world has **two ways of delivering type information**.
+
+1. **Types bundled in the package** … `clsx`, `sass`, and other recent parts are like this. Just install it and the types come along.
+2. **Types in a separate package** … Slightly older parts, or ones built with JavaScript in mind, are like this. You install `@types/xxx` separately from the package to supply the types.
+
+With case 2, if you forget to add the types, TypeScript tells you "the types can't be found." This page is about learning to read that.
+
+## How to read Could not find a declaration file {#error}
+
+Import a library that has no types directly, and you'll get a red squiggle and an error like this (as an example, say you installed a fictional part `some-lib` whose types ship separately).
+
+```
+Could not find a declaration file for module 'some-lib'.
+Try `npm i --save-dev @types/some-lib` if it exists.
+```
+
+In plain terms: "**The type-definition file for `some-lib` can't be found. Try installing `@types/some-lib` if it exists.**" The error message even tells you the fix (install `@types/...`). TypeScript errors look scary, but they **often spell out "do it this way" in the second half**, so get into the habit of reading to the end.
+
+<JsNote feature="declaration file (.d.ts) = the instruction manual for types">
+
+A type-definition file (extension `.d.ts`) isn't the guts of the library itself—it's a file that collects **just the instruction manual**: "this function has this type." If it's bundled in the package, it just gets loaded. If not, you supplement the manual with a separate package called `@types/xxx`.
+
+</JsNote>
+
+## Fix it by adding @types/xxx {#fix}
+
+Follow the error's instructions and install the type-definition package. Types are **needed only at build/development time**, so install with `-D` (`devDependencies`).
+
+```bash
+npm install -D @types/some-lib
+```
+
+Once installed, `@types/some-lib` gets added to `devDependencies` in `package.json` and the red squiggle disappears. This `@types/*` is distributed from a system called **DefinitelyTyped**, where volunteers collect the types for libraries all over the world. It's enough to remember the two-track setup: "the package is the package, the types are @types."
+
+<Callout type="note">
+
+Actually, your project already has `@types/react` and `@types/react-dom` (`create vite` added them for you). React itself is a case where the types are a separate package. You'll find them if you look at `devDependencies` in `package.json`.
+
+</Callout>
+
+## Check "does it have types?" before you add it {#check-first}
+
+Let's quietly add one thing to the previous page's "how to choose." **Before you add a part, check whether it has types** and you won't be surprised later. If the npm page has a "TypeScript" badge or a `Types` note, types are bundled in the package. If not, you can brace yourself for possibly needing `@types/xxx`.
+
+Our stack's `clsx` / `sass` / `react-router` / `motion` all **bundle their types in the package**, so there's no need to add `@types/*` separately.
+
+<Together
+  task="You imported a fictional part old-slider and got 'Could not find a declaration file for module 'old-slider''. Write the command you should run next."
+  hint="The second half of the error message is your answer. Types go in devDependencies."
+>
+
+```bash
+npm install -D @types/old-slider
+```
+
+The second half of the error, "`Try npm i --save-dev @types/old-slider if it exists`," is the answer directly. Types are used only at development time, so install with `-D` (`devDependencies`). If `@types/old-slider` doesn't exist (some parts have no types prepared by anyone), you'll either reconsider using that part at all, or write a minimal set of types yourself.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Put @types into dependencies for a library that threw a type error"
+  good="Put @types/xxx into devDependencies (-D)"
+  note="Type information is needed only at build/development time. It isn't part of how the finished screen runs."
+/>
+
+<Diff
+  bad="See Could not find a declaration file and give up on that library"
+  good="Follow the message's instructions and adding @types/xxx often fixes it"
+  note="TypeScript errors often spell out the fix in the second half. Read to the end."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Since we use TypeScript, choose libraries whose types are bundled in the package or that have an @types. Put @types/* in devDependencies"
+  alt="When you absolutely must use a part with no types, wrap it in a thin wrapper (an entry point you've typed yourself) so that from the app's side it looks typed. Choosing a part that has types comes first, though."
+>
+
+Having types is one of the criteria when choosing. If `Could not find a declaration file` appears, first try installing `@types/xxx` with `-D`. If it's still missing, reconsider whether you should be using that part at all.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`Could not find a declaration file for module 'xxx'`** … The types ship separately. Try `npm i -D @types/xxx`.
+- **The error persists even after adding `@types/xxx`** … Reloading the editor's TypeScript server (restarting it, in VS Code) can make it take effect.
+- **`@types/xxx` doesn't exist** … Nobody has prepared types for this part. Reconsider using it, or write a minimal set of types yourself.
+
+## Summary and practice {#summary}
+
+<Exercise answer="Try npm install -D @types/legacy-chart. Types are needed only at build/development time, so put them in devDependencies (-D).">
+
+You imported `legacy-chart` and got "Could not find a declaration file." What should you do next?
+
+</Exercise>
+
+<SummaryBox>
+
+- Library types come in two ways: "bundled in the package" and "shipped separately as `@types/xxx`"
+- `Could not find a declaration file` signals "types can't be found." Follow the instructions and install `@types/xxx`
+- `@types/*` goes in `devDependencies` (`-D`). Before you add a part, check "does it have types?" on the npm page
+
+</SummaryBox>

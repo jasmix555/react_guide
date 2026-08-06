@@ -1,0 +1,184 @@
+---
+title: ?. and ??
+minutes: 7
+slug: optional-chaining
+section: javascript
+description: "?. for safely walking values that might not exist, and ?? for giving a default only when the value is null / undefined. It won't sweep up 0 or empty strings."
+level: beginner
+prerequisites: ['javascript/truthy-falsy']
+---
+
+<LearnBox>
+
+- `?.`: safely walk into a property even when something along the way is missing, without throwing
+- `??`: give a default only when the value is `null` / `undefined`
+- The difference between `??` and `||` (whether they sweep up `0` and empty strings)
+
+</LearnBox>
+
+## Why you need them {#why}
+
+In React, the state "the data hasn't arrived from the server yet (`undefined`)" comes up all the time. If you carelessly try to read inside that `undefined`, the whole app crashes. What safely prevents this is **`?.` (optional chaining)** and **`??` (nullish coalescing)**. They're very short symbols, but you'll use them every day.
+
+## Break it on purpose: peeking inside a missing value crashes {#break-undefined}
+
+First, let's see what happens when you try to read inside a value that doesn't exist.
+
+```js
+const product = { name: 'Tomato' } // there is no detail
+
+console.log(product.detail.stock)
+// Uncaught TypeError: Cannot read properties of undefined (reading 'stock')
+```
+
+`product.detail` is `undefined`. Because we tried to read the `stock` inside it, it crashed with "can't read `stock` of `undefined`". **This `Cannot read properties of undefined` is one of the most common errors you'll see in React.**
+
+## Walk safely with ?. {#optional}
+
+If you use `?.` instead of `.`, the behavior becomes "**if something along the way is `null` / `undefined`, stop there and return `undefined`**". It doesn't crash.
+
+```js
+const product = { name: 'Tomato' }
+
+console.log(product.detail?.stock)
+// → undefined (doesn't crash)
+
+console.log(product?.detail?.stock)
+// → undefined (safe even if product itself is missing)
+```
+
+`product.detail?.stock` means "if `detail` exists, read `stock`; if not, `undefined`". Since it doesn't error even before the data arrives, it's extremely handy in React.
+
+<JsNote feature="?. means 'proceed if present, stop if absent'">
+
+`a?.b` means "if `a` is not `null` / `undefined`, read `b`; otherwise, return `undefined` there and stop". Put `?.` on the "might be there" paths where you don't want a crash.
+
+</JsNote>
+
+## Give a default with ?? {#nullish}
+
+`value ?? default` behaves like this: "return the default **only when the value is `null` or `undefined`**". Combined with `?.`, you can build "if it's not there, use this".
+
+```js
+const stock = product.detail?.stock ?? 0
+
+console.log(stock) // 0 (detail is missing, so the default 0)
+```
+
+`product.detail?.stock` is `undefined`, so `?? 0` put `0` in. You can use it as a safety net like "treat it as 0 while the data isn't there yet".
+
+Let's break the combined `?.` and `??` form into parts and name them.
+
+```ts
+   a?.b ?? 0
+//  ↑   ↑  ↑
+//  │   │  └─ the default. Used when the left is null/undefined
+//  │   └─ ?? : returns the default on the right only when null / undefined
+//  └─ ?. : if a is missing, stop there and return undefined (no crash)
+```
+
+- **`?.`** … if the left is `null` / `undefined`, **stop and return `undefined`**. No crash
+- **`??`** … **only when** the left is `null` / `undefined`, return the default on the right
+- **`0`** … the default. Even if `?.` makes it `undefined`, this turns it into `0`
+- Unlike `||`, it won't replace `0` or `''` with the default (they're protected)
+
+## The difference between ?? and || (this is the crux) {#vs-or}
+
+You might think "can't I just use `||` for a default?" No. **`||` sweeps up all falsy values** (including `0` and `''`), but **`??` handles only `null` / `undefined`**. The `0` trap from the truthy / falsy page comes into play here.
+
+```js
+const count = 0
+
+console.log(count || 10) // 10  ← 0 is falsy, so it turns into the default (usually not what you meant)
+console.log(count ?? 10) // 0   ← 0 stays 0, correctly
+```
+
+When you add a default to something where "**`0` is also a legitimate value**", like a stock count or a price, `||` makes `0` disappear. `??` protects `0`. If you mean "use the default only when the value is truly absent (`null` / `undefined`)", choose `??`.
+
+<Callout type="warn">
+
+Using `||` in a situation where `0` or an empty string can be a valid value replaces them with the default. If you mean "use the default only when absent", use `??`.
+
+</Callout>
+
+<Together
+  task="From a user object (whose nickname is sometimes an empty string ''), build a display name. Rather than turning it into 'Anonymous' only when nickname is truly absent (null/undefined) while respecting an empty string '', consider this case: you want 'Anonymous' whether it's empty OR absent. Think about whether ?? or || is right, and write it."
+  hint="If you 'want to replace an empty string with the default too', it's a job for ||. If it's 'null/undefined only', it's ??. Choose by your goal."
+>
+
+```js
+const user = { nickname: '' }
+
+// Want an empty string to become 'Anonymous' too → || is right
+const display = user.nickname || 'Anonymous'
+console.log(display) // Anonymous ('' is falsy, so it's replaced)
+
+// Default only when null/undefined → ?? is right
+const display2 = user.nickname ?? 'Anonymous'
+console.log(display2) // '' (empty string stays as-is)
+```
+
+If you "want empty to also count as absent", use `||`; if it's "only when truly absent", use `??`. **Which is correct depends on your goal** — choose based on whether you want to include `0` or `''` in the default. Being conscious of this drastically cuts down default-value bugs.
+
+</Together>
+
+## Writing catalog: safe walking and defaults {#catalog}
+
+Use `?.` for "paths that might not exist", and `??` for "a default only when absent". Here are the common forms.
+
+```ts
+product?.name              // ?. : undefined if absent (no crash)
+product?.detail?.stock     // chain to walk deeper
+product.tags?.[0]          // array elements safely too
+product.getPrice?.()       // call methods safely too
+product.detail?.stock ?? 0 // default if absent (0 is protected)
+user.nickname ?? 'Anonymous' // default only when null/undefined
+```
+
+`?.` is "crash insurance", and `??` is "a default just for `null` / `undefined`". When `0` or `''` is a legitimate value, use `??` rather than `||`.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="const stock = data.detail.stock (crashes if data.detail is missing)"
+  good="const stock = data.detail?.stock ?? 0"
+  note="Before it arrives it's undefined. Walk safely with ?. and give a default with ??."
+/>
+
+<Diff
+  bad="const price = product.price || 0 (a price of 0 disappears)"
+  good="const price = product.price ?? 0"
+  note="If 0 is a valid value, use ??. || treats 0 as falsy and replaces it with the default."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Walk 'paths that might not exist' with ?., and use ?? for 'a default only when absent'"
+  alt="If you're certain you want 'empty strings or 0 to count as absent and become the default', it's fine to use || just there. It's kind to add a one-line comment explaining the intent."
+>
+
+`?.` is crash insurance, and `??` is a default just for `null` / `undefined`. For values where `0` has meaning, like quantities or prices, use `??` rather than `||`. You'll use these two every day in React "before the data is ready".
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`Cannot read properties of undefined (reading '○○')`** … you're reading inside a missing value with `.`. Change that path to `?.`.
+- **`0` or an empty string turns into the default** … you're using `||`. If you want to target only `null` / `undefined`, change it to `??`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write product?.tags?.length ?? 0. Even if tags is missing, ?. keeps it from crashing, and if length can't be read, ?? 0 makes it 0.">
+
+To get the number of elements in `product`'s `tags` (an array that may not exist) without crashing even when `product` or `tags` is missing, and to make it `0` when absent, how would you write it?
+
+</Exercise>
+
+<SummaryBox>
+
+- `?.` means "proceed if present, stop at `undefined` if absent". It prevents `Cannot read properties of undefined`
+- `??` returns a default only when the value is `null` / `undefined`
+- `??` and `||` are different. Use `??` when you want to protect `0` or `''`, and `||` when you want those to become the default too
+
+</SummaryBox>

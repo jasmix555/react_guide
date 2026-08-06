@@ -1,0 +1,138 @@
+---
+title: Typing state and events
+minutes: 9
+slug: typing-state-events
+section: typescript
+description: "Let useState infer most of the time, and only write an explicit type for an empty array or a null initial value, plus how to type event handlers."
+level: beginner
+prerequisites: ['typescript/product-type']
+---
+
+<LearnBox>
+
+- `useState`'s type is inferred from its initial value (usually you don't write it)
+- When you do need to be explicit (empty array, `null` initial value) and `useState<Type>()`
+- Typing event handlers (`ChangeEvent`, etc.)
+
+</LearnBox>
+
+## useState is inferred from its initial value {#inference}
+
+`useState`'s type is **decided automatically from the initial value**. So usually you don't write a type at all.
+
+```tsx
+const [count, setCount] = useState(0) // inferred as number
+const [name, setName] = useState('') // inferred as string
+const [open, setOpen] = useState(false) // inferred as boolean
+```
+
+Since `count` is settled as `number`, passing a string like `setCount('three')` is stopped. Up to here, we haven't written a single character of type.
+
+## When you need to be explicit: empty arrays and null {#explicit}
+
+Inference fails when **the initial value alone doesn't tell you the contents**. There are two typical cases.
+
+**Empty arrays.** With `useState([])`, there's no way to know "an array of what" (it becomes `never[]`). Make the element type explicit with `<>`.
+
+```tsx
+const [items, setItems] = useState<string[]>([])
+//                                 ↑         ↑
+//                                 │         └─ initial value (empty array)
+//                                 └─ element type made explicit with <> (can't infer when empty)
+```
+
+**Values that start as `null`.** This is the "`null` for now, filled in later" pattern.
+
+```tsx
+const [selected, setSelected] = useState<Product | null>(null)
+```
+
+Now `selected` is "`Product` or `null`", and later you can call `setSelected(product)`.
+
+## Break it on purpose: putting a value into useState(null) {#break}
+
+Let's see why being explicit matters. We'll write `useState(null)` without a type.
+
+```tsx title="null with no type"
+const [selected, setSelected] = useState(null)
+
+setSelected(product) // ← put a Product in later
+```
+
+`product` gets a red underline, and you see this.
+
+```
+Argument of type 'Product' is not assignable to parameter of type 'null'.
+```
+
+With `useState(null)`, TypeScript infers "this state is **always `null`**". So trying to put a `Product` in is stopped. Write `useState<Product | null>(null)` and it understands "a `Product` can go in here too", which fixes it.
+
+## Typing event handlers {#events}
+
+When you write an arrow function **inline** for something like `onChange`, the type of the argument `e` is **known automatically** (you don't need to write it).
+
+```tsx
+<input onChange={(e) => setName(e.target.value)} />
+// React infers the type of e for you
+```
+
+On the other hand, when you **extract the handler into a separate function**, `e`'s type can't be inferred. In that case you write the type.
+
+```tsx
+import type { ChangeEvent } from 'react'
+
+function handleChange(e: ChangeEvent<HTMLInputElement>) {
+  setName(e.target.value)
+}
+
+<input onChange={handleChange} />
+```
+
+`ChangeEvent<HTMLInputElement>` is the type for "a change event on an `<input>`". Inside the `<>`, put the target element (like `HTMLInputElement`).
+
+## Cheat sheet: state and events {#catalog}
+
+```tsx
+// let it infer (decided from the initial value)
+const [count, setCount] = useState(0) // number
+const [open, setOpen] = useState(false) // boolean
+
+// be explicit (empty / null)
+const [items, setItems] = useState<string[]>([])
+const [sel, setSel] = useState<Product | null>(null)
+
+// events (when extracted)
+function onChange(e: ChangeEvent<HTMLInputElement>) {
+  /* e.target.value */
+}
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="const [items, setItems] = useState([]) (empty array with no type)"
+  good="const [items, setItems] = useState<string[]>([])"
+  note="An empty array can't infer its contents and becomes never[]. Make the element type explicit with <>."
+/>
+
+## When things go wrong {#trouble}
+
+- **`Argument of type 'X' is not assignable to parameter of type 'null'`** … This is `useState(null)` inference. Change it to `useState<X | null>(null)`.
+- **Type error when you push/set on the array** … `useState([])` has become `never[]`. Change it to `useState<T[]>([])`.
+- **The `e` in an extracted handler is `any` / errors** … Write a type like `e: ChangeEvent<HTMLInputElement>`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write useState<Product | null>(null). If you leave it as useState(null), the type is fixed to null and setSelected(product) later becomes a type error. Use <> to make it explicit that it's 'Product or null'.">
+
+How do you write the state for "the currently selected product (initially none = `null`)" so that you can put a product in later?
+
+</Exercise>
+
+<SummaryBox>
+
+- `useState` is usually inferred from its initial value (don't write the type)
+- Only for an empty array or a `null` initial value, be explicit with `useState<Type>()`
+- Inline handlers infer `e`; when extracted, write something like `ChangeEvent<HTMLInputElement>`
+
+</SummaryBox>

@@ -1,0 +1,146 @@
+---
+title: Removing, swapping, upgrading
+minutes: 7
+slug: managing-packages
+section: libraries
+description: "Managing packages after you install them. Remove with npm uninstall, swap with @version, and upgrade with npm outdated / update. You'll also experience what happens when you remove a part you're still using."
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- Remove a part (`npm uninstall`)
+- Swap a version by specifying it (`@` notation)
+- Check for outdated parts and upgrade them (`npm outdated` / `npm update`)
+
+</LearnBox>
+
+## Looking after things after you install them {#why}
+
+Installing a part isn't the end of it. Remove it when you no longer need it, upgrade it when it gets old, swap it when you want a different version — this "later management" is also all handled with `npm` commands. It isn't hard, so let's go through it once. Being able to **remove what you don't need** matters, too, so you don't let the list of things to manage grow out of control.
+
+## Remove: npm uninstall {#uninstall}
+
+Remove a part you no longer need with `npm uninstall`. Both the record in `package.json` and the actual code in `node_modules` are cleanly removed.
+
+```bash
+npm uninstall clsx
+```
+
+Running this removes the `clsx` line from `dependencies` in `package.json`. Removing parts you "installed to try but didn't end up using" as you go keeps your ledger tidy.
+
+## Break it on purpose: remove a part you're using {#break-used}
+
+Let's feel out the thing to watch out for when removing. What happens if you remove **a part you're still `import`ing and using**? With the code from the previous page that uses `clsx` in place, let's remove `clsx`.
+
+```bash
+npm uninstall clsx
+```
+
+If you then run `npm run dev` (or a build), you get this:
+
+```
+Failed to resolve import "clsx" from "src/App.tsx".
+Does the file exist?
+```
+
+The error says "the `clsx` that `src/App.tsx` is trying to load can't be found." **You removed the actual code, but the code is still calling it**, so of course it can't be traced. There are two fixes — **reinstall it if you're using it** (`npm install clsx`), or **remove the `import` and the code too if you're not** (`npm uninstall clsx`). When removing, remember to first confirm "is this truly not used anywhere?"
+
+<Callout type="note">
+
+You can find "where it's used" by searching your editor (in VS Code, `Ctrl+Shift+F`) for the part's name (like `clsx`) across all files. If not a single hit comes up, you can remove it safely.
+
+</Callout>
+
+## Swap: specify a version with @ {#replace}
+
+When you "want a specific version," add `@version` after the part's name and reinstall.
+
+```bash
+npm install clsx@2.0.0   # install version 2.0.0 specifically
+npm install clsx@latest  # install the latest
+```
+
+`@latest` installs "the current latest," and a number like `@2.0.0` installs "exactly that version." Normally the `^` notation that `create vite` adds is fine, but you'd use this for cases like "this version has a bug, so I want to step back one."
+
+## Upgrade: npm outdated and npm update {#update}
+
+After a while, new versions of parts come out. You can list **what has become outdated** with `npm outdated`.
+
+```bash
+npm outdated
+```
+
+It lines up `Current` (your version), `Wanted` (the version you can upgrade to within the `^` range), and `Latest` (the newest one out there). To just safely upgrade within the `^` range, use `npm update`.
+
+```bash
+npm update
+```
+
+<Callout type="warn">
+
+When `Latest` is a different major version (e.g. you're on `2.x` and the latest is `3.0`), `npm update` won't bump it. To go up a major version, be explicit like `npm install clsx@latest`. But because **a major update can include breaking changes**, upgrade one at a time, checking behavior as you go. Not upgrading everything at once is the safe move.
+
+</Callout>
+
+<Together
+  task="Try installing one part you don't need and then removing it as practice. For example: install with npm install dayjs and check package.json, then remove it with npm uninstall dayjs and watch the line disappear."
+  hint="install -> the line is added to dependencies in package.json, uninstall -> it disappears. Confirm this with your own eyes."
+>
+
+```bash
+npm install dayjs     # adds "dayjs": "^..." to dependencies
+npm uninstall dayjs   # that line disappears
+```
+
+`npm install` adds a line to `package.json`, and `npm uninstall` removes it — seeing this correspondence with your own eyes ties the ledger (`package.json`) to the actual commands. Since `dayjs` isn't `import`ed anywhere, removing it produces no error. This is practice for "here's how you remove a part you're not using."
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="uninstalling a part you import and use"
+  good="Before removing, search all files for the part and confirm there's no place it's used"
+  note="Removing something in use crashes with Failed to resolve import. Reinstall if you're using it; remove the import too if you're not."
+/>
+
+<Diff
+  bad="Trying to major-update everything at once with npm update"
+  good="Do major updates one at a time with npm install XX@latest, checking behavior as you go"
+  note="npm update only stays within the ^ range. Major updates can include breaking changes, so be careful."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Uninstall parts you don't use as you go. For updates, check with npm outdated, use npm update within the range, and do major updates one at a time while verifying behavior"
+  alt="There's no need to rush updates. If something's working, you don't have to chase the latest; it's enough to upgrade when there's a bug fix or a security update."
+>
+
+To keep the ledger small, remove parts you don't need. For updates, look at the situation with `npm outdated` first. Use `npm update` for the safe range, and be explicit for majors, one at a time. "Don't upgrade a working thing all at once without a reason" is the safe policy.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`Failed to resolve import "XX"`** ... You removed a part you're using. Reinstall it, or remove the `import` and the code.
+- **`npm update` doesn't get to the latest** ... It's outside the `^` range (a different major). Be explicit with `npm install XX@latest`.
+- **It stopped working after an update** ... A major update may have introduced a breaking change. Roll back with `npm install XX@previous-version` and check what changed.
+
+## Summary and practice {#summary}
+
+<Exercise answer="Before removing, search all files for the part's name and confirm no import remains. If one does, don't remove it if you'll keep using it; if you're stopping, remove the import and the code along with it.">
+
+Before you `npm uninstall` a part, what should you check?
+
+</Exercise>
+
+<SummaryBox>
+
+- Remove parts you don't need with `npm uninstall` (both the ledger and the actual code go away)
+- Version specifiers are `XX@2.0.0` or `XX@latest`. Removing a part in use crashes with `Failed to resolve import`
+- Check for outdated parts with `npm outdated`, use `npm update` within the range, and do major updates carefully, one at a time
+
+</SummaryBox>

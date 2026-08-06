@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './CustomSelect.module.scss'
 
 interface Option {
@@ -15,10 +17,12 @@ interface CustomSelectProps {
 }
 
 /**
- * 見た目を自由にしたいときの自作セレクト。開閉を state で持ち、外側クリックと Esc
- * で閉じる。ただしキーボード・スマホ・読み上げの完成度はネイティブ <select> に及ばない。
+ * A custom select for when you want full control over the appearance. The open/closed
+ * state is held with state, and it closes on outside click and Esc. However, its keyboard,
+ * mobile, and screen-reader support is not as complete as the native <select>.
  */
 export function CustomSelect({ label, options, value, onChange }: CustomSelectProps) {
+  const en = useLocale() === 'en'
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const selected = options.find((o) => o.value === value)
@@ -50,7 +54,7 @@ export function CustomSelect({ label, options, value, onChange }: CustomSelectPr
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        {selected?.label ?? '選択してください'}
+        {selected?.label ?? (en ? 'Select an option' : '選択してください')}
         <span className={styles.caret} aria-hidden>
           ▾
         </span>

@@ -1,0 +1,58 @@
+---
+title: Why Vite
+minutes: 5
+slug: setup-why-vite
+section: setup
+description: "How create-react-app faded away, how Vite differs from Next.js, and why we pick Vite for learning and for most real projects."
+level: beginner
+prerequisites: ['setup/install-node']
+---
+
+<LearnBox>
+
+- What kind of tool Vite actually is
+- Why we no longer use the old standby, create-react-app
+- How Vite differs from Next.js, and why we choose Vite this time
+
+</LearnBox>
+
+There are several ways to create a React project. Here is where we decide which one to use. The short answer is that we will create it with **Vite**, but knowing why helps you avoid getting misled by old articles online.
+
+## What Vite is {#what}
+
+**Vite (pronounced "veet") is a tool that handles both the development server and the build for React in one package.** It converts the `.tsx` you write into a form the browser can read, reflects it on screen the moment you save, and finally bundles everything into files for production — it does this whole chain for you. Its standout trait is that **starting up and reflecting changes are both extremely fast**.
+
+## We don't use the old standby, create-react-app {#cra}
+
+Until not long ago, every React beginner article started with **create-react-app (CRA)**. You should not use it now.
+
+CRA is slow, its maintenance has stopped, and **the official React site has already dropped CRA from its recommendations**. Starting with CRA today gets you nothing good: it is slow, and when you get stuck, the information you find is all outdated. If you see an article online that uses `create-react-app`, **you can safely assume it is an old article and skip past it**.
+
+## How Vite differs from Next.js {#next}
+
+Another name you hear a lot is **Next.js**. It is not a tool on the same layer as Vite. **Next.js is a "framework"** — a large structure with routing and server-side processing built in from the start.
+
+It is powerful, but at the stage of learning React itself, **there is too much to remember, and learning React gets mixed up with learning the framework**. When you genuinely need SEO or server-side rendering, there is a proper path to move on to Next.js (we cover it later in this guide). First, we learn the core of React with Vite, which has none of the extra layers on top.
+
+<Std
+  decision="For learning, and for the many projects that stay entirely on the front end, we build with Vite"
+  alt="If you already know from the start that you need SEO, server-side rendering, or a site with many pages, starting with Next.js means less backtracking. We cover how to make that call in detail later, in 'Growing into Next.js'."
+>
+
+Vite starts fast, has a simple configuration, and lets you learn React's way of thinking directly. It is also a good fit for our kind of work, where we build "front ends with motion" as an extension of making landing pages.
+
+</Std>
+
+<Deeper title="About terms like SWC, Babel, and Rolldown">
+
+Inside Vite, small tools that convert your code (Babel, SWC, Oxc, and the like) are at work. You don't need to memorize the names right now. Understanding it as "Vite uses a fast conversion tool inside" is enough, and we'll explain the choice of which one to use when it comes up on a later page.
+
+</Deeper>
+
+<SummaryBox>
+
+- Vite is a tool that bundles React's development server and build together and runs them fast
+- create-react-app is an old approach the official site stopped recommending. If you see it in an article, you can skip it
+- Next.js is a framework and is heavy for learning. First, learn the core of React with Vite
+
+</SummaryBox>

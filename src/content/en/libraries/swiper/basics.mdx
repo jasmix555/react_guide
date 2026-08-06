@@ -1,0 +1,111 @@
+---
+title: Building with Swiper and SwiperSlide
+minutes: 8
+slug: swiper-basics
+section: swiper
+description: "Build the smallest possible slider with Swiper and SwiperSlide. slidesPerView sets how many show, spaceBetween sets the gap, loop loops. Lay out a list with map."
+level: beginner
+prerequisites: ['libraries/swiper/install']
+---
+
+import { SwiperBasic } from '@/demos/SwiperBasic'
+
+<LearnBox>
+
+- The combination of `Swiper` (the outer wrapper) and `SwiperSlide` (one slide)
+- The three basic settings: `slidesPerView` / `spaceBetween` / `loop`
+- Laying out a list into `SwiperSlide`s with `map`
+
+</LearnBox>
+
+## The shape: SwiperSlide inside Swiper {#shape}
+
+A slider is just **an outer `Swiper`** with **one `SwiperSlide` per slide** laid out inside it.
+
+```tsx
+<Swiper>
+  <SwiperSlide>Slide 1</SwiperSlide>
+  <SwiperSlide>Slide 2</SwiperSlide>
+  <SwiperSlide>Slide 3</SwiperSlide>
+</Swiper>
+```
+
+`Swiper` takes care of swiping and dragging, and each `SwiperSlide` becomes a "panel" that scrolls across the screen.
+
+## Common settings {#options}
+
+You pass settings to `Swiper` as props (attributes). The first three to learn are these.
+
+- `slidesPerView` … how many are visible at once. `1` shows one at a time; a decimal like `1.15` makes "the next one peek out a little."
+- `spaceBetween` … the gap between slides (px).
+- `loop` … when you reach the end, wrap back to the start and loop.
+
+```tsx
+<Swiper slidesPerView={1.15} spaceBetween={12} loop>
+  {/* lay out the SwiperSlides */}
+</Swiper>
+```
+
+<JsNote feature="Lay out a list with map">
+
+If your slides are array data, [lay them out with map](/guide/components/rendering-lists). Don't forget to add a `key` to each `SwiperSlide` too.
+
+```tsx
+{items.map((item) => (
+  <SwiperSlide key={item.id}>{item.name}</SwiperSlide>
+))}
+```
+
+</JsNote>
+
+## Finished code: the smallest possible Swiper {#full}
+
+With `slidesPerView={1.15}`, the next slide "peeks out a little." That alone gives you a slider that moves with either finger or mouse (we add arrows and dots on the next page). Because the root element is the `Swiper` itself, we apply full width with `className`.
+
+```tsx title="src/demos/SwiperBasic/SwiperBasic.tsx (full)"
+import 'swiper/css'
+
+import { Swiper, SwiperSlide } from 'swiper/react'
+
+import styles from './SwiperBasic.module.scss'
+
+const slides = [1, 2, 3, 4, 5, 6]
+
+export function SwiperBasic() {
+  return (
+    <Swiper className={styles.swiper} spaceBetween={12} slidesPerView={1.15}>
+      {slides.map((n) => (
+        <SwiperSlide key={n} className={styles.slide}>
+          Slide {n}
+        </SwiperSlide>
+      ))}
+    </Swiper>
+  )
+}
+```
+
+<Demo title="The smallest possible Swiper (moves with drag / swipe)">
+  <SwiperBasic />
+</Demo>
+
+## When it doesn't work {#trouble}
+
+- **Stacked vertically and won't move sideways** … you forgot `import 'swiper/css'` ([previous page](/libraries/swiper/install)).
+- **Only one slide shows** … set `slidesPerView` to `1.15` or `2` to see several.
+- **`loop` behaves oddly** … it gets messy when there are too few slides for the `slidesPerView`. Add more slides, or reduce how many are shown.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Put an outer <Swiper> with <SwiperSlide>s inside. For array data, write items.map((item) => <SwiperSlide key={item.id}>{item.name}</SwiperSlide>) and add a key. Pass slidesPerView and spaceBetween to Swiper.">
+
+When building a slider from array data, how do you combine `Swiper` and `SwiperSlide`, and what do you watch out for with `map`?
+
+</Exercise>
+
+<SummaryBox>
+
+- Outer `Swiper` + `SwiperSlide`s inside. `Swiper` takes over the gestures
+- `slidesPerView` (how many show) / `spaceBetween` (gap) / `loop` (looping) are the basics
+- Lay out a list with `map`, and add a `key` to each `SwiperSlide`
+
+</SummaryBox>

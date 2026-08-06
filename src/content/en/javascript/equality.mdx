@@ -1,0 +1,115 @@
+---
+title: Equality (=== and ==)
+minutes: 8
+slug: equality
+section: javascript
+description: "The difference between === and ==. The trap where == coerces types on its own, that NaN isn't even equal to itself, and that objects are compared by identity."
+level: beginner
+prerequisites: ['javascript/truthy-falsy']
+---
+
+<LearnBox>
+
+- Why to use `===` (strict equality) and not `==`
+- The surprising `true` results `==` produces by coercing types on its own
+- The peculiarity of `NaN`, and comparing objects by "identity"
+
+</LearnBox>
+
+## The conclusion first: use `===` {#use-strict}
+
+There are two symbols for checking whether values are equal. **Use `===` (strict equality); don't use `==`.** The reason: `==` "coerces the types to match before comparing, even when the types differ," which produces unexpected results.
+
+```js
+1 === 1 // true
+1 === '1' // false (number vs string. different types, so different)
+1 == '1' // true (== coerces the types to match)
+```
+
+`===` compares "are the type and value the same" straightforwardly. `!==` is its negation (not equal).
+
+## The surprising trues `==` produces {#loose-traps}
+
+Because `==` coerces types, several counterintuitive results arise. Confirm them in the console.
+
+```js
+0 == '' // true (both treated as 0)
+0 == false // true
+'' == false // true
+null == undefined // true (a special rule just for these two)
+```
+
+Every one of these is `false` with `===`. They're a **breeding ground for "somehow the condition matches" bugs**, so avoid `==`.
+
+<Callout type="mistake" title="Not using == is the safe move">
+
+You don't need to memorize all of `==`'s type-coercion rules. Just decide to **always use `===` (and `!==`)** and this class of bug basically won't happen.
+
+</Callout>
+
+## NaN isn't even equal to itself {#nan}
+
+The result of a calculation that can't become a number is `NaN` (Not a Number). This `NaN` has a peculiar property: **`NaN`, compared even to itself, is `false`**.
+
+```js
+const n = Number('abc') // NaN (couldn't be made into a number)
+
+n === NaN // false (!)
+Number.isNaN(n) // true (use this for NaN checks)
+```
+
+You can't check "whether it's NaN" with `=== NaN`. Use **`Number.isNaN(value)`**.
+
+## Objects are compared by "identity" {#identity}
+
+Numbers and strings are compared by their "contents," but **objects and arrays are compared by "whether they're the same entity (the same box)."** Even with identical contents, boxes created separately are not equal.
+
+```js
+{ a: 1 } === { a: 1 } // false (same contents, but different boxes)
+[1, 2] === [1, 2] // false (same as above)
+
+const x = { a: 1 }
+const y = x
+x === y // true (y points to the same box as x)
+```
+
+This sense of "compared by entity, not contents" leads into the next topic, [references and copies](/guide/javascript/reference-vs-copy). For now, just lock in that "`===` between objects is not a match of contents."
+
+## Syntax catalog: the key points of equality {#catalog}
+
+```js
+1 === 1 // true (same type and value)
+1 === '1' // false (different types)
+a !== b // not equal
+Number.isNaN(x) // this is the NaN check (=== NaN doesn't work)
+obj1 === obj2 // for objects, checks "are they the same entity"
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="compare with ==, like if (a == b)"
+  good="compare with ===, like if (a === b)"
+  note="== coerces types on its own and produces surprising trues. Always use === / !==."
+/>
+
+## When things go wrong {#trouble}
+
+- **A condition matches unintentionally** … are you using `==`? Switching to `===` fixes many cases.
+- **`x === NaN` is always false** … NaN isn't even equal to itself. Use `Number.isNaN(x)`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="false. === also checks the type, so the number 0 and the string '0' aren't equal (with == it would be true, but we don't use ==).">
+
+Is the result of `0 === '0'` `true` or `false`? Think about why, too.
+
+</Exercise>
+
+<SummaryBox>
+
+- Equality is always `===` / `!==`. Don't use `==` — it coerces types on its own and produces surprising `true`
+- `NaN` isn't even equal to itself. Check it with `Number.isNaN(value)`
+- `===` between objects/arrays isn't "a match of contents" but "whether they're the same entity"
+
+</SummaryBox>

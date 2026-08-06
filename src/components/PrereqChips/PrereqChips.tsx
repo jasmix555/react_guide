@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-import { strings } from '@/config/strings.ja'
+import { useLocale, useStrings } from '@/hooks/useLocale'
 import { getPage } from '@/lib/nav'
 
 import styles from './style.module.scss'
@@ -11,6 +11,8 @@ import styles from './style.module.scss'
  * Only links when the target actually exists (no dead chips).
  */
 export function PrereqChips({ prerequisites }: { prerequisites: string[] }) {
+  const locale = useLocale()
+  const strings = useStrings()
   if (!prerequisites.length) return null
 
   return (
@@ -18,7 +20,7 @@ export function PrereqChips({ prerequisites }: { prerequisites: string[] }) {
       <span className={styles.label}>{strings.nav.prerequisites}</span>
       <ul className={styles.list}>
         {prerequisites.map((route) => {
-          const page = getPage(route)
+          const page = getPage(locale, route)
           return (
             <li key={route}>
               {page ? (

@@ -1,0 +1,83 @@
+---
+title: "Choice 2: Every variant explained"
+minutes: 7
+slug: setup-variants
+section: setup
+description: "React's eight variants, one by one. What each is, when to pick it, and why we skip it this time. The answer is TypeScript."
+level: beginner
+prerequisites: ['setup/project-name']
+---
+
+<LearnBox>
+
+- What each of the 8 choices in "Select a variant" actually is
+- Why we pick the top one, **TypeScript**, this time
+- What's different about the choices marked with `↗`
+
+</LearnBox>
+
+Once you choose React, the last thing you're asked is the "variant." This is the part people hesitate over most. **The answer is the top one, "TypeScript,"** but picking it without knowing what the others are feels uneasy, so we'll explain them all.
+
+## The 8 that appear on screen {#list}
+
+The `Select a variant:` list looks like this (choose with the arrow keys and press `Enter`).
+
+```
+◇  Select a variant:
+│  ● TypeScript                        ← choose this one
+│  ○ TypeScript + React Compiler
+│  ○ JavaScript
+│  ○ JavaScript + React Compiler
+│  ○ RSC ↗
+│  ○ React Router v7 ↗
+│  ○ TanStack Router ↗
+│  ○ Vike ↗
+```
+
+The top one, **TypeScript**, is selected from the start. Since that's the one we pick, all you really do is **press `Enter` as-is**. But let's take a look at what the rest are.
+
+## One by one {#each}
+
+**TypeScript** — A typed React project. This is the setup this guide uses from beginning to end. **This is the one we choose.**
+
+**TypeScript + React Compiler** — The above with "React Compiler," an automatic optimization mechanism, added from the start. It's handy, but because it rewrites your code automatically behind the scenes, **while you're learning it becomes hard to see "why it got faster."** Optimization can be added later, so we don't include it now (we explain a bit more on the next page).
+
+**JavaScript** — React without types. This guide's goal is "being able to write types from the start," so we don't choose it. We cover the reasons on the "What is TypeScript" page.
+
+**JavaScript + React Compiler** — The untyped version with React Compiler added. We don't choose it, for the two reasons above.
+
+**RSC ↗** — An experimental starter for an advanced setup called React Server Components, which runs on the server side. It's too early for us right now.
+
+**React Router v7 ↗** — A setup with routing (page switching) built in from the start. Routing can be added yourself later, so we start from the bare state first.
+
+**TanStack Router ↗** — A setup for a different routing library. We don't choose it now, for the same reason.
+
+**Vike ↗** — A starter for a different framework called Vike. We don't need it now.
+
+## What the `↗` mark means {#arrow}
+
+The four marked with `↗` (RSC / React Router / TanStack Router / Vike) **don't use Vite's React template; instead, they call up the starter of a different tool**. Picking one is like create-vite handing the baton to "that tool's creation command." Since right now we want to learn bare Vite + React, it's enough to remember: pick from the top four without a `↗` (the TypeScript and JavaScript ones).
+
+<Std
+  decision="For the variant, pick the top one, TypeScript (= bare Vite + React + TypeScript)"
+  alt="If your whole team already understands how React Compiler behaves and you want optimization on from the start, use 'TypeScript + React Compiler.' If a larger project that assumes routing is already decided, use the React Router setup. At the learning stage, you don't need any of them, since they can all be added later."
+>
+
+A bare setup with nothing extra on top lets you learn React's way of thinking most directly. We add the features you need one at a time throughout this guide. In particular, **we do not include React Compiler**. Because it automates optimization, the hands-on practice of confirming `useMemo` / `useCallback` / `React.memo` by hand in Part 9 "state and hooks" would no longer work on the reader's own machine. It's healthier to add it after you understand the mechanism (we'll do it in detail later).
+
+</Std>
+
+<Deeper title="What about the old 'TypeScript + SWC'?">
+
+A little while ago, create-vite had a choice called "**TypeScript + SWC**," and many articles recommend it. In create-vite 9, this choice is **gone**, and a "React Compiler" version was added in its place. The fast-conversion tool SWC itself can still be used behind the scenes, but **it has disappeared as a choice in the creation wizard**. So even if you see an article saying "choose SWC," it's normal that it doesn't appear on the current screen.
+
+</Deeper>
+
+<SummaryBox>
+
+- Of the 8, the one we choose is the top one, **TypeScript** (already selected from the start, so just `Enter`)
+- React Compiler, routing, RSC, and the like can all be added later, so we don't include them now
+- The `↗` ones are starters for other tools. For now, pick from the top four without a `↗`
+- Old articles' "TypeScript + SWC" is gone in create-vite 9
+
+</SummaryBox>

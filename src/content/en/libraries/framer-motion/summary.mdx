@@ -1,0 +1,62 @@
+---
+title: Summary & practice
+minutes: 6
+slug: framer-motion-summary
+section: framer-motion
+description: "A Framer Motion recap. Revisit the motion basics, hover, reduced-motion, stagger, and AnimatePresence, then check your understanding with a self-quiz."
+level: beginner
+prerequisites: ['libraries/framer-motion/goal']
+---
+
+<LearnBox>
+
+- A full recap of the "adding motion" skills you built with Framer Motion
+- A comprehension check (self-test the spots people trip on)
+- Pointers to libraries worth reading next
+
+</LearnBox>
+
+## Recap of this part {#recap}
+
+We added "that satisfying feel" to a list. Here are the key points.
+
+- **Motion basics** … on a `<motion.div>`, `initial` (start) → `animate` (target state) → `transition` (how it moves). For UI, `spring` feels natural.
+- **Hover & tap** … react to input with `whileHover` / `whileTap`. Keep it restrained (a few percent).
+- **reduced-motion** … show care with `useReducedMotion`. **Remove only the motion; keep the information.**
+- **Scroll & stagger** … `whileInView` (fire when visible, with `once`), and `staggerChildren` + `variants` (a little at a time).
+- **Enter/exit** … `AnimatePresence` + `exit` + a unique `key`. Smooth on the way out too.
+
+And running through all of it is one principle: **"give motion a reason."** Draw attention, show a state change, react to input. Not moving things "just because" is what separates a polished result from an unpolished one.
+
+## Comprehension check {#quiz}
+
+<Exercise answer="Go from initial (the starting state) → animate (the target state), moving according to how you set transition. Example: initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} for 'from below, transparent → opaque.' A spring transition feels natural.">
+
+To "fade in on mount" with a `<motion.div>`, which props do you use, and how?
+
+</Exercise>
+
+<Exercise answer="Use useReducedMotion, and when it's true, set initial to false (visible from the start) to remove the motion. If you leave it at opacity: 0 the content disappears too, so the rule is to remove only the motion and keep the information.">
+
+To show care for people with the "reduce motion" setting, what do you use, and what do you watch out for?
+
+</Exercise>
+
+<Exercise answer="Wrap the disappearing elements in <AnimatePresence> and give each element an exit and a unique key (item.id). AnimatePresence keeps the element in the DOM until the exit animation finishes, so you actually see it leave. Don't use the index as the key.">
+
+To make a list deletion "close smoothly, then disappear," what do you need?
+
+</Exercise>
+
+## Good things to read next {#next}
+
+That's a full pass through **Framer Motion**. From the `initial`→`animate` basics through hover, reduced-motion, stagger, and enter/exit, you can now add "satisfying motion" to a UI yourself.
+
+From here, move on to the other parts of the same **Libraries** track. We'll add **GSAP** (elaborate effects with timelines and scroll-linking), **Swiper** (sliders / carousels), and more to this tab over time. If you already have a UI in mind, working backwards from the **[Recipes](/recipes/modal)** is a shortcut too.
+
+<SummaryBox>
+
+- `initial` → `animate` → `transition` is the basis. Hover is `whileHover`/`whileTap`
+- reduced-motion is required care (remove only the motion). Stagger uses `variants`, enter/exit uses `AnimatePresence`
+- Give motion a reason. Next up, pull in the libraries you need — GSAP, Swiper, and others
+</SummaryBox>

@@ -1,0 +1,97 @@
+---
+title: Summary & practice
+minutes: 6
+slug: state-summary
+section: state
+description: "A summary of state and hooks. Review how re-rendering works, useState, events, immutable updates, the functional form, and useEffect, then add a favorite feature to ProductCard in the capstone."
+level: beginner
+prerequisites: ['state/goal']
+---
+
+<LearnBox>
+
+- A full review of building "screens that move" that you've picked up in this part
+- Capstone: add a favorite button to `ProductCard`
+- A look ahead to the next step (sharing state)
+
+</LearnBox>
+
+## Full review of this part {#recap}
+
+We've touched the heart of React from end to end. Here are the key points.
+
+- **How re-rendering works** … Changing a plain variable doesn't change the screen. React re-draws **only when you update state**.
+- **useState** … `const [count, setCount] = useState(0)`. You read `count` and change it with `setCount`.
+- **Updating with events** … `onClick={() => setX(...)}`. Flip ON/OFF with `!value`. Calling it directly gives `Too many re-renders`.
+- **Immutable updates** … For arrays, `[...prev, x]` / `filter`; for objects, `{ ...prev, thing to change }`. Mutating the original means no re-render (references and copies, Part 2).
+- **The functional form** … Updates determined by the previous value use `set(prev => ...)`. It won't drop updates even under rapid updates.
+- **useEffect** … Side effects run after rendering. The dependency array decides "when it runs", and `return` handles cleanup.
+
+Behind everything that "makes the screen change" there's always state — this way of seeing things will keep paying off from here on.
+
+## Capstone: add favorites to ProductCard {#project}
+
+Let's breathe life into the capstone `ProductCard` with what's in this part. **Each card will hold state for "whether it's a favorite"**, toggled with a button.
+
+```tsx title="src/components/ProductCard/ProductCard.tsx (adding favorites)"
+import { useState } from 'react'
+
+interface ProductCardProps {
+  name: string
+  price: number
+}
+
+export function ProductCard({ name, price }: ProductCardProps) {
+  const [favorite, setFavorite] = useState(false)
+
+  return (
+    <article>
+      <h3>{name}</h3>
+      <p>{price.toLocaleString()} yen</p>
+      <button type="button" onClick={() => setFavorite((prev) => !prev)}>
+        {favorite ? '♥ Favorited' : '♡ Favorite'}
+      </button>
+    </article>
+  )
+}
+```
+
+Each card in the list holds its own independent `favorite` state. Pressing one heart doesn't change the other cards (because state is separate per component). For now, get "press to toggle" working with this.
+
+<Callout type="note">
+
+"I want to see the products I favorited on a different screen (a favorites list) too" — once you get there, you'll need to **lift the state up to a parent and share it** rather than keeping it in each card (**lifting state up**). We'll cover this properly when we build multiple screens. For now, "each card holds its own state" is enough.
+
+</Callout>
+
+## Practice {#exercise}
+
+<Exercise answer="Because a plain variable doesn't trigger a re-render when you change it. Hold it with useState and update it with an update function (preferably the functional form) like setFavorite((prev) => !prev), and the screen toggles.">
+
+"I held the favorite in a plain variable `let favorite = false` and did `favorite = !favorite`, but the screen didn't toggle." Why? How do you fix it?
+
+</Exercise>
+
+<Exercise answer="All three look at the same stale count, so it only adds 1. With the functional form setCount(prev => prev + 1), you receive 'the latest value' each time, so it adds 3. Updates determined by the previous value use the functional form.">
+
+You called `setCount(count + 1)` three times on a single button click, but the number only went up by 1. Why? How do you fix it?
+
+</Exercise>
+
+<Exercise answer="The effect runs only when a value in the dependency array changes. [] means only the first time; leaving it out means it runs every time. In an effect using setInterval, if you don't write return () => clearInterval(...), the timer runs twice over or never stops.">
+
+What does the `[]` (dependency array) in `useEffect(fn, [])` decide? And what happens in an effect using `setInterval` if you don't write `return () => ...`?
+
+</Exercise>
+
+## On to the next part {#next}
+
+With this, `ProductCard` has become a part that **moves when you press it**. But its look is still bare. In the next part we'll tidy up this list properly with **styling (SCSS Modules)**. We finally give a look to the "moving machinery" we built here.
+
+<SummaryBox>
+
+- The screen re-draws only when you update state. Build arrays and objects fresh without mutating the original
+- Updates determined by the previous value use the functional form `set(prev => ...)`. Side effects use `useEffect` + a dependency array + cleanup
+- Capstone: added a favorite toggle to `ProductCard` with `useState`. Sharing comes via lifting state up (a later part)
+
+</SummaryBox>

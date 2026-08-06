@@ -1,0 +1,131 @@
+---
+title: Extract a useProducts custom hook
+minutes: 9
+slug: custom-hook
+section: data
+description: "Extract the fetch logic into a useProducts custom hook. Use hooks inside a function that starts with use, return it typed, and reuse it everywhere."
+level: beginner
+prerequisites: ['data/three-states']
+---
+
+<LearnBox>
+
+- Bundle the fetch logic (3 states + fetch) into `useProducts`
+- What a custom hook is (a function that starts with `use`)
+- Return it typed so the calling side stays clean
+
+</LearnBox>
+
+## You don't want to rewrite the same fetch every time {#why}
+
+The previous page's "two `useState`s + a `useEffect` to fetch" gets long and repetitive if you write it on every page that uses products. **Giving that bundle a name and turning it into a single function** — that's a **custom hook**.
+
+A custom hook is just **an ordinary function that starts with `use`**. What makes it special is that you can call `useState` and `useEffect` inside it.
+
+```tsx
+export function useProducts() {
+//              ↑
+//              └─ a function that starts with use = a custom hook. Can use useState / useEffect inside
+```
+
+## Build useProducts {#hook}
+
+Move the previous page's contents straight into `useProducts`, and return `{ products, status }` at the end. Create a new file at `src/hooks/useProducts.ts`.
+
+```tsx title="src/hooks/useProducts.ts (full file)"
+import { useEffect, useState } from 'react'
+
+import type { Product } from '@/types/product'
+
+type Status = 'loading' | 'error' | 'success'
+
+export function useProducts() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [status, setStatus] = useState<Status>('loading')
+
+  useEffect(() => {
+    let ignore = false
+
+    async function load() {
+      try {
+        const res = await fetch('/products.json')
+        if (!res.ok) throw new Error()
+        const data: Product[] = await res.json()
+        if (!ignore) {
+          setProducts(data)
+          setStatus('success')
+        }
+      } catch {
+        if (!ignore) setStatus('error')
+      }
+    }
+
+    load()
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  return { products, status }
+}
+```
+
+You can use `@/types/product` in the `import` because you [set up `@/` back in Part 1](/guide/setup/path-alias). It returns two things: the "products" and the "status." With that, the entire fetch now fits in this one file.
+
+## The calling side stays clean {#use}
+
+A page that uses it just calls `useProducts()` and uses the `products` and `status` it gets back.
+
+```tsx title="The calling side"
+function ProductListPage() {
+  const { products, status } = useProducts()
+
+  if (status === 'loading') return <p>Loading…</p>
+  if (status === 'error') return <p>Failed to load</p>
+
+  return (
+    <ul>
+      {products.map((p) => (
+        <li key={p.id}>{p.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+The nitty-gritty of fetching (`fetch`, `try/catch`, `ignore`) is hidden away in `useProducts`, and the page just "receives products and status and displays them." Any other page can call `useProducts()` too, reusing the same fetch.
+
+<JsNote feature="The return type is inferred">
+
+The type of `return { products, status }` is **inferred automatically** as `products: Product[]` and `status: Status`. On the calling side, `const { products, status } = useProducts()` gets proper types too. You don't need to write a type annotation on the return value.
+
+</JsNote>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Naming the function something that doesn't start with use, like getProducts"
+  good="Start it with use (useProducts), because it uses hooks inside"
+  note="A function that uses useState/useEffect inside must start with use, by convention. Break the rule and React can't detect hook-rule violations."
+/>
+
+## When it doesn't work {#trouble}
+
+- **The `React Hook ... is called in function "xxx"` warning** … your function name doesn't start with `use`. Make it something like `useProducts`.
+- **No types on the calling side** … check that the state inside `useProducts` is typed (e.g. `useState<Product[]>`).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Start it with use (useProducts). A function that uses useState or useEffect inside is a custom hook, and the convention is to start it with use. This lets React detect hook-rule violations, and the calling side only has to receive { products, status }.">
+
+Why do you start the function that bundles the fetch logic with `use`? Once it's bundled, how does the calling side get easier?
+
+</Exercise>
+
+<SummaryBox>
+
+- Bundle the fetch's `useState` + `useEffect` into a function that starts with `use` (a custom hook)
+- `useProducts` returns `{ products, status }`. The fetch details are hidden inside
+- The calling side is just `const { products, status } = useProducts()`. Reusable everywhere
+
+</SummaryBox>

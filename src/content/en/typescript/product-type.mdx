@@ -1,0 +1,132 @@
+---
+title: The Product type and data
+minutes: 9
+slug: product-type
+section: typescript
+description: "Define the shape of your product data with a Product interface, make category a literal union, read products.json with types, and stop property typos."
+level: beginner
+prerequisites: ['typescript/union-literal']
+---
+
+<LearnBox>
+
+- Define the shape of product data with a `Product` interface
+- Make `category` a literal union so only fixed values are allowed
+- Read `products.json` with types to stop property typos
+
+</LearnBox>
+
+## Turning the data shape into a type {#product}
+
+Each item in `products.json` has a fixed shape. Let's capture that shape as a `Product` type. Since `category` is always one of three fixed values, we make it a [literal union](/guide/typescript/union-literal).
+
+```ts title="src/types/product.ts"
+export interface Product {
+  id: string
+  name: string
+  price: number
+  category: 'kitchen' | 'living' | 'outdoor'
+  imageUrl: string
+  tags: string[]
+  inStock: boolean
+}
+```
+
+With `category: 'kitchen' | 'living' | 'outdoor'`, the type catches typos like `'kitchin'` for you. `tags: string[]` means "an array of strings".
+
+## Reading products.json with types {#typed-json}
+
+We import `products.json` and add a type to say "this is an array of `Product`". We use `as Product[]`.
+
+```ts title="src/data/products.ts"
+import productsData from './products.json'
+
+import type { Product } from '@/types/product'
+
+export const products = productsData as Product[]
+```
+
+Now `products` is treated as `Product[]` (an array of Product). `products[0].name` gets autocomplete, and `products[0].prise` (a typo) is stopped with a red underline.
+
+<Callout type="warn" title="as is a promise that you guarantee the shape">
+
+`as Product[]` is a way (a type assertion) of telling TypeScript "I guarantee this JSON has the `Product` shape". TypeScript **does not verify the actual contents of the JSON**. So you have to keep the `Product` type and the real contents of `products.json` in sync yourself (change only one and they drift apart).
+
+</Callout>
+
+## Break it on purpose: a category not in the union {#break}
+
+Let's see how the `category` union stops mistakes in your data. We'll write a `Product` object with a category that doesn't exist.
+
+```ts title="A category that doesn't exist"
+const p: Product = {
+  id: 'x',
+  name: 'Test',
+  price: 100,
+  category: 'kitchin', // ← typo (should be kitchen)
+  imageUrl: '',
+  tags: [],
+  inStock: true,
+}
+```
+
+`'kitchin'` gets a red underline, and you see this.
+
+```
+Type '"kitchin"' is not assignable to type
+'"kitchen" | "living" | "outdoor"'.
+```
+
+"`'kitchin'` is not any of the three allowed categories." If you had used `category: string`, this typo would slip through, and later you'd be puzzling over "why doesn't this one product show up in the filter?"
+
+<Together
+  task="Using the Product type, write one kitchen product with a type annotation (const p: Product = ...). The editor's autocomplete will show you which properties are required."
+  hint="Fill in every field of const p: Product = { id, name, price, category: 'kitchen', imageUrl, tags, inStock }. category must be one of the three."
+>
+
+```ts
+import type { Product } from '@/types/product'
+
+const p: Product = {
+  id: 'p99',
+  name: 'Stainless steel bottle',
+  price: 2800,
+  category: 'kitchen',
+  imageUrl: 'https://picsum.photos/seed/p99/400/300',
+  tags: ['water bottle'],
+  inStock: true,
+}
+```
+
+Forget even one required property and it turns red, and writing anything other than `'kitchen' | 'living' | 'outdoor'` for `category` is stopped too. The type guides you toward the "correct shape".
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Using category: string"
+  good="Using category: 'kitchen' | 'living' | 'outdoor'"
+  note="With string, category typos slip through. A union locks it to just the allowed values."
+/>
+
+## When things go wrong {#trouble}
+
+- **`products[0].name` becomes `any` / autocomplete doesn't work** … Check that you added the type with `as Product[]`.
+- **`Type 'X' is not assignable` (category)** … The value in `products.json` and the `Product` type's union have drifted apart. Line one up with the other.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Make category the literal union 'kitchen' | 'living' | 'outdoor'. With string, typos get through, but with a union anything outside the three allowed values is a type error, so you catch it before running.">
+
+In the `Product` type, how do you restrict `category` to "only the three fixed categories"? What's better about this compared to using `string`?
+
+</Exercise>
+
+<SummaryBox>
+
+- Gather the data shape into `interface Product`, and lock `category` down with a literal union
+- Add a type to `products.json` with `as Product[]` (`as` is a promise to guarantee the shape)
+- With types, property typos and nonexistent categories are stopped before you run
+
+</SummaryBox>

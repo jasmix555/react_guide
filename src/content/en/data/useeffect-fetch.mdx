@@ -1,0 +1,128 @@
+---
+title: Fetching with useEffect
+minutes: 9
+slug: useeffect-fetch
+section: data
+description: "Where do you call fetch? Not in render — only once, in useEffect. Plus the ignore flag for when the user leaves the screen mid-request."
+level: beginner
+prerequisites: ['data/fetch-basics', 'state/use-effect/basics']
+---
+
+<LearnBox>
+
+- **Where to call** `fetch` (not in render)
+- Use `useEffect` to fetch "once, when the screen appears"
+- Cleanup for when the user leaves the screen mid-request (the `ignore` flag)
+
+</LearnBox>
+
+## Don't fetch inside render {#not-render}
+
+If you `fetch` directly in the component body (before the return) and put the result into state, you get an **infinite loop**.
+
+Here's why. Fetch → `setState` → **re-render** → the body runs again → fetch again → `setState` again → … and it never stops. So you call the fetch not in the body but **inside `useEffect`** (the [useEffect chapter](/guide/state/use-effect/basics)).
+
+## Fetch only once with useEffect {#useeffect}
+
+If you pass `useEffect` an **empty dependency array `[]`**, it runs "only once, when the screen first appears." That's where the fetch goes.
+
+```tsx
+useEffect(() => {
+  // fetch here, once when the screen appears
+}, [])
+//  ↑
+//  └─ empty dependency array = only the first time
+```
+
+## Fetch and put it into state {#load}
+
+Inside `useEffect`, call the fetch from the previous page and put the result into state.
+
+```tsx
+const [products, setProducts] = useState<Product[]>([])
+
+useEffect(() => {
+  fetch('/products.json')
+    .then((res) => res.json())
+    .then((data) => setProducts(data))
+}, [])
+```
+
+Now, right after the screen appears, it goes to fetch the products, and when they arrive it puts them into state with `setProducts` and re-renders.
+
+## Cleanup: the ignore flag {#cleanup}
+
+There's one thing to watch out for. **The user might move to a different screen while the fetch is in progress.** At that point, trying to `setState` on a component that's no longer displayed is wasteful (and sometimes triggers a warning). So we add a marker that says "if we've left, throw the result away."
+
+```tsx
+useEffect(() => {
+  let ignore = false
+
+  fetch('/products.json')
+    .then((res) => res.json())
+    .then((data) => {
+      if (!ignore) setProducts(data) // set it if we haven't left
+    })
+
+  return () => {
+    ignore = true // if we've left, discard any later results
+  }
+}, [])
+```
+
+In `useEffect`'s `return` (the cleanup), set `ignore = true`. When the fetch comes back, if `ignore` is `true`, don't `setState`. This prevents the accident of "old data getting set even though we've left."
+
+<Callout type="note" title="AbortController is another option">
+
+For a more thorough approach, there's also `AbortController`, which **cancels the request itself**. To start, it's enough to learn the `ignore` flag for "ignore the result."
+
+</Callout>
+
+## Break it on purpose: fetch in the body and loop forever {#break}
+
+Let's fetch directly in the body, without using `useEffect`.
+
+```tsx title="Break it on purpose: fetch in the body"
+export function ProductList() {
+  const [products, setProducts] = useState<Product[]>([])
+
+  // ❌ Directly in the body. setProducts → re-render → runs again → …
+  fetch('/products.json')
+    .then((res) => res.json())
+    .then((data) => setProducts(data))
+
+  return <ul>{/* ... */}</ul>
+}
+```
+
+The request repeats endlessly, and the browser's network tab fills up with requests for `products.json`. Wrap it in `useEffect(() => { ... }, [])` and it becomes **only the first time**, and it stops.
+
+## A common mistake {#mistakes}
+
+<Diff
+  bad="Calling fetch and setState in the component body"
+  good="Fetch inside useEffect(() => { fetch... }, [])"
+  note="setState in the body means an infinite loop of re-render → re-run. Fetch once with useEffect + an empty array."
+/>
+
+## When it doesn't work {#trouble}
+
+- **It's requesting `products.json` endlessly** … you're calling `fetch` in the body. Wrap it in `useEffect(..., [])`.
+- **A warning appears after you leave the screen** … add the `ignore` flag (set `ignore = true` in the cleanup).
+- **It fetches over and over** … check that the dependency array is empty `[]`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="You get an infinite loop. Fetch → setProducts → re-render → the body runs again and fetches → … and it never stops. Put it inside useEffect(() => { ... }, []) and it becomes only the first time.">
+
+What happens if you `fetch` directly in the component body and `setProducts`? How do you fix it?
+
+</Exercise>
+
+<SummaryBox>
+
+- `fetch` + `setState` in the body is an infinite loop. Fetch only once with `useEffect(() => {...}, [])`
+- For when the user leaves the screen mid-request, set `ignore = true` in the cleanup and put the result in with `if (!ignore)`
+- For a more thorough approach, you can also cancel the request with `AbortController`
+
+</SummaryBox>

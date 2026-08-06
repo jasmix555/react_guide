@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './BackToTop.module.scss'
 
 /**
- * 「上に戻る」ボタン。スクロール位置を毎回計算せず、いちばん上に置いた見張り役
- * （sentinel）を IntersectionObserver で監視し、それが画面から外れたら出す。
- * デモなので監視の範囲（root）は下の枠内スクロールにしている。
+ * A "back to top" button. Instead of recomputing the scroll position each time, it watches
+ * a sentinel placed at the very top with an IntersectionObserver and shows the button once
+ * the sentinel leaves the screen. Since this is a demo, the observed range (root) is the
+ * inner scroll box below.
  */
 export function BackToTopDemo() {
+  const en = useLocale() === 'en'
   const scroller = useRef<HTMLDivElement>(null)
   const sentinel = useRef<HTMLDivElement>(null)
   const [show, setShow] = useState(false)
@@ -32,13 +36,13 @@ export function BackToTopDemo() {
         <div ref={sentinel} />
         {Array.from({ length: 12 }, (_, i) => (
           <p key={i} className={styles.line}>
-            下にスクロールしてみてください（{i + 1} / 12）
+            {en ? `Try scrolling down (${i + 1} / 12)` : `下にスクロールしてみてください（${i + 1} / 12）`}
           </p>
         ))}
       </div>
       {show && (
         <button type="button" className={styles.top} onClick={toTop}>
-          ↑ トップへ
+          {en ? '↑ Top' : '↑ トップへ'}
         </button>
       )}
     </div>

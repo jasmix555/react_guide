@@ -1,0 +1,61 @@
+---
+title: Goal of this part
+minutes: 6
+slug: swiper-goal
+section: swiper
+description: "Build sliders and carousels with Swiper. Get touch gestures, responsiveness, arrows, and dots without writing them yourself. See the finished result first."
+level: beginner
+prerequisites: ['data/summary']
+---
+
+import { SwiperCarousel } from '@/demos/SwiperCarousel'
+
+<PartIntro>
+
+**Swiper** is the go-to library for sliders and carousels. The things you see all the time on LPs — a hero slideshow, a carousel that scrolls products sideways, a testimonials slider — you can build quickly, with touch gestures and responsiveness included.
+
+Swiping with your finger, dragging with the mouse, arrows and dots, autoplay, changing how many slides show at each screen width — everything you want from a slider is there, and it is free. From React, you use the official `swiper/react`.
+
+</PartIntro>
+
+<LearnBox>
+
+- What Swiper is good at, and when to use it
+- What you will be able to build by the end of this part
+- How it differs from "building it yourself"
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Below is the **product carousel** you will build in this part. You can move it with the left/right arrows and the dots underneath, and after a short wait it advances on its own. Change the screen width and the number of slides shown changes (a little over 1 on phones, 3 on wide screens).
+
+<Demo title="A product carousel built with Swiper">
+  <SwiperCarousel />
+</Demo>
+
+## What Swiper is good at {#why}
+
+Building a slider yourself is quietly a lot of work. Finger movement while swiping, momentum, handling the edges, arrows, dots, autoplay, responsiveness — there is a lot to think about, and it is a part where bugs love to appear. **Swiper hands you all of this ready-made.**
+
+- **Touch and drag** … swiping on phones and dragging on PCs both work from the start.
+- **Responsive** … with `breakpoints` you can change the number of slides, like "3 slides from this width up."
+- **Features as modules** … add only what you need: arrows (Navigation), dots (Pagination), autoplay (Autoplay), and more.
+- **Accessibility** … the A11y module adds information for screen readers.
+
+It is the first choice whenever you need "scroll sideways" or "a slideshow." Conversely, for a simple switch between 2 or 3 slides, you can build it yourself, like the [carousel recipe](/recipes/carousel). Choose based on the scale of what you are building.
+
+## How this part goes {#roadmap}
+
+1. **Install** — add `swiper`, and don't forget to **load the CSS**.
+2. **Basics** — build the smallest possible slider with `Swiper` and `SwiperSlide`.
+3. **Modules** — add arrows, dots, and autoplay.
+4. **Product carousel** — make it responsive with `breakpoints` and finish it off.
+
+<SummaryBox>
+
+- Swiper is the standard for sliders and carousels. Touch gestures, responsiveness, and various features come built in
+- From React you use the official `swiper/react` (`Swiper` / `SwiperSlide`)
+- A simple switch you can build yourself; when you need sideways scrolling or a slideshow, reach for Swiper
+
+</SummaryBox>

@@ -1,0 +1,241 @@
+---
+title: Reuse with variants
+minutes: 12
+slug: button-variants
+section: components
+description: "Don't write the same button three times. Receive variant as a prop and build a single Button step by step."
+level: beginner
+prerequisites: ['javascript/destructuring']
+---
+
+import { ButtonVariants } from '@/demos/ButtonVariants'
+
+<LearnBox>
+
+- Make buttons that look different with a single component
+- Receive `variant` as a prop and lock the choices down with a type
+- A way to pass through native attributes like `onClick` unchanged
+
+</LearnBox>
+
+## What we'll build on this page {#goal}
+
+The goal of this page is to make a group of buttons with different colors and sizes, all from **one and the same `Button` component**. All you change is the `variant` you pass (you'll see the working version at the end of this page).
+
+We'll build it up from something tiny, in three steps.
+
+## What happens when you write the same Button three times {#why-repeat}
+
+On a project, are you building a "blue button", a "white button", and a "text-only button" separately? The insides (rounded corners, padding, text) are the same — only the look differs. **The moment you write the same structure three times is the signal to combine them into one.**
+
+<Callout type="analogy">
+
+It's the same feeling as passing `$type` to a PHP include and switching the output. The part is one; you pass only what changes as an argument (props).
+
+</Callout>
+
+## Step 1: the smallest Button {#minimal}
+
+First, make the smallest Button that just wraps a `<button>`. Create a new file at `src/components/ButtonVariants/Button.tsx`.
+
+```tsx title="src/components/ButtonVariants/Button.tsx (new file)"
+export function Button({ label }: { label: string }) {
+  return <button type="button">{label}</button>
+}
+```
+
+Using this, `<Button label="Buy" />` produces one button. It works, but you can't change the look this way. In the next step we'll let it receive a "type of look".
+
+## Step 2: receive variant as a prop {#variant-prop}
+
+Make "which look" a prop called `variant`. **Lock the choices down with a type (a union type).** Rewrite the file like this.
+
+```tsx title="src/components/ButtonVariants/Button.tsx (added / changed)"
+import styles from './Button.module.scss'
+
+type Variant = 'primary' | 'secondary' | 'ghost'
+
+export function Button({
+  label,
+  variant = 'primary',
+}: {
+  label: string
+  variant?: Variant
+}) {
+  return (
+    <button type="button" className={styles[variant]}>
+      {label}
+    </button>
+  )
+}
+```
+
+The `type Variant = 'primary' | 'secondary' | 'ghost'` on line 3 is the key. It uses a type to decide "the only things allowed in `variant` are these three strings". `variant = 'primary'` is the default value, so if you don't pass one, it becomes `primary`. `styles[variant]` picks the CSS class to apply based on the value passed in.
+
+Let's break down the `type Variant = ...` line.
+
+```tsx
+type Variant = 'primary' | 'secondary' | 'ghost'
+//             ↑         ↑
+//             │         └─ | means "or" (any one of the three)
+//             └─ the only possible values are these three strings
+```
+
+- **Only three possible values** … nothing but `'primary'`, `'secondary'`, `'ghost'` can go in
+- **`|` means "or"** … it expresses "any one of these" (a union type)
+
+<JsNote feature="'primary' | 'secondary' is a union type">
+
+`|` means "or". `'primary' | 'secondary' | 'ghost'` is a type meaning "any one of these three strings". Pass any other string and the editor stops you with a red squiggle.
+
+</JsNote>
+
+## Step 3: pass through native attributes {#native-attrs}
+
+As it stands, you can't pass `onClick`. Let's make it inherit all the attributes a `<button>` has (`onClick`, `disabled`, and so on). Here's the full, finished file.
+
+```tsx title="src/components/ButtonVariants/Button.tsx (full file, finished)"
+import clsx from 'clsx'
+import type { ComponentPropsWithoutRef } from 'react'
+
+import styles from './Button.module.scss'
+
+type Variant = 'primary' | 'secondary' | 'ghost'
+type Size = 'sm' | 'md'
+
+interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
+  variant?: Variant
+  size?: Size
+}
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  className,
+  type = 'button',
+  ...rest
+}: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={clsx(styles.btn, styles[variant], styles[size], className)}
+      {...rest}
+    />
+  )
+}
+```
+
+`extends ComponentPropsWithoutRef<'button'>` makes it able to receive all of the native `<button>` attributes. Props other than the ones you named yourself (`variant`, `size`) are collected into `...rest`, and `{...rest}` passes them straight to `<button>`. Now `onClick` and `disabled` both work automatically.
+
+Let's break down `...rest` and `{...rest}`.
+
+```tsx
+{ variant, size, ...rest }: ButtonProps
+//               ↑
+//               └─ collect all the remaining, unnamed props into ...rest
+<button {...rest} />
+//      ↑
+//      └─ pass that ...rest straight to <button> with {...rest}
+```
+
+- **`...rest` (collect the rest)** … receive, all together, the props you didn't name yourself
+- **`{...rest}` (pass straight to button)** … spread the collected props onto `<button>`
+
+## Step 4: call it with different variants {#usage}
+
+On the calling side, you only change `variant`. This is what's inside the finished demo.
+
+```tsx title="Usage"
+<Button variant="primary">Buy</Button>
+<Button variant="secondary">Add to cart</Button>
+<Button variant="ghost">Save for later</Button>
+<Button variant="secondary" disabled>Out of stock</Button>
+```
+
+The "Out of stock" button, which was passed `disabled`, can't be pressed — because the `{...rest}` from Step 3 is at work.
+
+<Together
+  task="Pass onClick to the finished Button so that pressing it shows an alert. You don't need to add anything on the Button side."
+  hint="Just pass onClick to Button like any other attribute. Don't change the inside of Button."
+>
+
+```tsx
+<Button variant="primary" onClick={() => alert('Bought it!')}>
+  Buy
+</Button>
+```
+
+It works even though you didn't add `onClick` inside `Button`. That's because the `...rest` → `{...rest}` from Step 3 passes the unnamed props (here, `onClick`) straight to `<button>`.
+
+</Together>
+
+## Seeing it in action {#demo}
+
+Here's the `Button` from the code above, lined up with different `variant`s. The colors and sizes differ, but there's only one part.
+
+<Demo title="Button variants">
+  <ButtonVariants />
+</Demo>
+
+## Break it on purpose: passing a nonexistent variant is stopped by the type {#break-bad-variant}
+
+Let's see the union type protect us. Try passing a nonexistent variant, `'primani'` (a typo).
+
+```tsx title="Break it on purpose: a nonexistent variant"
+<Button variant="primani">Buy</Button>
+```
+
+A red squiggle appears under `"primani"`, with this message.
+
+```
+Type '"primani"' is not assignable to type
+'"primary" | "secondary" | "ghost" | undefined'.
+```
+
+It means "`"primani"` isn't any of `primary | secondary | ghost`, so it can't go in". **The type caught the typo before you ran anything.** If you'd typed `variant: string` (just a plain string), this mistake would slip right through, no style would apply on screen, and you'd be left puzzling over why it "just doesn't work". This is the value of a union type.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad='<button className="btn-primary">Buy</button>'
+  good='<Button variant="primary">Buy</Button>'
+  note="Writing raw classes every time inevitably causes inconsistency (btn-primary / btnPrimary…). Consolidate into Button."
+/>
+
+<Diff
+  bad="Copying the whole Button to make three, one per variant"
+  good="One Button. Switch with variant."
+  note="With copies, you'll have to fix every one when you make a change. If only the color varies, make it a prop."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Express visual variations with a string union type, not by adding booleans"
+  alt="If you're sure the variation will forever be a two-way choice, a single boolean is fine. When in doubt, go with a union — it's easier later."
+>
+
+Adding booleans like `isPrimary` and `isSecondary` opens the door to a contradiction where both are `true`. With `variant: 'primary' | 'secondary'` it's always fixed to exactly one, and editor autocompletion works too.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **No style applies** … check that the class name in `styles[variant]` matches the class name in `.module.scss` (`primary`, `secondary`, `ghost`).
+- **`onClick` doesn't work** … check you didn't forget to pass `...rest` to `<button>`, and that `extends ComponentPropsWithoutRef<'button'>` is present.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Add 'danger' to the Variant type ('primary' | 'secondary' | 'ghost' | 'danger'), and add a .danger style in .module.scss. If you don't add it to the type, the editor tells you with a red squiggle that there's no such variant.">
+
+To add a red "delete" look (`danger`) to this button, where do you need to change things?
+
+</Exercise>
+
+<SummaryBox>
+
+- For repeated identical markup, make the varying part a prop and combine it into one
+- Locking the look choices down with a union type stops typos before you run, via the type
+- Inherit `ComponentPropsWithoutRef<'button'>` and pass `...rest`, and `onClick` etc. work
+
+</SummaryBox>

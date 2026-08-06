@@ -1,0 +1,155 @@
+---
+title: Your first .module.scss
+minutes: 9
+slug: first-module
+section: styling
+description: "Add the first styles to ProductCard. Install sass, create a .module.scss, then import styles and apply it with className={styles.card} — the basic pattern."
+level: beginner
+prerequisites: ['styling/why-scss-modules']
+---
+
+<LearnBox>
+
+- Install `sass` and create a `.module.scss` for a component
+- The basic pattern: `import styles` and apply it with `className={styles.card}`
+- Give `ProductCard` its first look (border and spacing)
+
+</LearnBox>
+
+## First, install sass {#install}
+
+Browsers can't read SCSS directly, so you need `sass` to convert it to CSS. If you haven't installed it yet, run the following in `my-shop` (for details, see [Installing sass](/libraries/sass)).
+
+```bash
+npm install -D sass
+```
+
+Vite recognizes `.scss` automatically once `sass` is installed. No config file needed.
+
+## Create a .module.scss for the component {#create}
+
+Create a style file just for `ProductCard`. The rule is that the file name must end in **`.module.scss`**. Create a new file at `src/components/ProductCard/ProductCard.module.scss`.
+
+```scss title="src/components/ProductCard/ProductCard.module.scss (new file)"
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.body {
+  padding: 12px;
+}
+
+.name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.price {
+  font-weight: 700;
+}
+```
+
+(We'll group the colors into **design tokens** on a later page. For now we'll go with literal values.)
+
+## Import it and apply it {#apply}
+
+Load this style from `ProductCard.tsx` and assign it to `className`. Let's break down the import line.
+
+```tsx
+import styles from './ProductCard.module.scss'
+//     ↑                ↑
+//     │                └─ reads the .module.scss in the same folder
+//     └─ receives an "object" containing the class names (styles.card, etc.)
+```
+
+`styles` is an object that holds the class names inside the `.module.scss`. When you write `styles.card`, it's converted at build time into the uniquely scoped class name (like `ProductCard_card_a1b2c`). To apply it, use **curly braces**.
+
+```tsx
+<article className={styles.card}>
+//                  ↑
+//                  └─ styles.card is the unique name. Pass it with curly braces, not as the string "card"
+```
+
+## Apply it to all of ProductCard {#full}
+
+Here's the full `ProductCard.tsx` with a `className` added to each element.
+
+```tsx title="src/components/ProductCard/ProductCard.tsx (full)"
+import styles from './ProductCard.module.scss'
+
+interface ProductCardProps {
+  name: string
+  price: number
+  imageUrl: string
+}
+
+export function ProductCard({ name, price, imageUrl }: ProductCardProps) {
+  return (
+    <article className={styles.card}>
+      <img src={imageUrl} alt={name} width="100%" />
+      <div className={styles.body}>
+        <h3 className={styles.name}>{name}</h3>
+        <p className={styles.price}>{price.toLocaleString()} yen</p>
+      </div>
+    </article>
+  )
+}
+```
+
+Once you save, the plain row becomes "a card with a border and spacing." It's still modest, but the **mechanism for applying styles** is now complete. From here it's just a matter of adding more to this `.module.scss`.
+
+<Together
+  task="Add a rule to ProductCard.module.scss that makes .name bigger (font-size: 1.05rem), and confirm the product name grows a little."
+  hint="Just add one line, font-size: 1.05rem;, inside .name { ... }. styles.name is already applied."
+>
+
+```scss title="ProductCard.module.scss"
+.name {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+```
+
+Since `className={styles.name}` is already applied, just adding one line to `.name` takes effect. "Add to the SCSS → it shows up on screen right away" is the basic cycle of Modules.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad='className="card" (writing it as a string)'
+  good="className={styles.card} (from the imported styles)"
+  note="The string 'card' isn't defined anywhere, so nothing applies. Pass the unique name with styles.card."
+/>
+
+<Diff
+  bad="Name the file ProductCard.scss"
+  good="Name the file ProductCard.module.scss"
+  note="Without .module it's treated as global CSS, and collision-free scoping doesn't kick in."
+/>
+
+## When things don't work {#trouble}
+
+- **`styles.card` is `undefined`** … Check that the file name ends in `.module.scss` and that the class name is spelled correctly.
+- **The style doesn't apply** … Check that it's `className={styles.card}` (curly braces) and not `className="styles.card"` (a string).
+- **`Preprocessor dependency "sass" not found`** … You forgot to install `sass`. Run `npm install -D sass`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Load it with import styles from './ProductCard.module.scss', then apply it with className={styles.className}. The file name must end in .module.scss, and you reference class names through styles.">
+
+Explain the steps for applying a class from a newly created `.module.scss` to a component.
+
+</Exercise>
+
+<SummaryBox>
+
+- Install `sass` and create an `Xxx.module.scss` for each component
+- `import styles from './Xxx.module.scss'` and apply it with `className={styles.className}` (curly braces)
+- The `.module` in the file name is the switch that turns on collision-free scoping
+
+</SummaryBox>

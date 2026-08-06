@@ -1,0 +1,176 @@
+---
+title: Syncing to scroll with ScrollTrigger
+minutes: 12
+slug: gsap-scrolltrigger
+section: gsap
+description: "Sync motion to scroll position with ScrollTrigger. Reveal on view, follow the progress with scrub, and pin to fix in place. Includes how to read start/end and debugging with markers."
+level: intermediate
+prerequisites: ['libraries/gsap/usegsap']
+---
+
+import { GsapScroll } from '@/demos/GsapScroll'
+
+<LearnBox>
+
+- Sync motion to scroll with `ScrollTrigger`
+- How to read `start` / `end`, and `scrub` (following the progress)
+- `toggleActions` (reveal on view), `pin` (fix in place), and `markers` (debug)
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+The bar and square below are tied to **how far this box has traveled across the screen**. As you scroll forward the bar grows and the square rotates, and **scrolling back reverses them** (`scrub`). Stop scrolling and the motion stops too.
+
+<Demo title="ScrollTrigger (synced to scroll with scrub)">
+  <GsapScroll />
+</Demo>
+
+The "appears as you scroll" and "moves with how far you've scrolled" effects you see all the time on LPs are built with this. Where plain JavaScript would have you writing a `scroll` event or an `IntersectionObserver`, ScrollTrigger takes that over for you (the [scroll reveal recipe](/recipes/scroll-reveal) is a plain implementation; this is the GSAP version).
+
+## Register it first {#register}
+
+ScrollTrigger is a **separate plugin**, so as we saw on the [install page](/libraries/gsap/install), you register it once before using it.
+
+```tsx
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
+```
+
+## Attaching scrollTrigger {#attach}
+
+All you do is add **`scrollTrigger`** to the animation config. You write "which element," "when it reaches a certain point" it starts, and where it ends.
+
+```tsx
+gsap.to('.box', {
+  x: 300,
+  ease: 'none',
+  scrollTrigger: {
+    trigger: '.box', // this is the reference element
+    start: 'top 85%', // start when the element's top reaches 85% down the screen
+    end: 'bottom 45%', // end when the element's bottom reaches 45% down the screen
+    scrub: true, // sync the motion to how far you've scrolled
+  },
+})
+```
+
+The key is **how to read `start` / `end`**. `'top 85%'` means "when **the element's top** reaches **85% down from the top of the viewport**." A smaller number starts it earlier; a larger one starts it later.
+
+## scrub and toggleActions {#scrub}
+
+There are two main ways to tie things to scroll.
+
+```tsx
+// (1) scrub: "sync" the motion to how far you've scrolled (reverses when you scroll back)
+scrollTrigger: { trigger: '.box', start: 'top 80%', end: 'bottom 40%', scrub: true }
+
+// (2) toggleActions: "play once" when it comes into view (does not reverse when you scroll back)
+scrollTrigger: { trigger: '.box', start: 'top 80%', toggleActions: 'play none none reverse' }
+```
+
+- **`scrub: true`** … Syncs exactly to how far you've scrolled. Great for progress bars and effects that advance with scroll.
+- **`toggleActions`** … Takes four values, `'onEnter onLeave onEnterBack onLeaveBack'`. `'play none none reverse'` means "play when it enters, reverse when you scroll back," which is the classic **reveal on scroll**.
+
+## The complete code {#full}
+
+The demo uses `scrub` to sync the bar's width and the square's rotation to scroll. The trigger is the box itself (`container.current`).
+
+```tsx title="src/demos/GsapScroll/GsapScroll.tsx (full)"
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useRef } from 'react'
+
+import styles from './GsapScroll.module.scss'
+
+// ScrollTrigger is a separate plugin. Register it once before using it.
+gsap.registerPlugin(ScrollTrigger)
+
+export function GsapScroll() {
+  const container = useRef<HTMLDivElement>(null)
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia()
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        const scrollTrigger = {
+          trigger: container.current,
+          start: 'top 85%',
+          end: 'bottom 45%',
+          scrub: true,
+        }
+        gsap.to(`.${styles.fill}`, { width: '100%', ease: 'none', scrollTrigger })
+        gsap.to(`.${styles.square}`, { rotate: 360, ease: 'none', scrollTrigger })
+      })
+    },
+    { scope: container },
+  )
+
+  return (
+    <div className={styles.wrap} ref={container}>
+      <p className={styles.hint}>↓ Scroll the page and it moves along with your progress</p>
+      <div className={styles.track}>
+        <div className={styles.fill} />
+      </div>
+      <div className={styles.squareRow}>
+        <div className={styles.square} />
+      </div>
+    </div>
+  )
+}
+```
+
+The same `scrollTrigger` config is reused across two `gsap.to` calls, so the bar and the square are tied to the **same scroll range**. `ease: 'none'` (constant speed) pairs well with scrub.
+
+## pin: fix in place while scrolling {#pin}
+
+Another thing you'll often use on LPs is **`pin`**. It **fixes an element to the screen** for a certain stretch and animates its contents during that time (horizontal-scroll-style effects, for example).
+
+```tsx
+scrollTrigger: {
+  trigger: '.section',
+  start: 'top top',
+  end: '+=1000', // stays pinned for 1000px of scrolling
+  pin: true,
+}
+```
+
+Get comfortable with `scrub` and `toggleActions` first, and reach for `pin` "when a section you want to fix in place shows up."
+
+## Debug with markers {#markers}
+
+When you "can't tell when it starts," add **`markers: true`**. The start / end positions show up as lines on screen, making it much easier to dial in the numbers. **Remove it once you've confirmed things** (don't leave it in production).
+
+```tsx
+scrollTrigger: { trigger: '.box', start: 'top 85%', markers: true }
+```
+
+<Callout type="note" title="Don't forget accessibility">
+
+ScrollTrigger is motion too. As in the demo, register it only when `(prefers-reduced-motion: no-preference)` via **`gsap.matchMedia()`**, so it doesn't run for people who have [reduced motion turned on](/libraries/framer-motion/reduced-motion).
+
+</Callout>
+
+## When it doesn't work {#trouble}
+
+- **Nothing moves / you get a warning** … Check that you wrote `gsap.registerPlugin(ScrollTrigger)`.
+- **The timing feels off** … Turn on `markers: true` and adjust the number in `'top 85%'` while watching the start / end lines.
+- **The layout shifts later and things get misaligned** … If images or fonts load and change the height, positions drift. `ScrollTrigger.refresh()` re-measures (usually this happens automatically).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Add scrollTrigger to the animation config and set scrub: true. Example: gsap.to('.bar', { width: '100%', ease: 'none', scrollTrigger: { trigger: '.bar', start: 'top 80%', end: 'bottom 40%', scrub: true } }). scrub syncs the motion to how far you've scrolled. You need registerPlugin(ScrollTrigger) beforehand.">
+
+To "grow a bar in step with how far you've scrolled," what do you add to the config, and which option do you set?
+
+</Exercise>
+
+<SummaryBox>
+
+- Call `gsap.registerPlugin(ScrollTrigger)`, then add `scrollTrigger` to the config
+- `start` / `end` mean "what part of the element reaches what point on the screen." `scrub` syncs to progress; `toggleActions` plays on view
+- Use `pin` to fix in place and `markers: true` to debug. Handle reduced-motion with `matchMedia`
+
+</SummaryBox>

@@ -1,0 +1,67 @@
+---
+title: What is TypeScript? (just a taste here)
+minutes: 6
+slug: setup-typescript-intro
+section: setup
+description: "Just what makes types worth having, shown through a real LP-building mishap. The detailed syntax comes in the later TypeScript part."
+level: beginner
+prerequisites: ['setup/variants']
+---
+
+<LearnBox>
+
+- How TypeScript differs from JavaScript
+- A real mishap that types prevent
+- Why this guide uses TypeScript from the very start
+
+</LearnBox>
+
+In the variant step we chose "TypeScript." Here we focus on **just "what makes types worth having."** The details of how to write it are covered thoroughly in the later "TypeScript for React" part, so for now it is enough to get the feel of it.
+
+## What is TypeScript? {#what}
+
+**TypeScript is a language that adds "types" to JavaScript.** Think of it as plain JavaScript with the ability to write annotations like "this value is a string" or "this value is a number." The code you write is ultimately converted into ordinary JavaScript and runs, so it is a **superset of JavaScript**.
+
+The biggest benefit is that it **tells you about mistakes "before you run" the code.**
+
+## Without types, this kind of mishap happens {#accident}
+
+You have surely seen this in LP work too. You renamed a variable passed to a shared part partway through, from `title` to `heading`. You fixed one spot, but **three other spots still had the old name.** In the browser, the text is missing in just those three spots — but no error appears. All you can do is hunt with your eyes for where it disappeared.
+
+Because JavaScript **quietly returns `undefined`** even when you read a name that does not exist, this kind of "silent bug" happens. You cannot notice it until you actually run it.
+
+## With types, a red line stops you {#help}
+
+With TypeScript, the moment you rename something, all three remaining spots that use the old name get a **red squiggly line.** Before you run it, the editor tells you "hey, that name does not exist here anymore."
+
+## Break it on purpose: passing a number to a string function shows a red line {#break-wrong-type}
+
+Let us feel how types protect you with a small example. We will deliberately pass a number to a function that expects a string.
+
+```ts title="Types in action"
+function greet(name: string) {
+  return `Hello, ${name}`
+}
+
+greet(123) // ← should be a string, but it is a number
+```
+
+The editor draws a red squiggly line under the `123` in `greet(123)` and tells you this.
+
+```
+Argument of type 'number' is not assignable to parameter of type 'string'.
+```
+
+It means "an argument of type `number` cannot be passed where a `string` is expected." Finding the mistake **before you run it** — this is the number-one value of types. Change `123` to `'Sato'` and the squiggle disappears.
+
+## Why TypeScript from the very start? {#why-ts}
+
+There is also an order of "get comfortable with JavaScript first, then move to TypeScript," but this guide uses **TypeScript from the start.** The reason we learn this is so that we can ultimately write "code the team can review, that does not break easily." If you let the type-free way of writing settle into your body first, it is hard to fix later. So from the very beginning, we learn it together with types.
+
+<SummaryBox>
+
+- TypeScript is a superset that adds types to JavaScript. In the end it is converted to plain JS and runs
+- With types you can stop "silent bugs" before running, with a red squiggly line
+- The goal is code that does not break easily, so we learn it together with types from the start (details in the later TS part)
+
+</SummaryBox>

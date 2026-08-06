@@ -1,6 +1,7 @@
 import { Link, useRouteError } from 'react-router-dom'
 
 import { TopBar } from '@/components/TopBar'
+import { useLocale, useStrings } from '@/hooks/useLocale'
 
 /**
  * Route-level error boundary. An uncaught render error — a broken demo, or a
@@ -8,6 +9,8 @@ import { TopBar } from '@/components/TopBar'
  * blanking the whole app to a white screen.
  */
 export function RouteError() {
+  const locale = useLocale()
+  const strings = useStrings()
   const error = useRouteError()
   const detail =
     error instanceof Error ? error.message : typeof error === 'string' ? error : ''
@@ -16,9 +19,9 @@ export function RouteError() {
     <>
       <TopBar />
       <div style={{ maxWidth: '640px', margin: '0 auto', padding: 'var(--sp-16) var(--sp-4)' }}>
-        <h1 style={{ fontSize: 'var(--fs-h1)' }}>表示中に問題が発生しました</h1>
+        <h1 style={{ fontSize: 'var(--fs-h1)' }}>{strings.error.title}</h1>
         <p style={{ color: 'var(--c-muted)', marginTop: 'var(--sp-3)', lineHeight: 'var(--lh-body)' }}>
-          このページの読み込み中にエラーが起きました。ページを再読み込みするか、トップへ戻ってください。
+          {strings.error.body}
         </p>
         <p style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)', marginTop: 'var(--sp-6)' }}>
           <button
@@ -35,9 +38,9 @@ export function RouteError() {
               cursor: 'pointer',
             }}
           >
-            再読み込み
+            {strings.error.reload}
           </button>
-          <Link to="/">← トップへ戻る</Link>
+          <Link to={`/${locale}`}>{strings.error.back}</Link>
         </p>
         {detail && (
           <pre

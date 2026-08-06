@@ -1,0 +1,83 @@
+---
+title: "Choice 1: Project name and framework"
+minutes: 6
+slug: setup-project-name
+section: setup
+description: "The first two questions. The rules for naming your project, and choosing React from the framework list."
+level: beginner
+prerequisites: ['setup/create-vite']
+---
+
+<LearnBox>
+
+- How to answer "Project name," and the naming rules
+- Selecting React from the "Select a framework" list with the arrow keys
+- How to redo it if you pick the wrong one
+
+</LearnBox>
+
+When you run `npm create vite@latest`, the questions appear one after another. On this page you answer the first two: the **project name** and the **framework**.
+
+## Question 1: Project name {#name}
+
+First you're asked for a project name. Type the name right at the cursor position.
+
+```
+◇  Project name:
+│  my-shop
+```
+
+Here we used `my-shop`. This name becomes, as-is, **the name of the folder that gets created**. Once you've typed it, press `Enter`.
+
+There are only three naming rules.
+
+- Use **single-byte letters, numbers, and hyphens** (e.g. `my-shop`, `ec-sample`)
+- **Don't include spaces** (avoid `my shop`)
+- **Avoid capital letters** (lowercase is the convention. `my-shop` rather than `MyShop`)
+
+<Callout type="note">
+
+If you press `Enter` without typing anything, the default name `vite-project` is used. The name is easy to deal with later by just renaming the folder, so there's no need to agonize over it.
+
+</Callout>
+
+## Question 2: Select a framework {#framework}
+
+Next you're asked "which UI library you want to build with." **Choose with the arrow keys `↑` `↓` and press `Enter`.** You can't select with the mouse.
+
+```
+◇  Select a framework:
+│  ○ Vanilla
+│  ○ Vue
+│  ● React      ← press ↓ twice to land here, then Enter
+│  ○ Preact
+│  ○ Lit
+│  ○ Svelte
+│  ○ Solid
+│  ○ Qwik
+│  ○ Angular
+│  ○ Marko
+│  ○ Others
+```
+
+What's lined up in the list are **separate UI libraries** that occupy the same position as React (Vue, Svelte, and so on). What we're learning is **React**, so press `↓` twice to land on React and press `Enter`.
+
+<Callout type="analogy">
+
+It's similar to choosing "write in jQuery, or write in Vanilla JS." They're all tools for building the look of the web, but each has a different style of writing. This time we learn the React style.
+
+</Callout>
+
+Once you choose React, you move on to the final question: the **variant**. This is the part people hesitate over most, so we use a whole page for it next.
+
+## If you pick the wrong one {#redo}
+
+As long as you haven't pressed `Enter` after selecting with the arrows, you can re-pick with `↑` `↓`. If you've already pressed `Enter` and realize "I picked the wrong framework," don't panic — interrupt the wizard with **`Ctrl` + `C`** and start over from `npm create vite@latest`. The folder hasn't been created yet, so nothing is broken.
+
+<SummaryBox>
+
+- The project name becomes the folder name. Use single-byte letters/numbers plus hyphens; avoid spaces and capitals
+- Choose the framework with the arrow keys. The list is separate UI libraries, and ours is React
+- Before you confirm, use the arrows; if you notice after confirming, redo it with `Ctrl` + `C`
+
+</SummaryBox>

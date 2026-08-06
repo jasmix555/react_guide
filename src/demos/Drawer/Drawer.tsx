@@ -1,5 +1,7 @@
 import { useRef } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './Drawer.module.scss'
 
 interface DrawerLink {
@@ -8,10 +10,11 @@ interface DrawerLink {
 }
 
 /**
- * ハンバーガーで開く横からのメニュー。<dialog> を使うと、フォーカスの閉じ込め・
- * Esc で閉じる・背景クリックで閉じる（暗幕）がブラウザ標準で付いてくる。
+ * A side menu opened by a hamburger button. Using <dialog> gives you focus trapping,
+ * close-on-Esc, and close-on-backdrop-click (the overlay) for free from the browser.
  */
 export function Drawer({ items }: { items: DrawerLink[] }) {
+  const en = useLocale() === 'en'
   const ref = useRef<HTMLDialogElement>(null)
 
   return (
@@ -19,20 +22,20 @@ export function Drawer({ items }: { items: DrawerLink[] }) {
       <button
         type="button"
         className={styles.hamburger}
-        aria-label="メニューを開く"
+        aria-label={en ? 'Open menu' : 'メニューを開く'}
         onClick={() => ref.current?.showModal()}
       >
         <span className={styles.bars} aria-hidden />
-        メニュー
+        {en ? 'Menu' : 'メニュー'}
       </button>
 
-      <dialog ref={ref} className={styles.drawer} aria-label="メニュー">
+      <dialog ref={ref} className={styles.drawer} aria-label={en ? 'Menu' : 'メニュー'}>
         <div className={styles.head}>
-          <span className={styles.title}>メニュー</span>
+          <span className={styles.title}>{en ? 'Menu' : 'メニュー'}</span>
           <button
             type="button"
             className={styles.close}
-            aria-label="閉じる"
+            aria-label={en ? 'Close' : '閉じる'}
             onClick={() => ref.current?.close()}
           >
             ✕

@@ -1,0 +1,72 @@
+---
+title: Adding react-router (config comes later)
+minutes: 5
+slug: react-router
+section: libraries
+description: "Add react-router-dom, the part that handles screen switching (routing). What it's for and how to install it. The actual setup is covered in Part 10."
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- What "routing" (switching between screens) means
+- Adding `react-router-dom`
+- The plan: how to use it (the config) comes in Part 10
+
+</LearnBox>
+
+## Routing is "switching between screens" {#why}
+
+An LP often lives on a single page, but once you're building an app you move between **multiple screens** like "list -> detail -> cart." The mechanism that **switches which screen to show** based on the URL (`/products`, `/cart`, and so on) is called **routing**.
+
+React itself has no routing feature, so we add it with a part. The one we use is **`react-router`** (in fact, the very learning site you're reading right now switches screens with react-router too).
+
+<Callout type="analogy">
+
+Think of it like a building's reception desk and floor map. When someone says "I want to go to `/cart`," they get directed to the cart room. Routing is the guide that looks at the address (the URL) and decides which screen to show.
+
+</Callout>
+
+## Install {#install}
+
+Since it's needed for the app to run, install it as a `dependencies` (no `-D`). The package name is `react-router-dom`.
+
+```bash
+npm install react-router-dom
+```
+
+`react-router-dom` gets added to `dependencies` in `package.json`. The types ship with the package itself, so you don't need `@types/*`.
+
+<Callout type="note">
+
+The package name is `react-router-dom` (with `-dom` on the end). The web-facing parts are bundled here. The name is long, so the one thing to watch out for is typing it correctly when you install.
+
+</Callout>
+
+## How to use it comes in Part 10 {#later}
+
+Routing isn't something that "just works once installed." It only starts working once you write the **configuration code** that says "which URL shows which screen." That setup makes more sense after you understand React's structure (components) first, so **in this part we'll stop at installing it**. We'll cover it in detail later in Part 10.
+
+For now, it's enough to remember two things: "when you want to switch screens, use `react-router`," and "the package name is `react-router-dom`."
+
+## Our standard {#standard}
+
+<Std
+  decision="Use react-router (react-router-dom) to switch between multiple screens"
+  alt="For something small that fits on a single screen, you don't need routing. Add it once you have more screens and want to show different ones per URL."
+>
+
+We use `react-router-dom` as the go-to for routing. Installing it is one command, as shown on this page. The actual setup (which URL shows what) we do all together in Part 10, after you've learned components.
+
+</Std>
+
+## Summary and practice {#summary}
+
+<SummaryBox>
+
+- Routing = the mechanism that switches which screen to show based on the URL
+- The part is `react-router-dom`. Install it with `npm install react-router-dom` (dependencies)
+- The setup (which URL shows what) is in Part 10. Here we cover only how to install it and what it's for
+
+</SummaryBox>

@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './Toast.module.scss'
 
 interface Toast {
@@ -8,10 +10,11 @@ interface Toast {
 }
 
 /**
- * 出したメッセージを一覧（配列）で持ち、2.5 秒後に自分を消す。id はマウントごとに
- * 増えるカウンター（useRef）で作るので、重複しない。
+ * Keep the shown messages in a list (array) and let each remove itself after 2.5 seconds.
+ * The id is made from a counter that increments per mount (useRef), so ids never collide.
  */
 export function ToastDemo() {
+  const en = useLocale() === 'en'
   const [toasts, setToasts] = useState<Toast[]>([])
   const idRef = useRef(0)
 
@@ -26,11 +29,19 @@ export function ToastDemo() {
   return (
     <div className={styles.demo}>
       <div className={styles.buttons}>
-        <button type="button" className={styles.btn} onClick={() => notify('保存しました')}>
-          保存
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => notify(en ? 'Saved' : '保存しました')}
+        >
+          {en ? 'Save' : '保存'}
         </button>
-        <button type="button" className={styles.btn} onClick={() => notify('リンクをコピーしました')}>
-          コピー
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => notify(en ? 'Link copied' : 'リンクをコピーしました')}
+        >
+          {en ? 'Copy' : 'コピー'}
         </button>
       </div>
 

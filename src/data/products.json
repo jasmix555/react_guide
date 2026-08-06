@@ -2,109 +2,133 @@
   {
     "id": "p01",
     "name": "ステンレス片手鍋 18cm",
+    "nameEn": "Stainless steel saucepan 18cm",
     "price": 3200,
     "category": "kitchen",
     "imageUrl": "https://picsum.photos/seed/p01/400/300",
     "tags": ["調理器具", "IH対応"],
+    "tagsEn": ["Cookware", "IH-compatible"],
     "inStock": true
   },
   {
     "id": "p02",
     "name": "木製カッティングボード",
+    "nameEn": "Wooden cutting board",
     "price": 2480,
     "category": "kitchen",
     "imageUrl": "https://picsum.photos/seed/p02/400/300",
     "tags": ["キッチン雑貨", "天然素材"],
+    "tagsEn": ["Kitchenware", "Natural material"],
     "inStock": true
   },
   {
     "id": "p03",
     "name": "耐熱ガラスマグ 2個セット",
+    "nameEn": "Heat-resistant glass mugs (set of 2)",
     "price": 1800,
     "category": "kitchen",
     "imageUrl": "https://picsum.photos/seed/p03/400/300",
     "tags": ["食器", "電子レンジ可"],
+    "tagsEn": ["Tableware", "Microwave-safe"],
     "inStock": false
   },
   {
     "id": "p04",
     "name": "ドリップケトル 1.0L",
+    "nameEn": "Drip kettle 1.0L",
     "price": 4500,
     "category": "kitchen",
     "imageUrl": "https://picsum.photos/seed/p04/400/300",
     "tags": ["コーヒー", "調理器具"],
+    "tagsEn": ["Coffee", "Cookware"],
     "inStock": true
   },
   {
     "id": "p05",
     "name": "リネンクッションカバー",
+    "nameEn": "Linen cushion cover",
     "price": 1980,
     "category": "living",
     "imageUrl": "https://picsum.photos/seed/p05/400/300",
     "tags": ["ファブリック", "天然素材"],
+    "tagsEn": ["Fabric", "Natural material"],
     "inStock": true
   },
   {
     "id": "p06",
     "name": "アロマディフューザー",
+    "nameEn": "Aroma diffuser",
     "price": 5400,
     "category": "living",
     "imageUrl": "https://picsum.photos/seed/p06/400/300",
     "tags": ["家電", "リラックス"],
+    "tagsEn": ["Appliance", "Relaxation"],
     "inStock": true
   },
   {
     "id": "p07",
     "name": "北欧風フロアランプ",
+    "nameEn": "Scandinavian-style floor lamp",
     "price": 12800,
     "category": "living",
     "imageUrl": "https://picsum.photos/seed/p07/400/300",
     "tags": ["照明", "インテリア"],
+    "tagsEn": ["Lighting", "Interior"],
     "inStock": false
   },
   {
     "id": "p08",
     "name": "ウォールシェルフ 60cm",
+    "nameEn": "Wall shelf 60cm",
     "price": 3600,
     "category": "living",
     "imageUrl": "https://picsum.photos/seed/p08/400/300",
     "tags": ["収納", "インテリア"],
+    "tagsEn": ["Storage", "Interior"],
     "inStock": true
   },
   {
     "id": "p09",
     "name": "折りたたみキャンプチェア",
+    "nameEn": "Folding camp chair",
     "price": 6900,
     "category": "outdoor",
     "imageUrl": "https://picsum.photos/seed/p09/400/300",
     "tags": ["キャンプ", "軽量"],
+    "tagsEn": ["Camping", "Lightweight"],
     "inStock": true
   },
   {
     "id": "p10",
     "name": "ステンレス真空ボトル 500ml",
+    "nameEn": "Stainless vacuum bottle 500ml",
     "price": 2900,
     "category": "outdoor",
     "imageUrl": "https://picsum.photos/seed/p10/400/300",
     "tags": ["保温", "アウトドア"],
+    "tagsEn": ["Insulated", "Outdoor"],
     "inStock": true
   },
   {
     "id": "p11",
     "name": "防水ドライバッグ 20L",
+    "nameEn": "Waterproof dry bag 20L",
     "price": 3400,
     "category": "outdoor",
     "imageUrl": "https://picsum.photos/seed/p11/400/300",
     "tags": ["アウトドア", "防水"],
+    "tagsEn": ["Outdoor", "Waterproof"],
     "inStock": false
   },
   {
     "id": "p12",
     "name": "LEDランタン 充電式",
+    "nameEn": "LED lantern (rechargeable)",
     "price": 4200,
     "category": "outdoor",
     "imageUrl": "https://picsum.photos/seed/p12/400/300",
     "tags": ["照明", "キャンプ"],
+    "tagsEn": ["Lighting", "Camping"],
     "inStock": true
   }
 ]

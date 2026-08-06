@@ -1,0 +1,163 @@
+---
+title: Adding sass
+minutes: 8
+slug: install-sass
+section: libraries
+description: "Install sass as a devDependency for writing SCSS, create a .module.scss, and load it. Also experience the Preprocessor dependency error you get when you forget to install it."
+level: beginner
+prerequisites: ['libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- Install `sass` as a `devDependency` (`-D`)
+- The minimal shape of creating a `.module.scss` and loading it from React
+- The `Preprocessor dependency 'sass'` error you get when you forget to install it
+
+</LearnBox>
+
+## Why add sass {#why}
+
+We write our styles in **SCSS Modules** (we cover this in detail in Part 5, "Styling"). SCSS is the usual CSS with added conveniences like "nesting," "variables," and "grouping." However, browsers can't read SCSS as-is. You need **a tool that converts SCSS into ordinary CSS at build time**. That's `sass`.
+
+`sass` isn't part of how the screen runs itself—it's **a tool that helps the build**—so, as we did on the previous page, install it into `devDependencies`.
+
+## Installing {#install}
+
+In `my-shop`, run the following.
+
+```bash
+npm install -D sass
+```
+
+When it finishes, `"sass": "^1.x.x"` should be added to `devDependencies` in `package.json`. If `sass` is installed, Vite **recognizes `.scss` files automatically**. No extra config file needed.
+
+<Callout type="note">
+
+`sass` also bundles its type definitions in the package itself, so you don't need a separate package like `@types/sass`. This is the only thing you install.
+
+</Callout>
+
+## Creating and loading a .module.scss {#module}
+
+Let's actually add color to a heading. First, create the file where you'll write the styles. The convention is to end the file name with **`.module.scss`** (`.module` marks the styles as "belonging to this file only." More in Part 5, "Styling").
+
+```scss title="src/App.module.scss (new file)"
+.title {
+  color: crimson;
+  font-size: 2rem;
+}
+```
+
+Next, load these styles from `App.tsx` and assign them to `className`.
+
+```tsx title="src/App.tsx"
+import styles from './App.module.scss'
+
+function App() {
+  return <h1 className={styles.title}>Product List App</h1>
+}
+
+export default App
+```
+
+With `import styles from './App.module.scss'`, you receive the styles you just wrote under the name `styles`, and apply the class with `styles.title`. Save, and the heading becomes **big and red**. That's the minimal set for using SCSS.
+
+<JsNote feature="className isn't a plain string but styles.title">
+
+`styles.title` is "an auto-generated, unique class name that points to `.title` inside `App.module.scss`." Unlike plainly writing `className="title"`, it won't clash with `.title` in another file. This "won't clash" mechanism is the heart of SCSS Modules, which we'll take our time with in Part 5, "Styling." For now, just remember the shape: "for a `.module.scss`, you `import styles` and use it via `styles.className`."
+
+</JsNote>
+
+## Break it on purpose: reading .scss without installing sass {#break-no-sass}
+
+Let's feel why `sass` is needed, from the reverse angle. If you load `.scss` before installing `sass` (or delete `sass` from `node_modules`), your `npm run dev` screen shows this.
+
+```
+[plugin:vite:css] Preprocessor dependency "sass" not found.
+Did you install it?
+```
+
+It means "**The tool `sass` that converts SCSS can't be found. Did you install it?**" Vite is saying "I tried to convert `.scss` into CSS, but there's no one to do the converting." Running `npm install -D sass` solves it. **See `Preprocessor dependency "sass" not found` and it's a forgotten `sass` install**—that's how you fix it.
+
+<Together
+  task="In src/App.module.scss, add a .card class that sets the background to a light gray (#f5f5f5), and apply styles.card to some element inside App.tsx."
+  hint="Add .card { background: #f5f5f5; } to .module.scss and use it like <div className={styles.card}>…</div>."
+>
+
+```scss title="src/App.module.scss"
+.title {
+  color: crimson;
+  font-size: 2rem;
+}
+
+.card {
+  background: #f5f5f5;
+  padding: 1rem;
+}
+```
+
+```tsx title="src/App.tsx"
+import styles from './App.module.scss'
+
+function App() {
+  return (
+    <div className={styles.card}>
+      <h1 className={styles.title}>Product List App</h1>
+    </div>
+  )
+}
+
+export default App
+```
+
+Just add `.card` to `.module.scss` and apply it with `styles.card`. To add more classes, repeat "define it in SCSS → use it via `styles.className`." Since we return multiple elements, note that the whole thing is wrapped in a single `<div>` (in React, "return one element" is the rule. We cover this in Part 7).
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="npm install sass (adds it to dependencies)"
+  good="npm install -D sass (adds it to devDependencies)"
+  note="sass is the converter at build time. It isn't part of how the finished screen runs, so -D."
+/>
+
+<Diff
+  bad="Writing className='title' as a string"
+  good="import styles from './App.module.scss' and className={styles.title}"
+  note="A .module.scss is imported and used via styles.className. The won't-clash mechanism kicks in."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Write styles in SCSS Modules (.module.scss), and install sass as a devDependency"
+  alt="For very small global settings (a CSS reset or CSS-variable definitions), you might keep a single plain .scss that isn't a module. Keep the styles for individual parts closed inside .module.scss."
+>
+
+Install `sass` with `-D`, just the one. After that, create a `.module.scss`, `import styles`, and apply it via `styles.className`. The "why add it" is clear—to convert SCSS into CSS the browser can read. We cover how to really use it in Part 5, "Styling."
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`Preprocessor dependency "sass" not found`** … You forgot to install `sass`. Run `npm install -D sass`.
+- **`styles.title` comes out `undefined`** … Check that the file name ends with `.module.scss` and that the class name is spelled correctly.
+- **The style isn't applied** … Check that it's `className={styles.title}` (curly braces) and not `className="styles.title"` (a string).
+
+## Summary and practice {#summary}
+
+<Exercise answer="Install it with npm install -D sass, define classes in src/Xxx.module.scss, then in that component import styles from './Xxx.module.scss' and apply them with className={styles.className}.">
+
+When you want to add styles to a new component, after installing `sass`, what should you do and in what order?
+
+</Exercise>
+
+<SummaryBox>
+
+- `sass` is the tool that converts SCSS into CSS. Install it with `npm install -D sass` (a devDependency)
+- Write styles in `.module.scss`, `import styles`, and apply them with `className={styles.className}`
+- `Preprocessor dependency "sass" not found` signals a forgotten `sass` install
+
+</SummaryBox>

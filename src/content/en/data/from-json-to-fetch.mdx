@@ -1,0 +1,77 @@
+---
+title: From direct import to fetch
+minutes: 6
+slug: from-json-to-fetch
+section: data
+description: "The difference between an import bundled at build time and a fetch that pulls from a server at runtime. When you should switch to the network, plus the subject matter for this part."
+level: beginner
+prerequisites: ['data/goal']
+---
+
+<LearnBox>
+
+- The difference between a direct import and `fetch` (bundled vs. over the network)
+- When to leave it as an import, and when to switch to `fetch`
+- The subject matter for this part (`fetch` `public/products.json`)
+
+</LearnBox>
+
+## What's different between a direct import and fetch {#diff}
+
+The `import products from './products.json'` you've used so far and the `fetch` you're about to use are fundamentally different.
+
+| | direct import | fetch |
+| --- | --- | --- |
+| When it loads | bundled at **build time** | from the server at **runtime** |
+| Speed | instant (it's right there) | takes time |
+| Failure | never | yes (signal, server) |
+| Updates | fixed until you rebuild | can always get the latest |
+
+`import` is "data **baked into** the app," while `fetch` is "data you **go and get** each time."
+
+## When to use fetch {#when}
+
+You don't need to make everything a `fetch`. Here's a rough guide for choosing.
+
+- **Leaving it as an import is fine** … small, fixed data (a list of categories, config values, and so on). If it doesn't change, baking it in is enough.
+- **Use fetch** … data that lives on a server, data that gets updated, large data, and data that requires login.
+
+A product list really comes from a server, so in this part we switch it to `fetch`.
+
+## The subject matter for this part {#material}
+
+Setting up a real API right away is a lot of work, so first we'll **`fetch` our own JSON file**. Put `products.json` in the `public/` folder and you can retrieve it at the URL `/products.json`.
+
+```tsx
+fetch('/products.json') // go and get public/products.json
+```
+
+What you do is the same as with a real API (communicate against a URL), so **in production you just swap out the URL**.
+
+```tsx
+fetch('https://api.example.com/products') // this is how it'd look for the real thing
+```
+
+## A common mistake {#mistakes}
+
+<Diff
+  bad="Baking large, server-updated data in with import"
+  good="Fetch updated or large data at runtime with fetch"
+  note="import is for small, fixed data. Use fetch for anything that changes or is large."
+/>
+
+## Summary & practice {#summary}
+
+<Exercise answer="fetch. After login you need to pull the latest information from the server, and import (baked in at build time) can't reflect the latest. import is for small data that doesn't change.">
+
+When you want to display "the logged-in user's latest order history," should you retrieve it with `import` or `fetch`? Explain why.
+
+</Exercise>
+
+<SummaryBox>
+
+- `import` is baked in at build time (instant, no failures, fixed); `fetch` is communication at runtime (takes time, can fail, always the latest)
+- Data that changes, is large, or lives on a server → `fetch`. Small, fixed data → `import` is enough
+- The subject matter is `fetch('/products.json')` against `public/products.json`. For a real API you just swap out the URL
+
+</SummaryBox>

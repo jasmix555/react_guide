@@ -8,8 +8,9 @@ export interface AccordionItem {
 }
 
 /**
- * 一度に 1 つだけ開くアコーディオン。開いている項目の index を 1 つだけ state に
- * 持ち、同じ見出しをもう一度押すと閉じる（null）。FAQ など「1 つ読んだら次」に向く。
+ * An accordion that opens only one item at a time. It keeps a single index of the
+ * open item in state, and pressing the same heading again closes it (null).
+ * Good for FAQs and other "read one, then the next" cases.
  */
 export function Accordion({ items }: { items: AccordionItem[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0)

@@ -11,8 +11,8 @@ interface RangeSliderProps {
 }
 
 /**
- * ネイティブの <input type="range"> を薄く包んだだけのスライダー。値は親が state
- * で持ち（制御コンポーネント）、色は accent-color で CSS から着ける。
+ * A thin wrapper around the native <input type="range">. The value is held by
+ * the parent as state (controlled component); the color comes from CSS via accent-color.
  */
 export function RangeSlider({
   label,

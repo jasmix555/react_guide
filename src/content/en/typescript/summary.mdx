@@ -1,0 +1,64 @@
+---
+title: Summary & practice
+minutes: 6
+slug: typescript-summary
+section: typescript
+description: "A wrap-up of TypeScript for React. Review basic types, interface, props, union, the Product type, and typing state and events, then check yourself with a comprehension quiz. Next up: routing."
+level: beginner
+prerequisites: ['typescript/goal']
+---
+
+<LearnBox>
+
+- A full review of the "protect it with types" style you picked up in this part
+- A comprehension check (self-test the spots people tend to stumble on)
+- A bridge to the next part (routing)
+
+</LearnBox>
+
+## Full review of this part {#recap}
+
+We consolidated `ProductCard`'s props from five scattered ones into a single `Product` type. Here are the key points.
+
+- **Basic types and inference** … Types are `name: type`. Leave variables with an initial value to inference, and write types on **function arguments and props**.
+- **interface** … Give a name to an object's "shape". Required fields as-is, optional ones with `?`.
+- **Typing props** … Make an `interface Props` and receive it with `{ ... }: Props`. Inside, `children: ReactNode`.
+- **union and literals** … Lock down the options with `'primary' | 'secondary'`. Narrow `X | null` with an `if` (narrowing).
+- **The Product type** … Make the data shape an `interface`, with `category` as a literal union. `products.json` is `as Product[]`.
+- **State and events** … Leave `useState` to inference, using `useState<Type>()` only for an empty array or `null`. Extracted handlers use something like `ChangeEvent`.
+
+"Nail down the shape of props and data with types" — these two are the foundation of code that's hard to break.
+
+## Comprehension check {#quiz}
+
+<Exercise answer="Write them on function arguments and props. Variables with an initial value (like const price = 3200) get inference, so you don't write them. Concentrate types where inference can't reach (arguments and props).">
+
+Where should you write type annotations, and where can you leave them out? Explain why, too.
+
+</Exercise>
+
+<Exercise answer="Make category the literal union 'kitchen' | 'living' | 'outdoor'. With string, typos like 'kitchin' slip through, but with a union anything outside the allowed values is a type error before you run.">
+
+In the `Product` type, what do you use instead of `string` to stop `category` typos before running?
+
+</Exercise>
+
+<Exercise answer="Write useState<Product | null>(null). If you leave it as useState(null), the type is fixed to null, so setSelected(product) later becomes a type error. Use <> to make it explicit that a Product can go in too.">
+
+When you write state that's "initially none (`null`) with a `Product` added later", what's the problem with `useState(null)`, and how do you fix it?
+
+</Exercise>
+
+## On to the next part {#next}
+
+We now have a type-protected list of `ProductCard`s. But right now the app is **just one screen**. Tapping a product doesn't open a detail view, and there's no separate page like a "favorites list".
+
+The next part is **routing**. With `react-router`, we'll build a way to **switch screens by URL** — a list page, a product detail page, a favorites page. The app you've built so far becomes a multi-page app.
+
+<SummaryBox>
+
+- Leave types to inference where you can, and concentrate on writing them on **arguments and props**
+- Object shapes use `interface`; fixing the options uses an `'a' | 'b'` union
+- `useState` infers; make `<Type>` explicit only for empty or `null`. Nail down data with the `Product` type
+
+</SummaryBox>

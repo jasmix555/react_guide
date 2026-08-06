@@ -1,0 +1,172 @@
+---
+title: Accordion
+minutes: 9
+slug: accordion
+section: recipes
+description: "A FAQ-style accordion that opens and closes on click. Build it with plain HTML first, and reach for React only when you want just one open at a time."
+level: beginner
+prerequisites: ['state/use-state/basics', 'components/rendering-lists']
+---
+
+import { AccordionDemo } from '@/demos/Accordion'
+
+<LearnBox>
+
+- An accordion built with just HTML's `<details>` (no JavaScript needed)
+- The React version for when you want "only one open at a time"
+- How to write it so it works with the keyboard and screen readers
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Here is what we are building. Click a heading and the answer opens. Try out the "only one open at a time" React version here.
+
+<Demo title="Accordion">
+  <AccordionDemo />
+</Demo>
+
+## First, ask whether you can build it without React {#native-first}
+
+The word "accordion" makes people brace for "manage the open/closed state with state…," but **most FAQs can be built with HTML alone**. Use `<details>` and `<summary>` and the open/close mechanism comes built into the browser. No JavaScript, no state required.
+
+```tsx title="src/components/Faq.tsx (HTML only, full)"
+export function Faq() {
+  return (
+    <div>
+      <details>
+        <summary>Do you charge for shipping?</summary>
+        <p>Shipping is free on orders of 5,000 yen or more.</p>
+      </details>
+      <details>
+        <summary>Can I return an item?</summary>
+        <p>We accept unused items within 7 days of delivery.</p>
+      </details>
+    </div>
+  )
+}
+```
+
+Once you save, the `<summary>` line becomes a clickable heading, and each press opens or closes the content. You can also open and close it with Enter on the keyboard, and screen readers correctly announce whether it is open or closed. **If this is enough, you are done here.**
+
+<Callout type="note" title="Which one to choose">
+
+- FAQ-style, where "several can be open at once" → `<details>` is the answer. No extra code needed.
+- "Only one open at a time," or "I want to do something fancy as it opens and closes" → move on to the React version below.
+
+</Callout>
+
+## When you want only one open at a time {#single-open}
+
+"When one opens, the others close" is not something `<details>` alone does cleanly. This is where we first reach for state.
+
+The idea is simple. **Remember which one is open as a single number (an index).** When a heading is pressed, switch to that number. Press the same one again and it closes (`null`).
+
+```tsx
+const [openIndex, setOpenIndex] = useState<number | null>(0)
+//     ↑          ↑
+//     │          └─ the function that switches which item is open
+//     └─ the number of the item that is currently open
+```
+
+- **`openIndex`** … the number of the item currently open (`0`, `1`, `2` …). `null` if none are open.
+- **`setOpenIndex`** … the function that switches which item is open.
+- **`useState<number | null>(0)`** … the type is "a number **or** `null`." Since the initial value is `0`, the first item starts out open.
+
+## The Accordion itself {#accordion-body}
+
+Here is the full `Accordion`. Create a new `src/components/Accordion/Accordion.tsx` and paste this in.
+
+```tsx title="src/components/Accordion/Accordion.tsx (new file, full)"
+import { useState } from 'react'
+
+interface AccordionItem {
+  q: string
+  a: string
+}
+
+export function Accordion({ items }: { items: AccordionItem[] }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(0)
+
+  return (
+    <div>
+      {items.map((item, i) => {
+        const isOpen = i === openIndex
+        return (
+          <div key={item.q}>
+            <h3>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+              >
+                {item.q}
+                <span aria-hidden>{isOpen ? '−' : '＋'}</span>
+              </button>
+            </h3>
+            {isOpen && <p>{item.a}</p>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+```
+
+There are three things worth noticing. `const isOpen = i === openIndex` computes "is this item open?" each time. `onClick={() => setOpenIndex(isOpen ? null : i)}` means "if it is open, close it (`null`); if it is closed, open this number." And `{isOpen && <p>…</p>}` renders the answer only when it is open.
+
+The caller just passes an array of questions and answers.
+
+```tsx title="src/App.tsx (the caller)"
+import { Accordion } from './components/Accordion/Accordion'
+
+const faq = [
+  { q: 'Do you charge for shipping?', a: 'Free on orders of 5,000 yen or more.' },
+  { q: 'Can I return an item?', a: 'Unused items only, within 7 days of delivery.' },
+]
+
+function App() {
+  return <Accordion items={faq} />
+}
+
+export default App
+```
+
+## Break it on purpose: an accordion that won't close {#break-toggle}
+
+Remove the branch in `onClick`, leaving just `setOpenIndex(i)`, and save.
+
+```tsx title="Accordion.tsx (broken on purpose: closing branch removed)"
+onClick={() => setOpenIndex(i)}
+```
+
+Press an open item again and it **no longer closes**, because `openIndex` stays on that number. Put `isOpen ? null : i` back and "press an open item to get `null` (i.e. close it)" comes back. This one line is the heart of the open/close toggle.
+
+## Accessibility notes {#a11y}
+
+- **Use a `<button>` for the heading**: with a `<button>` instead of `<div onClick>`, you can move to it with Tab and open/close it with Enter / Space.
+- **`aria-expanded`**: tells screen readers whether it is open. Keep `true` / `false` in sync with the state.
+- **Wrap it in an `<h3>`**: making each heading a heading tag lets screen reader users jump by heading.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Manage the open/closed state with a boolean array [true, false, false]"
+  good="Hold just the one open number as number | null"
+  note="For 'only one open,' a single piece of state is enough. An array makes it easy to forget to close one or to get out of sync."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Clicking doesn't open it** … check that `setOpenIndex` is being called inside `onClick`, and that the `isOpen` calculation (`i === openIndex`) is right.
+- **You can't operate it with the keyboard** … check that the heading is a `<button>`. Tab won't stop on a `<div>`.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- A simple FAQ is just `<details>` / `<summary>`. No JavaScript, no state
+- Only when you want "one open at a time," hold the one open number as `number | null`
+- Make the heading a `<button>` + `aria-expanded`. Support the keyboard and screen readers from the start
+
+</SummaryBox>

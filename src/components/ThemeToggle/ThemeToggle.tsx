@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 
-import { strings } from '@/config/strings.ja'
+import { useStrings } from '@/hooks/useLocale'
 
 import styles from './style.module.scss'
 
@@ -15,6 +15,7 @@ function readTheme(): Theme {
  * index.html sets the initial value, so there's no flash on load.
  */
 export function ThemeToggle() {
+  const strings = useStrings()
   const [theme, setTheme] = useState<Theme>(readTheme)
 
   const toggle = useCallback(() => {

@@ -1,0 +1,82 @@
+---
+title: Adding gsap and @gsap/react
+minutes: 6
+slug: gsap-install
+section: gsap
+description: "Install GSAP itself plus React's official @gsap/react. Including why useGSAP takes over cleanup and StrictMode's double-run for you."
+level: beginner
+prerequisites: ['libraries/gsap/goal', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- Install two things: `gsap` itself and `@gsap/react`
+- Why React uses `@gsap/react` (`useGSAP`)
+- Plugins (ScrollTrigger and friends) are enabled with `registerPlugin`
+
+</LearnBox>
+
+## Install the two {#install}
+
+Install GSAP itself (`gsap`) and the official React wrapper (`@gsap/react`) together. Both affect what the screen does, so don't add `-D` ([put them in dependencies](/libraries/npm-install-writes)).
+
+```bash
+npm install gsap @gsap/react
+```
+
+Two entries get added to `dependencies` in `package.json`. Types ship inside the package itself, so you don't need `@types/*` ([the type definitions aren't in a separate package](/libraries/types-packages)).
+
+<Callout type="note" title="GSAP is now free">
+
+Some plugins like ScrollTrigger used to be paid (Club GreenSock), but **as of 2025 the full feature set is free**. Even if an old article says "paid," don't worry about it now.
+
+</Callout>
+
+## Why use @gsap/react {#why-hook}
+
+You can drive GSAP with just the core library, but in React **cleanup** becomes a problem. When a component unmounts, if you don't also stop and clean up the animations you created, it can cause memory issues or errors. On top of that, during development **React runs useEffect twice** (StrictMode), so a naive approach runs your animation twice.
+
+**The `useGSAP` hook from `@gsap/react` takes over all of this hassle.**
+
+- When a component unmounts, it **automatically cleans up** the animations created inside it.
+- It works correctly even with **StrictMode's double-run**.
+- Pass a `scope` and you can limit your selectors (`.card` and so on) to **just inside that box**.
+
+In other words, instead of "writing your own cleanup in `useEffect`," you leave it to `useGSAP`. We'll look at how to use it in detail on the next page.
+
+## Plugins go through registerPlugin {#plugins}
+
+A **plugin** like ScrollTrigger is separate from the core, so you register it — "I'm going to use this" — before using it. Register it once and you can use it throughout the app.
+
+```tsx
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+// Register once before using it
+gsap.registerPlugin(ScrollTrigger)
+```
+
+<Callout type="warn" title="The forgot-to-register trap">
+
+If you use ScrollTrigger without writing `registerPlugin`, it won't work or you'll get a warning. On the page that uses a plugin (or at the app's entry point), remember to write **import + register** as a set.
+
+</Callout>
+
+## Our standard {#standard}
+
+<Std
+  decision="When using GSAP, install gsap core plus @gsap/react as a set, and always write animations inside useGSAP"
+  alt="For simple hovers or fades, CSS transitions or Framer Motion are enough without pulling in GSAP. Use GSAP for the situations that are painful without it, like timelines and scroll-linked motion."
+>
+
+If you're using GSAP in React, `@gsap/react` is basically required. Writing cleanup and StrictMode handling yourself invites accidents. Make leaving it to `useGSAP` your standard.
+
+</Std>
+
+<SummaryBox>
+
+- `npm install gsap @gsap/react`. Both go in `dependencies`; types are bundled
+- In React, use `useGSAP` (it takes over cleanup, StrictMode's double-run, and `scope`)
+- Plugins (ScrollTrigger and friends) are registered once with `gsap.registerPlugin(...)` before use
+
+</SummaryBox>

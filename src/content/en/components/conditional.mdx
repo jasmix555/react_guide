@@ -1,0 +1,195 @@
+---
+title: Conditional rendering
+minutes: 9
+slug: conditional
+section: components
+description: "Change what shows based on a condition inside JSX. Use && for 'show only when true', and ? : for either/or. Guard against the 0 && trap that leaks a 0 onto the screen with !! or > 0."
+level: beginner
+prerequisites: ['components/rendering-lists', 'javascript/ternary-short-circuit']
+---
+
+import { StockBadgeDemo } from '@/demos/StockBadge'
+
+<LearnBox>
+
+- Show one of two things with `? :` (the ternary operator)
+- Show something only when a condition is true with `&&`
+- The `0 &&` trap that leaks a `0` onto the screen, and how to prevent it
+
+</LearnBox>
+
+## What we'll build on this page {#goal}
+
+We'll show either "In stock" or "Sold out" depending on whether an item is in stock. The same component produces different output based on the value of `inStock` (you'll see the working version at the end of this page).
+
+The ternary operator `? :` and short-circuit evaluation `&&` from Part 2 work exactly the same inside JSX. You can't write an `if` statement inside JSX, so the key is to branch in a form that **returns a value**.
+
+## Show one of two things with ? : {#ternary}
+
+When you always need to show "either A or B", write the ternary operator `condition ? A : B` inside the curly braces.
+
+```tsx
+<p>{product.inStock ? 'In stock' : 'Sold out'}</p>
+```
+
+If `product.inStock` is `true`, it shows "In stock"; if `false`, "Sold out". The demo at the bottom of this page works the same way. You can switch between plain strings, or between elements like `<span>` — either is fine.
+
+Let's break down that single `? :` line.
+
+```tsx
+<p>{product.inStock ? 'In stock' : 'Sold out'}</p>
+//  ↑               ↑            ↑
+//  │               │            └─ shown when false (after the :)
+//  │               └─ shown when true (after the ?)
+//  └─ the condition (an expression that becomes true or false)
+```
+
+- **Condition** … an expression that becomes `true` or `false` (here, `product.inStock`)
+- **When true** … what to show when the condition is `true` (to the right of `?`)
+- **When false** … what to show when the condition is `false` (to the right of `:`)
+
+```tsx
+{product.inStock ? (
+  <span className={styles.in}>In stock</span>
+) : (
+  <span className={styles.out}>Sold out</span>
+)}
+```
+
+Here's the full file for this small component that uses `? :`.
+
+```tsx title="src/components/StockBadge/StockBadge.tsx (full file)"
+interface StockBadgeProps {
+  inStock: boolean
+}
+
+export function StockBadge({ inStock }: StockBadgeProps) {
+  return <span>{inStock ? 'In stock' : 'Sold out'}</span>
+}
+```
+
+## Show something only when true with && {#and}
+
+For "show it only when the condition is true; show nothing when false", use `condition && thing to show`.
+
+```tsx
+{product.inStock && <span className={styles.badge}>Ships now</span>}
+```
+
+If `inStock` is `true`, the badge on the right appears; if `false`, **nothing appears** (because `false` isn't rendered to the screen). This is the go-to pattern when you only want to show one side — "a SALE label only during a sale", "a menu only when logged in", and so on.
+
+Let's break down the `&&` line too.
+
+```tsx
+<div>{product.inStock && <span>Ships now</span>}</div>
+//    ↑                   ↑
+//    │                   └─ shown only when true (<span> ... </span>)
+//    └─ the condition (an expression that becomes true or false)
+```
+
+- **Condition** … an expression that becomes `true` or `false` (here, `product.inStock`)
+- **Shown only when true** … shown only when the condition is `true`; nothing appears when `false`
+
+## Seeing it in action {#demo}
+
+Here's "In stock" / "Sold out" being switched based on whether the item is in stock. The `? :` and `&&` ideas above are exactly what's running.
+
+<Demo title="Switching the display by stock">
+  <StockBadgeDemo />
+</Demo>
+
+## Break it on purpose: a number on the left of && leaks a 0 {#break-zero}
+
+`&&` has a famous trap that we covered in Part 2's [Ternary and short-circuit](/guide/javascript/ternary-short-circuit) and [Reading the symbols](/guide/javascript/symbols). Let's look at it again in JSX. Suppose you write this, meaning "show the count only when there are tags".
+
+```tsx
+{product.tags.length && <span>{product.tags.length} tags</span>}
+```
+
+Products that have tags render correctly. But for a **product with 0 tags**, a lone **`0`** ends up displayed on the screen. Because `tags.length` is `0` (falsy), `&&` doesn't look at the right side and **returns the `0` on the left as-is**, and that `0` shows up on the screen.
+
+The fix is to **always make the left side a boolean**. Compare with `> 0`, or convert to a boolean with `!!`.
+
+```tsx
+{product.tags.length > 0 && <span>{product.tags.length} tags</span>}
+```
+
+`tags.length > 0` becomes `false` (a boolean), so `&&` returns `false` and React renders nothing. **When you write `{number && ...}` in JSX and a `0` leaks, change the left side to `> 0` or `!!`** — keep this fix in mind.
+
+<Callout type="warn">
+
+When a `0` shows up unexpectedly in `{something && <JSX/>}`, the left side of `&&` is a **number** like a `length` or a count. Turn the left side into a boolean with `> 0` or `!!` and it disappears.
+
+</Callout>
+
+<Together
+  task="Using &&, write JSX that shows a <span> reading 'Restocking soon' only when product.inStock is false."
+  hint="Show it only when !product.inStock (using ! to mean 'not in stock') is true."
+>
+
+```tsx
+{!product.inStock && <span className={styles.wait}>Restocking soon</span>}
+```
+
+`!product.inStock` means "not in stock" (`!` is the "flip it" symbol we covered in [Reading the symbols](/guide/javascript/symbols)). Only when this is `true` — that is, out of stock — does "Restocking soon" appear. Because `inStock` is a boolean, there's no `0`-leak worry when you put it on the left of `&&`.
+
+</Together>
+
+## Pattern catalog: conditional rendering {#catalog}
+
+```tsx
+{product.inStock ? 'In stock' : 'Sold out'}                      // ? : to switch between strings
+{product.inStock ? <span>In stock</span> : <span>Sold out</span>} // ? : to switch between elements
+{product.inStock && <span>Ships now</span>}                      // && to show one side only
+{!product.inStock && <span>Restocking soon</span>}               // !cond to show only "when not ..."
+{product.tags.length > 0 && <span>Has tags</span>}               // > 0 to prevent a 0 leak
+```
+
+"Either A or B" is `? :`; "only when present" is `&&`. When the left of `&&` is a number like a `length`, make it a boolean with `> 0` or `!!`.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="{items.length && <List />} (shows 0 when there are 0 items)"
+  good="{items.length > 0 && <List />}"
+  note="When the left of && is a number, a 0 leaks onto the screen when it's 0. Make it a boolean with > 0 or !!."
+/>
+
+<Diff
+  bad="Trying to write if (inStock) { … } inside JSX"
+  good="{inStock ? <A /> : <B />} or {inStock && <A />}"
+  note="You can't write an if statement inside JSX. Branch with ? : or && that return a value."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Use ? : for either/or, and && to show one side only. Always make the left of && a boolean (use > 0 or !! for numbers)."
+  alt="When the branching gets complex, build it into a variable outside the JSX and drop it in. Avoid nested ternaries — they become unreadable."
+>
+
+"Either A or B" is `? :`; "only when present" is `&&`. When the left of `&&` is a `length` or a count, fix it to a boolean with `> 0` — this alone prevents most conditional-rendering bugs. When it gets complex, don't force it into the JSX; split it into a variable beforehand.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **A `0` shows up on the screen** … the left of `&&` is a number (like `length`). Make it a boolean with `> 0` or `!!`.
+- **Neither shows / both show** … check that the condition of `? :` and the two sides of `:` (when-true / when-false) aren't swapped.
+- **An error when you write `if`** … you can't write an `if` statement inside JSX. Use `? :` or `&&`, or split it into a variable beforehand.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Make the left of && a boolean like count > 0, as in {count > 0 && <Cart />}. Left as count, a 0 leaks onto the screen when it's 0.">
+
+You wrote `{count && <Cart />}`, and a `0` shows up on the screen when `count` is `0`. How do you fix it?
+
+</Exercise>
+
+<SummaryBox>
+
+- Either/or is `{condition ? A : B}`; show one side only with `{condition && thing to show}`
+- You can't write an `if` statement inside JSX. Branch with `? :` and `&&` that return a value
+- When the left of `&&` is a number, a `0` leaks onto the screen. Make it a boolean with `> 0` or `!!`
+
+</SummaryBox>

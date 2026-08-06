@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { strings } from '@/config/strings.ja'
+import { useStrings } from '@/hooks/useLocale'
 
 import styles from './style.module.scss'
 
@@ -10,6 +10,7 @@ import styles from './style.module.scss'
  * in a minute. The author writes the note + a ```text file tree as children.
  */
 export function PartIntro({ title, children }: { title?: string; children: ReactNode }) {
+  const strings = useStrings()
   return (
     <aside className={styles.partIntro}>
       <p className={styles.partIntroHead}>

@@ -1,0 +1,117 @@
+---
+title: motion basics
+minutes: 9
+slug: motion-basics
+section: framer-motion
+description: "motion.div with initial / animate / transition. Animate gently from a starting state to a target state on mount. Plus the difference between spring and duration."
+level: beginner
+prerequisites: ['libraries/framer-motion/goal']
+---
+
+<LearnBox>
+
+- `motion.div` is "a div that can animate"
+- `initial` (start) → `animate` (target state) makes it move on mount
+- `transition` decides how it moves (`spring` and `duration`)
+
+</LearnBox>
+
+## motion.div is "a div that can animate" {#motion-div}
+
+With `motion`, you can write **`<motion.div>`** in place of `<div>`. It looks like an ordinary `div`, but it can accept **animation props** like `initial` and `animate`.
+
+```tsx
+import { motion } from 'motion/react'
+
+;<motion.div>This is a div you can animate</motion.div>
+```
+
+It's not just `div` — you can put `motion.` on any tag: `motion.ul`, `motion.li`, `motion.button`, and so on.
+
+## initial → animate to "appear" {#initial-animate}
+
+The most basic "fade in gently on mount" is built from two things: `initial` (the starting state) and `animate` (the target state).
+
+```tsx
+<motion.div
+  initial={{ opacity: 0, y: 16 }} // start: transparent, slightly lower
+  animate={{ opacity: 1, y: 0 }} // target: opaque, in place
+  transition={{ duration: 0.4 }} // over 0.4 seconds
+>
+  Product card
+</motion.div>
+```
+
+- **`initial`** … the state at the moment it starts showing (transparent, slightly lower).
+- **`animate`** … where it **automatically moves to** from there (opaque, in place).
+- **`transition`** … how it moves (duration and type).
+
+`opacity: 0 → 1` gives the "fade in," and `y: 16 → 0` gives "from below to above." Together they make "fade up from below." The cards you saw at the start of this Framer Motion part are just several of these lined up.
+
+## transition: spring and duration {#transition}
+
+`transition` changes the "texture" of the movement. Here are the two you'll use most.
+
+```tsx
+transition={{ duration: 0.4 }}                          // moves at a steady pace for 0.4 seconds
+transition={{ type: 'spring', stiffness: 300, damping: 24 }} // springs, with a little bounce
+```
+
+- **`duration`** … moves for a set amount of time, roughly at a constant speed. Straightforward.
+- **`spring`** … spring physics. Adjust the bounce with `stiffness` and `damping`. **For UI, spring tends to feel more natural.**
+
+<JsNote feature="animate is an instruction to 'move to there'">
+
+`animate={{ opacity: 1 }}` doesn't mean "**set** opacity to 1" — it means "**keep moving until** it reaches 1." It moves from the `initial` value to the `animate` value, in the way `transition` decides. Change the value and it moves toward that new value again.
+
+</JsNote>
+
+## Recipe catalog: basic movements {#catalog}
+
+```tsx
+// fade in
+<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} />
+
+// come in from below
+<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} />
+
+// come in while scaling up a little
+<motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} />
+
+// natural with spring
+<motion.div
+  initial={{ y: 20 }}
+  animate={{ y: 0 }}
+  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+/>
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Writing initial/animate on a plain <div>"
+  good="Make it a <motion.div> (add the motion. prefix)"
+  note="Only motion elements can receive animation props. A plain div ignores them."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Nothing moves** … check that the tag is `<motion.div>` (with the `motion.` prefix).
+- **Janky / unnatural** … switching `transition` to `spring` makes it feel more natural. Tune it with `stiffness` / `damping`.
+- **Can't import `motion`** … it's `import { motion } from 'motion/react'` (not just `motion`).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Put initial={{ opacity: 0, y: 20 }} and animate={{ opacity: 1, y: 0 }} on a <motion.div>. initial is the start (transparent, lower), animate is the target (opaque, in place), and transition decides how it moves — 0.4 seconds, for example.">
+
+To make an element "fade up from below, transparent → opaque," what props do you put on a `<motion.div>`?
+
+</Exercise>
+
+<SummaryBox>
+
+- `<motion.div>` is "a div that can animate." You can add `motion.` to other tags like `motion.ul` too
+- `initial` (start) → `animate` (target state) makes it move on mount
+- `transition` is either `duration` (constant speed) or `spring` (natural bounce). UI suits spring
+
+</SummaryBox>

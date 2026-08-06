@@ -1,0 +1,181 @@
+---
+title: Reading the generated files one by one
+minutes: 10
+slug: setup-generated-files
+section: setup
+description: "Open each file Vite created and learn its role. index.html / main.tsx / App.tsx / the config files."
+level: beginner
+prerequisites: ['setup/npm-run-dev']
+---
+
+<LearnBox>
+
+- The role of each file Vite created
+- The 'how a screen appears' flow: HTML → main.tsx → App.tsx
+- The difference between `public` and `src/assets`, and how the config files divide the work
+
+</LearnBox>
+
+'A pile of unfamiliar files' is a big reason React feels scary. Here we'll open them one by one and find out what they really are. You don't need to understand all of it right now. It's enough to know **which file is in charge of what**.
+
+## The big picture {#tree}
+
+Looking at the explorer, it's roughly like this (`node_modules` omitted).
+
+```
+my-shop/
+├─ index.html          ← The only HTML. This is the entry point
+├─ package.json        ← Shopping list + command collection
+├─ package-lock.json   ← Record of the exact versions installed
+├─ vite.config.ts      ← Vite config
+├─ tsconfig.json       ← TypeScript config (the coordinator)
+├─ tsconfig.app.json   ← TS config for src
+├─ tsconfig.node.json  ← TS config for config files
+├─ .gitignore          ← List of things not included in git
+├─ .oxlintrc.json      ← Auto-check config
+├─ public/             ← Files served as-is
+└─ src/                ← Where you write your own code
+   ├─ main.tsx         ← The startup entry point
+   ├─ App.tsx          ← The first component (sample)
+   ├─ App.css
+   ├─ index.css
+   └─ assets/          ← Images etc. you import and use
+```
+
+## index.html — the entry point {#index-html}
+
+It may surprise you, but even with React, **the entry point is a single HTML file**. Let's open it.
+
+```html title="index.html"
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>reftest</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+```
+
+Focus on just the 2 lines inside `<body>`. `<div id="root"></div>` is an **empty box**. React draws the screen inside this box. And `<script type="module" src="/src/main.tsx">` loads the next file, `main.tsx`.
+
+<Callout type="analogy">
+
+With an LP, you wrote the content directly inside the HTML. React's HTML **just places one empty box**, and the contents are poured in later by JavaScript (`main.tsx`). This is where you flip your thinking.
+
+</Callout>
+
+## src/main.tsx — the startup entry point {#main}
+
+`main.tsx` is the first move that starts React. It's short even in full, so let's look at the whole thing.
+
+```tsx title="src/main.tsx"
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+```
+
+Reading it, here's what happens. `document.getElementById('root')` finds that **empty box** from before, and `createRoot(...).render(...)` draws `<App />` inside it. `<App />` is your app itself, which we'll look at next. `StrictMode` is a wrapper that makes development-time checks stricter — don't worry about it for now.
+
+## src/App.tsx — the first component {#app}
+
+`App.tsx` is what that sample screen really was. The App.tsx that create-vite generates is **fairly long** (an intro page dressed up with logos and links), so here we'll pull out just the skeleton.
+
+```tsx title="src/App.tsx (skeleton)"
+import { useState } from 'react'
+import './App.css'
+
+function App() {
+  const [count, setCount] = useState(0)
+
+  return (
+    <>
+      <h1>Get started</h1>
+      <button onClick={() => setCount((count) => count + 1)}>
+        Count is {count}
+      </button>
+      {/* …the logo and link decorations continue below… */}
+    </>
+  )
+}
+
+export default App
+```
+
+This is a '**component**'. The function `function App()` returns the appearance (the JSX inside `return`). The reason the number went up when you pressed that button is the work of this `useState` and `onClick`. We'll cover the mechanics thoroughly in a later part. **We'll delete this whole file on a later page and start from a blank slate.**
+
+## vite.config.ts — Vite's config {#vite-config}
+
+This is Vite's config file. It's short too.
+
+```ts title="vite.config.ts"
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+})
+```
+
+The single line `plugins: [react()]` is the declaration 'this project uses React'. We won't touch it further for now. We'll come back here later when we add things like the SCSS alias in a later part.
+
+## The scripts in package.json {#scripts}
+
+The `scripts` inside `package.json` are the list of commands you can run with `npm run xx`.
+
+```json title="package.json (scripts section)"
+"scripts": {
+  "dev": "vite",
+  "build": "tsc -b && vite build",
+  "lint": "oxlint",
+  "preview": "vite preview"
+}
+```
+
+- `npm run dev` … start the dev server (you'll use this all the time)
+- `npm run build` … write out the production files (when publishing)
+- `npm run lint` … auto-check the code (a tool called `oxlint`; we'll cover it in a later part)
+- `npm run preview` … display the build result for checking
+
+## The three tsconfigs {#tsconfig}
+
+The TypeScript config is split across 3 files. Their roles are these.
+
+- **`tsconfig.json`** … the coordinator. Its contents are nearly empty; it just bundles the two below.
+- **`tsconfig.app.json`** … config for inside `src` (the app code you write).
+- **`tsconfig.node.json`** … TS config for the config-file side, like `vite.config.ts`.
+
+For now it's enough to just know 'it's split into one for the app and one for the config files'. We'll touch the contents later when we need them.
+
+## The difference between public and src/assets {#public-assets}
+
+There are 2 places to put images and the like, and this is easy to get confused about, so let's nail it down.
+
+- **`public/`** … its contents are **served at the URL as-is**. `public/favicon.svg` is accessible at `/favicon.svg`. Put things you 'don't want processed', like a favicon or `robots.txt`, here.
+- **`src/assets/`** … put images and the like that you **`import` and use** from your code. They get optimized — for example, a hash is added to the file name at build time. Images used inside components basically go here.
+
+## .gitignore and .oxlintrc.json {#others}
+
+- **`.gitignore`** … the list of things not included in git. `node_modules` and `dist` (the build output) are listed from the start.
+- **`.oxlintrc.json`** … the config the `npm run lint` auto-check uses. create-vite 9 installs this new checker called **oxlint** by default. However, **our standard is ESLint + Prettier**, so in Part 4 'How code quality works' we'll replace oxlint with ESLint (we'll explain why there too). We won't touch it as-is for now.
+
+<SummaryBox>
+
+- The flow that puts a screen on show is **index.html (the empty box) → main.tsx (draws into the box) → App.tsx (the contents)**
+- `vite.config.ts` is Vite's config, and `package.json`'s scripts are the collection of commands you run with `npm run`
+- For images, choose between 'served-as-is `public`' and 'import-and-use `src/assets`'
+
+</SummaryBox>

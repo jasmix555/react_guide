@@ -1,0 +1,101 @@
+---
+title: Adding features with modules (arrows, dots, autoplay)
+minutes: 9
+slug: swiper-modules
+section: swiper
+description: "Swiper modules. Navigation for arrows, Pagination for dots, Autoplay for auto-advance, A11y for accessibility. Pass them to modules and add the CSS. Turn off autoplay for reduced-motion."
+level: beginner
+prerequisites: ['libraries/swiper/basics']
+---
+
+import { SwiperCarousel } from '@/demos/SwiperCarousel'
+
+<LearnBox>
+
+- You add features with **modules** (pass them to `modules` + add the CSS)
+- Navigation (arrows), Pagination (dots), Autoplay (auto-advance), A11y (accessibility)
+- Turn autoplay off when the "reduce motion" setting is on
+
+</LearnBox>
+
+## How to add a module {#how}
+
+Swiper ships with only the basic gestures built in, and **you enable arrows, dots, autoplay, and so on by adding "modules"**. There are two steps.
+
+1. Import the modules you want from `swiper/modules`, and pass them to `Swiper`'s `modules` as an array.
+2. Depending on the module, also load its **dedicated CSS** (arrows and dots have an appearance).
+
+```tsx
+import { Navigation, Pagination, Autoplay, A11y } from 'swiper/modules'
+
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
+```
+
+```tsx
+<Swiper modules={[Navigation, Pagination, Autoplay, A11y]}>
+  {/* lay out the SwiperSlides */}
+</Swiper>
+```
+
+<Callout type="mistake" title="Forgetting a module's CSS">
+
+Even if you pass it to `modules`, **the appearance won't show unless you load that CSS**. When arrows don't appear or the dots look wrong, check that you loaded `swiper/css/navigation` or `swiper/css/pagination`. Autoplay and A11y have no dedicated CSS.
+
+</Callout>
+
+## Arrows, dots, autoplay {#options}
+
+Once you've passed the modules, you fine-tune them with the matching props.
+
+- **Navigation (arrows)** … just add `navigation` and the left/right arrows appear.
+- **Pagination (dots)** … `pagination={{ clickable: true }}` puts dots underneath. With `clickable` you can tap a dot to jump to it.
+- **Autoplay (auto-advance)** … `autoplay={{ delay: 2600 }}` advances every 2.6 seconds. Add `disableOnInteraction: false` to keep autoplaying even after the user touches it.
+- **A11y (accessibility)** … just pass it to `modules` and it adds labels and such for screen readers.
+
+```tsx
+<Swiper
+  modules={[Navigation, Pagination, Autoplay, A11y]}
+  navigation
+  pagination={{ clickable: true }}
+  autoplay={{ delay: 2600, disableOnInteraction: false }}
+>
+  {/* lay out the SwiperSlides */}
+</Swiper>
+```
+
+## Autoplay should respect reduced-motion {#reduce}
+
+Autoplay is motion that "moves on its own," so **turning it off for people who set "reduce motion"** is the considerate thing to do. You can use the same [`useReducedMotion` we used with Framer Motion](/libraries/framer-motion/reduced-motion) as-is. If the reduce setting is on, set `autoplay` to `false`.
+
+```tsx
+import { useReducedMotion } from 'motion/react'
+
+const reduce = useReducedMotion()
+
+// ↓ switch it via Swiper's props
+// autoplay={reduce ? false : { delay: 2600, disableOnInteraction: false }}
+```
+
+<Callout type="note" title="Remove only the motion, keep the controls">
+
+Even with autoplay off, the arrows and swipe gestures still work. **Keep the information and controls, remove only the extra motion** — the same principle as GSAP and Framer Motion.
+
+</Callout>
+
+## The movement with modules included {#demo}
+
+Put in arrows, dots, autoplay, and responsiveness all together and you get this (we read the full code on the [next page](/libraries/swiper/project)).
+
+<Demo title="The product carousel with modules included">
+  <SwiperCarousel />
+</Demo>
+
+<SummaryBox>
+
+- Import features from `swiper/modules`, pass them to `modules={[...]}`, and add the CSS they need
+- `navigation` (arrows) / `pagination={{ clickable: true }}` (dots) / `autoplay` (auto-advance) / A11y (accessibility)
+- For autoplay, use `useReducedMotion` and set it to `false` when the reduce setting is on
+
+</SummaryBox>

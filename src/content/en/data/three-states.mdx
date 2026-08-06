@@ -1,0 +1,140 @@
+---
+title: "The three states: loading, error, success"
+minutes: 10
+slug: three-states
+section: data
+description: "Hold the three states (loading / error / success) in state. The standard shape: a union-typed status plus try/catch, all the way to switching what the screen shows."
+level: beginner
+prerequisites: ['data/useeffect-fetch']
+---
+
+<LearnBox>
+
+- Represent a request's "loading / error / success" in state
+- Hold `status` as a union type (`'loading' | 'error' | 'success'`)
+- Bundle everything with `try` / `catch`, then switch what you show on screen
+
+</LearnBox>
+
+## Why you need three states {#why}
+
+A request "takes time" and "can fail," so the screen shows something different at each moment.
+
+- **Loading** … while you wait for the response.
+- **Error** … when the network or server fails.
+- **Success** … when the data arrives.
+
+We represent these three with a single value called `status`. Since it's always "exactly one of them," a [union type](/guide/typescript/union-literal) is a perfect fit.
+
+```tsx
+const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading')
+const [products, setProducts] = useState<Product[]>([])
+```
+
+`status` starts as `'loading'`. Set it to `'success'` once the data arrives, or `'error'` if it fails. The data itself lives in a separate state (`products`).
+
+## Bundle it with try / catch {#try-catch}
+
+Make the fetch an `async` function, and use `try` / `catch` to route it: "on success, go to success; on failure, go to error." Put it inside `useEffect`.
+
+```tsx title="The whole fetch, at a glance"
+useEffect(() => {
+  let ignore = false
+
+  async function load() {
+    try {
+      const res = await fetch('/products.json')
+      if (!res.ok) throw new Error() // treat 404/500 as failures too
+      const data = await res.json()
+      if (!ignore) {
+        setProducts(data)
+        setStatus('success')
+      }
+    } catch {
+      if (!ignore) setStatus('error') // network, res.ok, or .json() — any trip-up lands here
+    }
+  }
+
+  load()
+  return () => {
+    ignore = true
+  }
+}, [])
+```
+
+If even one thing inside `try` fails (`throw`s), you jump to `catch` and end up at `'error'`. A failed `fetch`, the `res.ok` `throw`, and a failed `.json()` are **all caught together in one place**.
+
+## Switch what you show on screen {#render}
+
+Look at `status` and switch what you render. Returning `loading` and `error` first, then drawing the success content last, is the easiest form to read.
+
+```tsx title="Rendering"
+if (status === 'loading') {
+  return <p>Loading…</p>
+}
+if (status === 'error') {
+  return <p>Failed to load</p>
+}
+// if we got here, it's success
+return (
+  <ul>
+    {products.map((p) => (
+      <li key={p.id}>{p.name}</li>
+    ))}
+  </ul>
+)
+```
+
+<JsNote feature="Making status a union stops typos">
+
+If you keep `status` as the union `'loading' | 'error' | 'success'`, then `setStatus('sucess')` (a typo) is stopped by a type error. With a plain `string` it slips right through, and you're left puzzling over "why won't the success screen show up?"
+
+</JsNote>
+
+## Break it on purpose: don't show loading {#break}
+
+Let's delete the `status === 'loading'` branch.
+
+```tsx title="Break it on purpose: don't show loading"
+// if (status === 'loading') return <p>Loading…</p>  ← delete this
+if (status === 'error') return <p>Failed</p>
+return <ul>{products.map(/* ... */)}</ul>
+```
+
+While the fetch is in flight, `products` is still an empty array, so for a moment you see **nothing (an empty list)**, and then the data pops in once it arrives. To the user this looks like a flicker: "empty for a beat → suddenly there." Put the `loading` branch back and "Loading…" appears, letting them know something is happening.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Typing status as string"
+  good="Making status the union 'loading' | 'error' | 'success'"
+  note="With string, the typo 'sucess' slips through. With a union, it's stopped before it ever runs."
+/>
+
+<Diff
+  bad="Writing only the success display and forgetting loading and error"
+  good="Always switch between all three: loading → error → success"
+  note="A request waits and can fail. Without all three states you get a blank screen or a flicker."
+/>
+
+## When it doesn't work {#trouble}
+
+- **You briefly see nothing, then the data appears** … you forgot to write the `loading` branch.
+- **Nothing shows up when it fails** … call `setStatus('error')` in `catch`, and write the `error` branch.
+- **The success screen won't appear** … check the spelling of `setStatus('success')` and the union type on `status`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Hold status as the union 'loading' | 'error' | 'success', and use useEffect + try/catch to set success on success and error on failure. On screen, switch in the order if (status === 'loading') → if (status === 'error') → the success content.">
+
+To handle a request's three states, how do you hold `status` and how do you switch what the screen shows? Explain the flow.
+
+</Exercise>
+
+<SummaryBox>
+
+- A request has three states (loading, error, success). Hold one `status` as a union type
+- Inside `useEffect`, use `try` / `catch`. Go to `'success'` on success; wherever it trips up, `catch` sends it to `'error'`
+- On screen, switch in the order `loading` → `error` → the success content
+
+</SummaryBox>

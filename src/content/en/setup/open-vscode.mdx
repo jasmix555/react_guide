@@ -1,0 +1,66 @@
+---
+title: Open it in VS Code
+minutes: 5
+slug: setup-open-vscode
+section: setup
+description: "Open the project folder you created in VS Code and get a feel for where everything is on screen."
+level: beginner
+prerequisites: ['setup/create-vite']
+---
+
+<LearnBox>
+
+- Open the project folder you created in VS Code
+- The roles of the left explorer, the center editor, and the bottom terminal
+- Get the terminal into the state of being "inside the project"
+
+</LearnBox>
+
+The project folder is ready. Next, we get it into a state where you can **open it in an editor and see its contents.** For the editor we use **VS Code.** It is free and the standard choice for React development.
+
+## Install VS Code {#install}
+
+If you do not have it yet, download and install it from [code.visualstudio.com](https://code.visualstudio.com). You can leave every screen at its defaults as you go.
+
+## Open the folder {#open}
+
+Once VS Code starts, choose **File → Open Folder** from the top menu, then select and open the `my-shop` folder you just created.
+
+<Callout type="note">
+
+It is "**Open Folder**," not "Open File." A React project is a collection of many files, so the basic move is to open the **whole folder** rather than a single file. If you are asked "Do you trust the authors?", choose "Trust" (it is a folder you created yourself, so it is safe).
+
+</Callout>
+
+## How to read the screen {#layout}
+
+The VS Code screen is broadly divided into three areas.
+
+- **Left: the explorer** … A list of the project's files. You will see things like `src` and `package.json` lined up.
+- **Center: the editor** … When you click a file, its contents open here so you can edit them.
+- **Bottom: the terminal** … Where you type commands (the integrated terminal we touched on the previous page).
+
+<Callout type="analogy">
+
+The explorer on the left is the same thing as the folder tree in Explorer / Finder. Think of VS Code as having file management, an editor, and a terminal all inside it.
+
+</Callout>
+
+## Open the terminal inside the project {#terminal-here}
+
+This is quietly important. When you open **Terminal → New Terminal** from the top menu, VS Code opens the terminal **inside the folder you currently have open.** If the path at the start of the line ends with your project name, like `...\my-shop>`, you have it right.
+
+In this state, you can run the next page's `npm install` in the "right place." When you open a standalone PowerShell it is often in a different location, and you have to enter the folder yourself with `cd my-shop`, so **VS Code's integrated terminal is the reliable, easy choice.**
+
+## When things do not go well {#trouble}
+
+- **The terminal path does not end with `my-shop`** … You have a different folder open. Reopen `my-shop` with "Open Folder."
+- **You want to use the `code` command in the terminal but it does not work** … In VS Code's command palette (`Ctrl` + `Shift` + `P`), search for "shell command" and run "Install 'code' command in PATH," and it will start working (optional).
+
+<SummaryBox>
+
+- In VS Code, open `my-shop` via "Open Folder" (the whole folder, not a single file)
+- Left = file list, center = editor, bottom = terminal
+- Open the terminal inside the project. If the start of the line reads `...\my-shop>`, you are in the right place
+
+</SummaryBox>

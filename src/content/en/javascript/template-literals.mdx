@@ -1,0 +1,175 @@
+---
+title: Template literals
+minutes: 6
+slug: template-literals
+section: javascript
+description: "How to embed variables inside a string. Backticks, and the expansion mistake that happens with ordinary quotes."
+level: beginner
+prerequisites: ['javascript/arrow-functions']
+---
+
+<LearnBox>
+
+- How to drop variables into a string (`` `...${value}...` ``)
+- The difference from joining with `+`
+- What happens when you forget to use backticks
+
+</LearnBox>
+
+## Why give up on + concatenation {#why}
+
+Situations where you "want to mix a variable into a string, like `Mr. So-and-so`" come up all the time. Until now you may have been joining with `+`.
+
+```js
+const name = 'Sato'
+const message = 'Hello, ' + name + '!'
+```
+
+The more variables there are, the harder `+` joining gets to read, with quotes and `+` all tangled together. With a **template literal**, you can write this looking just as it reads.
+
+<Callout type="analogy">
+
+It's the same feeling as a PHP double-quoted string `"Hello, $name!"` where the variable expanded directly. In JavaScript, we use a special kind of quote for this: the **backtick**.
+
+</Callout>
+
+## Backticks and `${}` {#syntax}
+
+If you wrap a string in **backticks `` ` ``** (top-left of the keyboard, near `Shift` + `@`), you can drop values in with the `` ${variable} `` form.
+
+```js
+const name = 'Sato'
+const message = `Hello, ${name}!`
+
+console.log(message) // Hello, Sato!
+```
+
+Let's break this style into parts and name them.
+
+```js
+   `${name}!`
+// ↑ ↑
+// │ └─ ${ } is the "insertion slot." The name inside gets replaced by its value
+// └─ backtick. Wrapping with this is what makes ${ } expand
+```
+
+- **`` ` `` (backtick)** … the string wrapper. `${ }` expands only when wrapped with this
+- **`${ }`** … the insertion slot. Write a variable or expression inside and it's replaced by that value
+- **`!`** … plain text can just be written inline, as-is
+
+The `` ${name} `` part gets replaced by the contents of `name` (`'Sato'`). No `+` and no switching quotes needed.
+
+<JsNote feature="backticks and ${} go together">
+
+With ordinary quotes `'...'` or `"..."`, `` ${...} `` is treated as **just characters** and doesn't expand. When you want to drop in a value, always wrap it in **backticks `` `...` ``**. Inside `` ${...} `` you can write not only variables but also expressions, like `` ${price * 1.1} ``.
+
+</JsNote>
+
+## You can write line breaks as-is {#multiline}
+
+Inside backticks, you can write line breaks as-is too. There's no need to write `\n`.
+
+```js
+const name = 'Sato'
+const text = `Hello, ${name}.
+Thank you for visiting us today.`
+```
+
+The line breaks appear exactly as you wrote them.
+
+## Break it on purpose: ordinary quotes don't expand {#break-wrong-quote}
+
+The most common mistake is **using ordinary quotes when you meant backticks**. Let's compare them in the console.
+
+```js
+const name = 'Sato'
+
+console.log('Hello, ${name}!')
+// → Hello, ${name}!   ← comes out literally
+
+console.log(`Hello, ${name}!`)
+// → Hello, Sato!      ← expands properly
+```
+
+The top one uses single quotes, so `` ${name} `` is shown **literally as characters**. No error appears, but `${name}` shows up on screen and you end up puzzling over "why isn't the variable showing?" **If `${...}` shows up literally on screen, the very first thing to check is whether the quotes are backticks.**
+
+<Together
+  task="From a product name name and a price price, create and display a string like 'Tomato: 320 yen'. Add 'yen' after the number too."
+  hint="Wrap it in backticks and drop name and price in with ${}."
+>
+
+```js
+const name = 'Tomato'
+const price = 320
+
+console.log(`${name}: ${price} yen`)
+// → Tomato: 320 yen
+```
+
+Here we drop `` ${name} `` and `` ${price} `` into two spots in one string. Fixed text like `yen` can just be written inline as literal text.
+
+</Together>
+
+## Syntax catalog: various insertions {#catalog}
+
+Inside `${ }` you can write not just variables but expressions too. Here are the common forms.
+
+```js
+const name = 'Sato'
+const price = 320
+
+`Hello, ${name}!`                          // drop in a variable
+`Total: ${price * 1.1} yen`                // expressions work too (the result goes in)
+`${name}: ${price} yen`                    // multiple insertions
+`Stock: ${price > 0 ? 'yes' : 'no'}`       // a ternary works too
+`line 1
+line 2`                                    // line breaks can be written as-is
+```
+
+Its strength is that you can write "literal text" and "the value to drop in" in the order you see them. It causes fewer misreads than `+` joining.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="'Total: ' + price + ' yen'"
+  good="`Total: ${price} yen`"
+  note="Joining with + is hard to read. With backticks, line up literal text and variables directly."
+/>
+
+<Diff
+  bad="'Hello, ${name}' (single quotes)"
+  good="`Hello, ${name}` (backticks)"
+  note="If you want ${} to expand, wrap with backticks. With ordinary quotes it comes out as literal text."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="When mixing values into a string, use a template literal rather than + concatenation"
+  alt="A plain fixed string that contains no values at all can stay in single quotes '...' as before."
+>
+
+The form `` `Hello, ${name}!` `` shows the arrangement of literal text and values directly to your eye, so misreads go down. It's used a lot when putting text on screen in React too.
+
+</Std>
+
+## When things don't work {#trouble}
+
+- **`${name}` shows up on screen literally** … the wrapper is a single/double quote. Change it to a backtick.
+- **You can't type a backtick** … it usually sits in the top-left corner of the keyboard (the same key as `~`), pressed without `Shift`. The exact spot depends on your keyboard layout — if you can't find it, search for how to type a backtick on your OS.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Wrap it in backticks and drop the two spots in with ${}, like `${product.name} has ${product.stock} in stock`.">
+
+From a product object `product` (which has `name` and `stock`), how would you write it to create a sentence like "Tomato has 12 in stock"?
+
+</Exercise>
+
+<SummaryBox>
+
+- When mixing values into a string, wrap it in backticks `` `...` `` and drop values in with `` ${value} ``
+- Inside `` ${...} `` you can write expressions too. Line breaks can be written as-is
+- If `${...}` shows up on screen literally, suspect that the wrapper isn't a backtick
+
+</SummaryBox>

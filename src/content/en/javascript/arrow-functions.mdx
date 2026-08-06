@@ -1,0 +1,205 @@
+---
+title: Arrow functions
+minutes: 8
+slug: arrow-functions
+section: javascript
+description: "The function style you'll see most in React. Rewriting from function, and the missing return when you add curly braces."
+level: beginner
+prerequisites: ['javascript/const-let']
+---
+
+<LearnBox>
+
+- How `function` maps to the arrow function `() => {}`
+- When there's one argument, and when you can omit `return`
+- The gotcha that adding curly braces `{}` means you need a `return`
+
+</LearnBox>
+
+## Why learn arrow functions {#why}
+
+In React code, there are a lot of situations where you "write a small function right there on the spot." What happens when a button is pressed, what to do for each element in a list—to write these small functions short, we use the **arrow function** style. The contents are the same `function` you've been writing so far; it just looks shorter.
+
+First, let's write the same thing two ways and line them up.
+
+```js
+// the function you've used so far
+function double(n) {
+  return n * 2
+}
+
+// arrow function (same meaning)
+const double = (n) => {
+  return n * 2
+}
+```
+
+They do the same thing. `function double(...)` just changed into `const double = (...) => ...`. The word `function` disappeared, and a `=>` (arrow) got added after the arguments.
+
+Let's break down one line of an arrow function into parts and name them.
+
+```js
+const add = (a, b) => a + b
+//    ↑     ↑        ↑  ↑
+//    │     │        │  └─ the body. The result of this expression becomes the return value as-is
+//    │     │        └─ => the arrow. Arguments on the left, contents on the right
+//    │     └─ the argument list. Wrap two or more in ( )
+//    └─ the function's name (put into const so you can carry it around)
+```
+
+- **`add`** … the function's name. Put into `const` to carry it around
+- **`(a, b)`** … the argument list. The values it receives. Use `()` for zero, and you can omit `()` for one
+- **`=>`** … the arrow. Arguments on the left, contents on the right
+- **`a + b`** … the body. Since there are no curly braces, the result of this expression **becomes the return value as-is**
+
+<JsNote feature="() => {} is an arrow function">
+
+`() => {}` means "a function that receives arguments `()` and does the work inside `{}`." The left of `=>` is the arguments, the right is the contents. When you want to name it, put it into `const` like `const double = () => {}`.
+
+</JsNote>
+
+## Step 1: with one argument you can omit the parentheses {#one-arg}
+
+When there's just one argument, you can omit the parentheses `()` around it.
+
+```js
+const double = (n) => {
+  return n * 2
+}
+
+// with one argument you can omit ()
+const double2 = n => {
+  return n * 2
+}
+```
+
+Both are the same. In React code you'll often see the omitted form. But when there are zero or two-or-more arguments, `()` is required (`() =>`, `(a, b) =>`).
+
+## Step 2: for one line you can omit return and the curly braces too {#implicit-return}
+
+If the body is just "return one value," you can omit both `{}` and `return` and write it even shorter.
+
+```js
+// with the curly braces and return omitted
+const double = n => n * 2
+
+console.log(double(5)) // 10
+```
+
+`n => n * 2` means "receive `n` and return `n * 2`." When there are no `{}`, the expression on the right of `=>` **becomes the return value as-is**. This short form takes the leading role when you use `map` in React and such.
+
+## Break it on purpose: adding curly braces means you need return {#break-missing-return}
+
+This is the one people trip on most. **If you add curly braces `{}` but forget to write `return`**, no error appears yet `undefined` is returned. Let's try it in the console.
+
+```js
+const double = n => {
+  n * 2 // return is not written
+}
+
+console.log(double(5)) // undefined
+```
+
+You expected `10` but got `undefined`. No error appears either. Here's why: when you write `{}` after `=>`, it becomes the signal "I'm going to write statements from here," and to return a value **you need a `return`**. It only computed `n * 2` without returning it, so it became `undefined`.
+
+There are two ways to fix it: remove the curly braces and make it one line, or add a `return`.
+
+```js
+const double = n => n * 2 // remove the curly braces (returns automatically)
+// or
+const double = n => {
+  return n * 2 // if you keep the curly braces, write a return
+}
+```
+
+<Callout type="warn">
+
+When "you wrote a function but it becomes `undefined`," first suspect that you **forgot to write `return` inside the curly braces**. Because no error appears, this is a classic bug that's hard to notice.
+
+</Callout>
+
+<Together
+  task="Write an arrow function withTax that receives a product's price and returns the tax-included price (1.1x), in the shortest form—without curly braces or return."
+  hint="One argument, one line that just returns. It's the form const withTax = price => ..."
+>
+
+```js
+const withTax = price => price * 1.1
+
+console.log(withTax(1000)) // 1100.0000000000002
+```
+
+`price => price * 1.1` multiplies the received price by 1.1 and returns it. No curly braces or `return` needed. (The tiny fractional bit like `1100.0000...` is the fate of decimal math; we round it when displaying. We'll cover this in a later part.)
+
+</Together>
+
+## Syntax catalog: the various forms of arrow functions {#catalog}
+
+The way you write it changes with the number of arguments and whether it "just returns" or "has more statements." Here are the forms you'll see often.
+
+```js
+const hello = () => 'hi'              // no arguments → () is required
+const double = n => n * 2             // one argument → () can be omitted
+const add = (a, b) => a + b           // two or more arguments → wrap in ()
+const withTax = price => price * 1.1  // just returns → {} and return can be omitted
+const log = (msg) => {                // multiple statements → wrap in {}
+  console.log(msg)
+  return msg                          // if you add {}, you need a return
+}
+```
+
+"A one-liner that just returns" omits both curly braces and `return`; "multiple statements" uses curly braces plus `return`—get these two down and you can read almost every form that shows up in React.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="const f = n => { n * 2 }"
+  good="const f = n => n * 2"
+  note="If you add curly braces, you need a return. If it just returns, removing the curly braces altogether is the natural move."
+/>
+
+<Diff
+  bad="const add = a, b => a + b"
+  good="const add = (a, b) => a + b"
+  note="With two or more arguments, wrap them in (). You can only omit them with a single argument."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Unify named functions as arrow functions too (const name = () => …)"
+  alt="For things like a component placed at the outermost level of a file, where you want hoisting (the ability to use it before it's written), function declarations are also used. When in doubt, it's fine to line everything up as arrows."
+>
+
+Arrow functions are the mainstream in React code. Settling on one style means you don't hesitate when reading. Decide that "a one-liner that just returns" omits the curly braces and `return`, and "multiple statements" uses curly braces plus `return`.
+
+</Std>
+
+## For those who want to know more {#deeper}
+
+<Deeper title="About this (you don't need to worry about it now)">
+
+Arrow functions have the property that they "don't rebuild `this` themselves," which removes the need for the old jQuery workaround of writing `var self = this`. But function components in React barely use `this`, so **for now it's enough to just remember "arrow functions are straightforward about `this`."** Come back when you need it.
+
+</Deeper>
+
+## When things don't work {#trouble}
+
+- **The function's result is `undefined`** … you forgot to write `return` inside the curly braces `{}`. Make it one line or add `return`.
+- **Syntax errors like `Unexpected token`** … first check things like: two or more arguments not wrapped in `()`, or `=>` mistyped as `->` or `=<`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write const isCheap = price => price < 1000. It receives price and just returns true / false for whether it's under 1000, so no curly braces or return are needed.">
+
+Write an arrow function `isCheap` that receives a price `price` and returns "whether it's under 1000 yen," in the shortest form.
+
+</Exercise>
+
+<SummaryBox>
+
+- An arrow function is the short way to write `function`. It's the form `const name = (args) => body`
+- With one argument you can omit `()`; for a one-liner that just returns you can omit `{}` and `return`
+- If you add curly braces `{}` you need a `return`. Forget it and `undefined` is returned (no error appears)
+
+</SummaryBox>

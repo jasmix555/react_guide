@@ -1,12 +1,15 @@
 import { useState } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './CopyButton.module.scss'
 
 /**
- * navigator.clipboard.writeText でコピーし、1.5 秒だけ「コピーしました」に変える。
- * 表示の切り替えは copied という boolean の state 1 つで足りる。
+ * Copies with navigator.clipboard.writeText and switches to "Copied" for just 1.5 seconds.
+ * A single boolean state named copied is enough to toggle the label.
  */
 export function CopyButton({ text }: { text: string }) {
+  const en = useLocale() === 'en'
   const [copied, setCopied] = useState(false)
 
   async function copy() {
@@ -17,7 +20,7 @@ export function CopyButton({ text }: { text: string }) {
 
   return (
     <button type="button" className={styles.button} onClick={copy}>
-      {copied ? 'コピーしました ✓' : 'コピー'}
+      {copied ? (en ? 'Copied ✓' : 'コピーしました ✓') : en ? 'Copy' : 'コピー'}
     </button>
   )
 }

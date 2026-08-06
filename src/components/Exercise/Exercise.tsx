@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { strings } from '@/config/strings.ja'
+import { useStrings } from '@/hooks/useLocale'
 
 import styles from './style.module.scss'
 
@@ -17,6 +17,7 @@ export function Exercise({
   children: ReactNode
   answer?: ReactNode
 }) {
+  const strings = useStrings()
   return (
     <section className={styles.exercise}>
       <p className={styles.head}>

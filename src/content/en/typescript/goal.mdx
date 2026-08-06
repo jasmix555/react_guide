@@ -1,0 +1,80 @@
+---
+title: Goal of this part
+minutes: 5
+slug: typescript-goal
+section: typescript
+description: "TypeScript for React, the systematic way. Express the 'shape' of props and data with types, and stop mistakes before you run. The goal: bundle ProductCard's props into a single Product type."
+level: beginner
+prerequisites: ['styling/summary']
+---
+
+import { ProductCardDemo } from '@/demos/ProductCard'
+
+<PartIntro>
+
+Across Parts 3–5, you've been using types little by little (`interface Props`, `variant?: 'primary' | ...`). In this part, we make that **systematic**. We'll turn "stop mistakes before you run" into something real.
+
+Your `ProductCard` looks finished, but it still takes its props one at a time.
+
+```tsx
+// Today's ProductCard: props one by one
+function ProductCard({ name, price, category, imageUrl, inStock }: ProductCardProps) { ... }
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- The big picture of the "guard with types" style you'll pick up in this part
+- A reminder that types exist to "stop mistakes before you run"
+- How this part is structured
+
+</LearnBox>
+
+## See the finished form first {#goal}
+
+The look is exactly the card from Part 5. **What changes isn't the appearance, but the safety of the code.**
+
+<Demo title="Same look. The insides are guarded by types">
+  <ProductCardDemo />
+</Demo>
+
+By the end of this part, `ProductCard`'s props won't be five scattered pieces — they'll be bundled into **a single `Product` type**.
+
+```tsx
+// Goal: props as a single Product type
+function ProductCard({ product }: { product: Product }) { ... }
+```
+
+You decide the shape a product should have (`Product`) in one place, and both props and data **get stopped with a red squiggle the moment they drift from that shape** — that's the goal of this part.
+
+## Why give "types" a whole part {#why}
+
+You saw the **value** of types back in Part 1, in ["What is TypeScript"](/guide/setup/typescript-intro) (the one where `greet(123)` gets stopped before it runs). This part gathers up the **how-to** so you learn it all at once.
+
+In React, types pay off especially in these two places:
+
+- **props** … Types decide "what does this component receive." A forgotten or wrong-typed prop is spotted instantly.
+- **data** … Types express "data with a fixed shape," like `products.json`. A mistyped property name gets stopped.
+
+Just locking down these two with types makes your code far harder to break.
+
+## How this part is structured {#roadmap}
+
+1. **Basic types** — `string`, `number`, `boolean`, and arrays. Where to lean on type inference.
+2. **interface** — Expressing the "shape" of an object.
+3. **Typing props** — `interface Props`, optional props (`?`), and `children`.
+4. **union and literal types** — "Exactly one of these," like `'primary' | 'secondary'`.
+5. **Product type and data** — Build the product shape and read `products.json` with types.
+6. **State and event types** — `useState<T>` and event types.
+7. **Capstone** — Guard `ProductCard` with the `Product` type.
+
+Every page comes with the **full code** and a **break it on purpose** section so you can watch types do their job. See the editor's red squiggle with your own eyes.
+
+<SummaryBox>
+
+- Types exist to "stop mistakes before you run." This part teaches the how-to all at once
+- In React, locking down the "shape" of props and data with types makes code far harder to break
+- The goal is to bundle `ProductCard`'s props into a single `Product` type
+
+</SummaryBox>

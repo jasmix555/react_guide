@@ -1,0 +1,182 @@
+---
+title: Objects and arrays basics
+minutes: 10
+slug: objects-arrays
+section: javascript
+description: "How to create, read, and write objects and arrays. Dot notation vs bracket notation, and nesting (an array of objects). This is the foundation for destructuring and map."
+level: beginner
+prerequisites: ['javascript/values-and-types']
+---
+
+<LearnBox>
+
+- Creating, reading, and writing objects (named) and arrays (ordered)
+- Choosing between dot notation `obj.name` and bracket notation `obj['name']`
+- Nesting (an array of objects)—the same shape as `products.json`
+
+</LearnBox>
+
+## Look things up by name, or by order {#intro}
+
+There are two big ways to bundle up data.
+
+- **Object** … bundle values with **names** attached. "Look up by name." A single product (name, price, stock), for example.
+- **Array** … line values up in **order**. "Look up by number." A list of products, for example.
+
+The `map`, destructuring, and spread in this part all sit on top of these two. This is the foundation.
+
+## Objects: create, read, write {#object}
+
+Inside `{ }`, list "key: value" pairs separated by commas.
+
+```js
+const product = { name: 'Tote', price: 3200, inStock: true }
+```
+
+```js
+const product = { name: 'Tote', price: 3200 }
+//    ↑          ↑     ↑          ↑
+//    │          │     │          └─ the value of the key price
+//    │          │     └─ the key (name)
+//    │          └─ list "key: value" pairs inside { }
+//    └─ the box that holds the object
+```
+
+To read, use `.key`; to overwrite, use `.key = value`.
+
+```js
+console.log(product.name) // 'Tote' (read)
+product.price = 2800 // overwrite
+product.color = 'navy' // add a new key
+```
+
+<JsNote feature="the contents can be changed even with const">
+
+Even if you create `product` with `const`, `product.price = 2800` passes. What `const` forbids is only "swapping the whole box for something else"; it doesn't stop you from changing the contents (as we saw in [const and let](/guide/javascript/const-let)).
+
+</JsNote>
+
+## Arrays: create, read, write {#array}
+
+Inside `[ ]`, line up values in order. To read, use `[number]`. **Numbers start from 0.**
+
+```js
+const tags = ['cookware', 'IH compatible', 'lightweight']
+
+console.log(tags[0]) // 'cookware' (index 0 = the first)
+console.log(tags.length) // 3 (count)
+tags.push('dishwasher safe') // add to the end
+```
+
+```js
+const tags = ['cookware', 'IH compatible']
+//    ↑       ↑
+//    │       └─ line up values in order inside [ ]
+//    └─ the box that holds the array (tags[0] is first, tags[1] is next…)
+```
+
+- **`tags[0]`** … index 0. **The first element is 0, not 1.**
+- **`tags.length`** … the number of elements.
+- **`tags.push(value)`** … add one item to the end.
+
+## Dot notation and bracket notation {#dot-bracket}
+
+There are two ways to read an object's values.
+
+```js
+product.name // dot notation (usually this one)
+product['name'] // bracket notation (same meaning)
+```
+
+Usually the shorter dot notation is enough. Bracket notation is needed **when the key name is stored in a variable**.
+
+```js
+const key = 'price'
+product[key] // same as product.price (3200)
+product.key // ✕ this looks for a key literally named "key"
+```
+
+<Callout type="mistake" title="Use brackets for a variable key">
+
+If you write `product.key`, it looks for "a key with the literal name `key`," not the contents of the variable `key`. **When you want to specify a key with a variable, use brackets `product[key]`.**
+
+</Callout>
+
+## Nesting: an array of objects {#nested}
+
+Real-world data is usually in the shape of **objects lined up in an array**. This site's `products.json` is this shape too.
+
+```js
+const products = [
+  { id: 'p1', name: 'Tote', price: 3200 },
+  { id: 'p2', name: 'Wallet', price: 8800 },
+]
+
+products[0].name // 'Tote' (the name of the object at index 0)
+products.length // 2
+```
+
+`products[0]` pulls out the object at index 0, and then `.name` reads the value inside it. This pattern of following "array → object → value" becomes the basis for drawing a list with `map`.
+
+<Together
+  task="In the console, create an array like products, then pull out and display the price of the second product (index 1)."
+  hint="products[1] gets the object at index 1, then .price reads the price."
+>
+
+```js
+const products = [
+  { id: 'p1', name: 'Tote', price: 3200 },
+  { id: 'p2', name: 'Wallet', price: 8800 },
+]
+
+console.log(products[1].price) // 8800
+```
+
+`products[1]` is `{ id: 'p2', name: 'Wallet', price: 8800 }`. Then `.price` reads `8800`.
+
+</Together>
+
+## Syntax catalog: read and write {#catalog}
+
+```js
+const user = { name: 'Sato', age: 30 }
+user.name // read → 'Sato'
+user['name'] // same (bracket)
+user.age = 31 // overwrite
+user.city = 'Tokyo' // add a key
+
+const nums = [10, 20, 30]
+nums[0] // read → 10
+nums.length // count → 3
+nums.push(40) // add to the end → [10, 20, 30, 40]
+nums[1] = 99 // overwrite → [10, 99, 30, 40]
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="trying to get the first element of an array with arr[1]"
+  good="the first element of an array is arr[0]. Numbers count from 0"
+  note="The first element is index 0. arr[1] is the second one."
+/>
+
+## When things don't work {#trouble}
+
+- **It returns `undefined`** … a typo in the key name, or a number that doesn't exist (e.g. `arr[5]` when there are only 3 elements).
+- **`Cannot read properties of undefined`** … `products[0]` is empty but you're trying to read `.name`. First check that you can pull it out.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write const first = products[0].name. products[0] pulls out the first object, and .name reads its name.">
+
+To pull out the **name of the first product** from `products` (an array of objects) and put it into `first`, how would you write it?
+
+</Exercise>
+
+<SummaryBox>
+
+- Objects look up by name (`{ }`, `obj.key`); arrays look up by order (`[ ]`, `arr[0]`, starting at 0)
+- Use bracket notation `obj[key]` only when you want to specify a key with a variable
+- Real-world data is "an array of objects." Follow it like `products[0].name`
+
+</SummaryBox>

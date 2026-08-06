@@ -1,0 +1,107 @@
+---
+title: What does npm install actually do?
+minutes: 8
+slug: setup-npm-install
+section: setup
+description: "The truth about node_modules and package-lock.json, and why you must always commit the lockfile."
+level: beginner
+prerequisites: ['setup/open-vscode']
+---
+
+<LearnBox>
+
+- What gets downloaded when you run `npm install`
+- The roles of `node_modules` and `package-lock.json`
+- Why you must always commit the lockfile to git
+
+</LearnBox>
+
+The folder that `create vite` produced actually doesn't run yet. That's because **the libraries the project depends on haven't been downloaded**. `npm install` is what brings them in.
+
+## Step 1: Run it {#step-run}
+
+In the VS Code integrated terminal (the line starts with `...\my-shop>`), type this.
+
+```bash
+npm install
+```
+
+After a moment, you'll see output like this and it finishes (the numbers vary by environment).
+
+```
+added 187 packages, and audited 188 packages in 12s
+
+43 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+```
+
+If you see `added 187 packages` (it installed 187 libraries), it worked. Seeing `found 0 vulnerabilities` (no vulnerabilities) too is reassuring.
+
+## node_modules — the download destination {#node-modules}
+
+When `npm install` finishes, it creates a **huge folder** called `node_modules`. Inside are React itself, Vite, and the hundreds of libraries they use internally.
+
+This folder is enormous, and you can rebuild it at any time with `npm install`. That's why **we don't include it in git** (it's already listed in `.gitignore`). When you hand the project to someone, you don't hand over `node_modules` either — they just run `npm install` in their own environment and get exactly the same thing.
+
+<Callout type="analogy">
+
+`node_modules` is 'the pile of ingredients you bought following the recipe'. It's bulky, and as long as you have the recipe (the config files described later) you can buy it all again anytime, so there's no need to keep it.
+
+</Callout>
+
+## package.json and package-lock.json {#lock}
+
+These two files are what manage the ingredients. Their roles are clearly different.
+
+- **`package.json`** … the '**shopping list**'. It says 'I want `react`, I want `vite`', with rough version ranges.
+- **`package-lock.json`** … the '**record of the exact versions actually installed**'. It pins things right down to 'we installed `react` `19.2.8`'.
+
+## Why commit the lockfile {#why-commit}
+
+`package.json` is written as **ranges**, like '`^19.2.0` or higher'. Left as a range, different people can end up with slightly different versions, causing the classic 'it works on my machine but not on my coworker's'.
+
+`package-lock.json` **pins that range to a single point**. Commit it to git, and everyone on the team gets **exactly the same versions** when they run `npm install`. So, **always commit the lockfile**. This is an iron rule.
+
+<Callout type="warn">
+
+Don't put `package-lock.json` in `.gitignore` just because 'I'm not sure what it is'. Reproducibility breaks, and it becomes a breeding ground for 'it works on my machine' problems.
+
+</Callout>
+
+## Break it on purpose: delete node_modules and it stops working {#break-no-modules}
+
+Let's confirm firsthand that nothing runs without `node_modules`. In the VS Code explorer on the left, right-click the `node_modules` folder → Delete. Then try to start it in that state.
+
+```bash
+npm run dev
+```
+
+You'll get scolded like this.
+
+```
+'vite' is not recognized as an internal or external command,
+operable program or batch file.
+```
+
+It means 'the tool called `vite` can't be found' = the libraries are gone. Don't panic — just reinstall them and it's fixed.
+
+```bash
+npm install
+```
+
+The ingredients (`node_modules`) come back, and you can `npm run dev` again. **Even if it's deleted, you can restore it as long as you have `package.json` and `package-lock.json`** — that's exactly why 'don't save `node_modules`' works.
+
+## When things go wrong {#trouble}
+
+- **`npm ERR! code ERESOLVE`** … the versions of libraries don't get along with each other. The error text says which package is the cause. We'll cover detailed fixes on page 20.
+- **It stalls partway / is slow** … the network or a proxy can be the cause. Trying a different network helps you narrow it down.
+
+<SummaryBox>
+
+- `npm install` downloads the libraries the project needs into `node_modules`
+- `node_modules` is huge and rebuildable, so it's not included in git (already in `.gitignore`)
+- `package.json` = the shopping list, `package-lock.json` = the exact versions installed. Always commit the lock
+
+</SummaryBox>

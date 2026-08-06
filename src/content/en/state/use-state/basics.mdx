@@ -1,0 +1,206 @@
+---
+title: The basics of useState
+minutes: 11
+slug: use-state-basics
+section: state
+description: "Break down const [count, setCount] = useState(0) piece by piece and write a counter in full. The three parts—initial value, reading, and the updater function—plus the trap of assigning to count directly. Includes a writing catalog."
+level: beginner
+prerequisites: ['state/use-state/what-is-state', 'javascript/destructuring']
+---
+
+import { CounterDemo } from '@/demos/Counter'
+
+<LearnBox>
+
+- Break down the three parts of `const [count, setCount] = useState(0)`
+- Write a counter as **one full file**
+- Tell "reading" the value apart from the "updater function," and the trap of direct assignment
+
+</LearnBox>
+
+## Break down the one line of useState {#anatomy}
+
+To hold state, you use a **hook** called `useState`. First, let's put **a name on each part** of this one line.
+
+```tsx
+const [count, setCount] = useState(0)
+//     ↑      ↑                    ↑
+//     │      │                    └─ initial value. The value that's in there at first
+//     │      └─ the updater function. Call it and a re-render happens
+//     └─ the current value. Think of it as read-only
+```
+
+- **`useState(0)`** … creates the state. Inside the parentheses is the **initial value** (`0` here).
+- **`count`** … the current value. Used for display. **You don't rewrite it yourself.**
+- **`setCount`** … the updater function. Call `setCount(new value)` and the value changes and a **re-render** happens.
+
+Why receive it as a `[ ]` array instead of a `{ }` object? Because `useState` returns a **two-element array** of "\[current value, updater function\]". Since it's array destructuring ([Part 2](/guide/javascript/destructuring)), **you get to choose the names yourself**. Writing them as a "value" / "set + value" pair like `count` / `setCount` is the convention.
+
+<JsNote feature="[count, setCount] is array destructuring">
+
+`const [a, b] = someArray` pulls out the 1st and 2nd items—that's destructuring. Since `useState`'s return value is an array, this form receives both "the current value" and "the updater function" at once.
+
+</JsNote>
+
+## Write the counter in full {#build}
+
+Once you've broken it down, write it for real. Create a new file `src/components/Counter/Counter.tsx` and paste in **this entire file** (it works as-is, not as a fragment).
+
+```tsx title="src/components/Counter/Counter.tsx (new file, full source)"
+import { useState } from 'react'
+
+export function Counter() {
+  const [count, setCount] = useState(0)
+
+  return (
+    <div>
+      <button type="button" onClick={() => setCount(count - 1)}>
+        −
+      </button>
+      <span>{count}</span>
+      <button type="button" onClick={() => setCount(count + 1)}>
+        ＋
+      </button>
+    </div>
+  )
+}
+```
+
+On the calling side (`App.tsx`), you use it like this.
+
+```tsx title="src/App.tsx (the caller)"
+import { Counter } from './components/Counter/Counter'
+
+function App() {
+  return <Counter />
+}
+
+export default App
+```
+
+## What happens when you save {#result}
+
+Save, and you get `−` and `＋` buttons with `0` between them. **Press ＋ and `setCount(count + 1)` is called**, so `count` goes up by 1. Then React **calls `Counter` again** (re-render) and redraws `<span>{count}</span>` with the new `count`. That's why the number on screen goes up. The "update state → re-render" from the previous page is actually running here.
+
+## The actual behavior {#demo}
+
+Here's that same code running as-is. Give it a press.
+
+<Demo title="Counter">
+  <CounterDemo />
+</Demo>
+
+## Break it on purpose: assign to count directly {#break-assign}
+
+To see why "always go through `setCount` to update" matters, let's break that rule and check. Instead of using `setCount`, we assign to `count` directly.
+
+```tsx
+<button type="button" onClick={() => (count = count + 1)}>＋</button>
+```
+
+Right away, a red squiggle appears.
+
+```
+Cannot assign to 'count' because it is a constant.
+```
+
+`count` is received with `const`, so you can't assign to it in the first place. And even if you could, as on [the previous page](/guide/state/use-state/what-is-state), **no re-render would happen**. **When you change state, always go through the updater function (`setCount`)**—that's the golden rule. React redraws using "the updater function was called" as its signal.
+
+<Together
+  task="To make the counter start from 10 instead of 0, where would you change it? Actually rewrite it and check that the first thing shown is 10."
+  hint="The initial value is inside useState's parentheses."
+>
+
+```tsx
+const [count, setCount] = useState(10) // set the initial value to 10
+```
+
+With `useState(10)`, the first thing shown is `10`. Inside `useState`'s parentheses is "the very first value."
+
+</Together>
+
+<Together
+  task="Make a counter that goes up by 5 each time you press ＋, instead of by 1."
+  hint="Make the expression passed to setCount count + 5."
+>
+
+```tsx
+<button type="button" onClick={() => setCount(count + 5)}>＋5</button>
+```
+
+With `setCount(count + 5)`, it goes up by 5 each press. It means "take the current value `count`, add 5, and make that the new state." Reading is `count`, updating is `setCount(...)`—keep these two roles firmly separate.
+
+</Together>
+
+## Writing catalog: useState works with many types {#catalog}
+
+The initial value of `useState` isn't limited to numbers. **Anything tied to the screen** can be state. Here are the common forms. Use them wholesale as templates for your own code.
+
+```tsx
+// number
+const [count, setCount] = useState(0)
+
+// string (input fields, etc.)
+const [name, setName] = useState('')
+
+// boolean (open/close, ON/OFF)
+const [isOpen, setIsOpen] = useState(false)
+
+// array (a list)
+const [items, setItems] = useState<string[]>([])
+
+// object (a form or several values)
+const [form, setForm] = useState({ name: '', email: '' })
+
+// starts as "not there yet" (before fetching data, etc.) — types covered in Part 6
+const [product, setProduct] = useState<Product | null>(null)
+```
+
+Booleans for open/close and favorites, arrays for lists, objects for forms—you'll actually use each of these on the pages ahead. Once you understand that "any value can be state," you can apply it broadly.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="count = count + 1 (direct assignment. error, and no re-render)"
+  good="setCount(count + 1)"
+  note="Change state with the updater function. Direct assignment is a const error and doesn't re-render."
+/>
+
+<Diff
+  bad="const count = useState(0) (receiving it as the array as-is)"
+  good="const [count, setCount] = useState(0)"
+  note="useState returns a [value, updater function] array. Use destructuring to receive the two separately."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Receive state in the form const [value, setValue] = useState(initial value), and always update with the set function"
+  alt="Once a single component accumulates a lot of state, you may group related pieces into an object or array (from the next page on). But to start, one value per useState is plenty."
+>
+
+Memorize the shape `const [count, setCount] = useState(0)` as a template. You read `count`, you change `setCount`. Just by not mixing up these two, you can write 80% of state.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`Cannot assign to 'count' because it is a constant`** … You're assigning to `count` directly. Use `setCount(...)`.
+- **Hook errors like `Rendered more hooks than during the previous render`** … Are you calling `useState` inside an `if` or a loop? Call hooks at the **very top** of the function.
+- **It doesn't change after an update** … Check whether you're calling `setCount`, and whether the value you pass is genuinely new.
+
+## Summary & practice {#summary}
+
+<Exercise answer="useState returns a [current value, updater function] array. Use count for display, and call setCount(new value) when you change the value. You can't assign to count directly (and it wouldn't re-render either).">
+
+In `const [count, setCount] = useState(0)`, what is each of `count` and `setCount` used for?
+
+</Exercise>
+
+<SummaryBox>
+
+- `useState(initial value)` returns `[current value, updater function]`. Receive it with destructuring
+- You read `count` and change with `setCount(new value)`. Calling the updater function triggers a re-render
+- The initial value can be anything—number, string, boolean, array, object, or null
+
+</SummaryBox>

@@ -1,0 +1,172 @@
+---
+title: SCSS features (nesting, variables, mixins)
+minutes: 9
+slug: scss-features
+section: styling
+description: "The write-ability SCSS adds to CSS. Group nesting, & to refer to yourself, $ variables, and @mixin/@include, then use them in ProductCard."
+level: beginner
+prerequisites: ['styling/first-module']
+---
+
+<LearnBox>
+
+- Write parent/child selectors together with nesting
+- Use `&` to refer to "yourself" (`&:hover`, etc.)
+- Reuse the same values and the same groupings with `$` variables and `@mixin`
+
+</LearnBox>
+
+## Nesting {#nesting}
+
+In CSS, you write out the parent/child relationship in full every time. SCSS lets you **nest**. Writing `.body` inside `.card` means "the `.body` inside `.card`."
+
+```scss title="SCSS (written with nesting)"
+.card {
+  border: 1px solid #e5e7eb;
+
+  .body {
+    padding: 12px;
+  }
+
+  .name {
+    font-weight: 600;
+  }
+}
+```
+
+At build time, this expands into ordinary CSS.
+
+```css title="CSS after conversion"
+.card { border: 1px solid #e5e7eb; }
+.card .body { padding: 12px; }
+.card .name { font-weight: 600; }
+```
+
+Because you can group related things in one place, it's easier to follow.
+
+<Callout type="warn" title="Don't nest too deep">
+
+Nesting 3 or 4 levels deep actually gets harder to read, and it also raises specificity, making it harder to override. Aim for **2 levels at most**.
+
+</Callout>
+
+## `&` means "yourself" {#ampersand}
+
+`&` refers to "the selector you're currently writing." Use it to group `:hover` and state classes.
+
+```scss
+.card {
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px); // means .card:hover
+  }
+}
+```
+
+`&:hover` expands to `.card:hover`. Using `&` lets you keep everything about `.card` self-contained inside `.card`.
+
+## `$` variables: the same value in one place {#variables}
+
+If you write the same color or spacing over and over, you'll have to fix every occurrence when it changes. Group them into an SCSS **`$` variable** and you only fix one place.
+
+```scss
+$radius: 12px;
+$line: #e5e7eb;
+
+.card {
+  border: 1px solid $line;
+  border-radius: $radius;
+}
+```
+
+<JsNote feature="$ variables get their values 'baked in' at build time">
+
+An SCSS `$` variable is **replaced with its actual value at the moment of the build**. In the example above, the output CSS has `12px` and `#e5e7eb` written directly. You can't switch it at runtime (for theming, etc.). The CSS `--variable`, which can do that, is covered on the next page.
+
+</JsNote>
+
+## `@mixin`: reuse a group of styles {#mixin}
+
+When you want to reuse "a group of multiple properties," define it with `@mixin` and call it with `@include`. It's a good fit for chunks used all over, like resetting a button's look.
+
+```scss
+@mixin button-reset {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.fav {
+  @include button-reset; // the 4 lines above get expanded here
+  color: crimson;
+}
+```
+
+## Syntax catalog: SCSS features {#catalog}
+
+```scss
+// nesting
+.card {
+  .body { padding: 12px; }   // → .card .body
+  &:hover { ... }            // → .card:hover
+  &.active { ... }           // → .card.active (when active is added to itself)
+}
+
+// variables
+$accent: #4f46e5;
+.btn { background: $accent; }
+
+// mixin
+@mixin center { display: grid; place-items: center; }
+.badge { @include center; }
+```
+
+<Together
+  task="In ProductCard.module.scss, add &:hover to .card so the border color darkens on hover."
+  hint="It's the form .card { ... &:hover { border-color: #9ca3af; } }. The & refers to .card itself."
+>
+
+```scss title="ProductCard.module.scss"
+.card {
+  border: 1px solid #e5e7eb;
+
+  &:hover {
+    border-color: #9ca3af;
+  }
+}
+```
+
+`&:hover` expands to `.card:hover`. Because you can write it inside `.card`, the hover rule doesn't get scattered far away.
+
+</Together>
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="Hard-code the same color #e5e7eb in 10 places"
+  good="Group it into $line: #e5e7eb; and reference it with $line"
+  note="Hard-coding means hunting down and fixing every occurrence when the color changes. With a variable, it's one place."
+/>
+
+## When things don't work {#trouble}
+
+- **Nesting doesn't work** … Check that you're writing in `.module.scss` (SCSS). Plain `.css` can't use nesting (note: newer CSS allows some of it, but here we assume SCSS).
+- **`&:hover` affects a different element** … `&` is "that selector itself." If you want it on a child, nest it (`.card { .body:hover { ... } }`).
+
+## Summary & practice {#summary}
+
+<Exercise answer="It's &:hover. & refers to the current selector itself, so &:hover inside .card expands to .card:hover. It lets you keep everything about .card in one place.">
+
+Inside `.card`, what selector do you use to write "when `.card` itself is hovered"?
+
+</Exercise>
+
+<SummaryBox>
+
+- Write parent/child selectors together with nesting (2 levels at most)
+- `&` is "that selector itself." Use it for `&:hover` and `&.active`
+- `$` variables bake their value in at build time. Reuse groupings with `@mixin` / `@include`
+
+</SummaryBox>

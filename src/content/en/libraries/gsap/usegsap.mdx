@@ -1,0 +1,173 @@
+---
+title: Animating with useGSAP
+minutes: 11
+slug: gsap-usegsap
+section: gsap
+description: "The basics of gsap.to / from / fromTo and useGSAP. Limit selectors to inside a box with scope, and leave cleanup to useGSAP. With reduced-motion care too."
+level: beginner
+prerequisites: ['libraries/gsap/install']
+---
+
+import { GsapStagger } from '@/demos/GsapStagger'
+
+<LearnBox>
+
+- Write "how to move it" with `gsap.to` / `gsap.from` / `gsap.fromTo`
+- The shape of `useGSAP(() => { ... }, { scope })` and the role of `scope`
+- Leave cleanup to `useGSAP`, and mind users who prefer less motion with `gsap.matchMedia()`
+
+</LearnBox>
+
+## gsap.to / from / fromTo {#basics}
+
+GSAP has three basic commands. You write "which element, into what state."
+
+```tsx
+// to: move from the current state → to the state you specify
+gsap.to('.box', { x: 100, opacity: 1, duration: 0.6 })
+
+// from: move from the state you specify → to the current state (a "come in" motion)
+gsap.from('.box', { opacity: 0, y: 20, duration: 0.6 })
+
+// fromTo: you decide both start and end
+gsap.fromTo('.box', { opacity: 0 }, { opacity: 1, duration: 0.6 })
+```
+
+- The first argument is the **target** (a CSS selector or an element). You can write it as `.box`.
+- The second argument (`to`) or the second and third arguments (`fromTo`) is the **state to move toward**. You specify `x` / `y` (move), `opacity` (transparency), `scale` (zoom), `rotate` (rotation), and so on.
+- `duration` is in seconds, `ease` is the acceleration curve, and `stagger` means "offset each one a little."
+
+<JsNote feature="from is a 'come in' motion">
+
+`from` moves "**from that state, to the current look**." `from({ opacity: 0, y: 20 })` means "transparent and slightly lower → its resting position," so it paints the same picture as the "fade up" of `initial` → `animate` ([Framer Motion](/libraries/framer-motion/motion-basics)).
+
+</JsNote>
+
+## The shape of useGSAP {#usegsap}
+
+In React, you write these commands **inside `useGSAP`**. Pass a "box" ref to `scope` and a selector like `.card` will point to **only inside that box** (it won't sweep up `.card` elsewhere). Cleanup is handled automatically by `useGSAP`.
+
+```tsx
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { useRef } from 'react'
+
+function List() {
+  const container = useRef<HTMLUListElement>(null)
+
+  useGSAP(
+    () => {
+      gsap.from('.card', { opacity: 0, y: 16, stagger: 0.08 })
+    },
+    { scope: container }, // ← .card is limited to inside this box
+  )
+
+  return <ul ref={container}>{/* lay out the .card elements */}</ul>
+}
+```
+
+```tsx
+useGSAP(() => { ... }, { scope: container })
+//      └─ write the gsap commands here     └─ the box that limits selectors
+```
+
+Since we use CSS Modules, the real class name is `styles.card` (with a hash). So the selector is written as `` `.${styles.card}` ``. We'll confirm this in the finished code next.
+
+## Finished code: cards that appear one by one {#full}
+
+Let the product cards **fade in one by one** on mount. The things to watch for are three: writing `gsap.timeline().from(...)` inside `useGSAP`, passing the box via `scope`, and being considerate with `matchMedia`.
+
+```tsx title="src/demos/GsapStagger/GsapStagger.tsx (full)"
+import { useGSAP } from '@gsap/react'
+import gsap from 'gsap'
+import { useRef } from 'react'
+
+import products from '@/data/products.json'
+
+import styles from './GsapStagger.module.scss'
+
+export function GsapStagger() {
+  const container = useRef<HTMLUListElement>(null)
+  const anim = useRef<gsap.core.Timeline | null>(null)
+  const items = products.slice(0, 4)
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia()
+      // Animate only when the "reduce motion" setting is not on
+      mm.add('(prefers-reduced-motion: no-preference)', () => {
+        anim.current = gsap.timeline().from(`.${styles.card}`, {
+          opacity: 0,
+          y: 16,
+          duration: 0.5,
+          stagger: 0.08,
+          ease: 'power2.out',
+        })
+      })
+    },
+    { scope: container },
+  )
+
+  return (
+    <div className={styles.wrap}>
+      <ul className={styles.grid} ref={container}>
+        {items.map((p) => (
+          <li key={p.id} className={styles.card}>
+            <span className={styles.name}>{p.name}</span>
+            <span className={styles.price}>{p.price.toLocaleString()} yen</span>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className={styles.replay} onClick={() => anim.current?.restart()}>
+        Play again
+      </button>
+    </div>
+  )
+}
+```
+
+<Demo title="useGSAP + stagger (appearing one by one)">
+  <GsapStagger />
+</Demo>
+
+"Play again" remembers the animation you created (the `anim` ref) and replays it from the start with `restart()`. We'll cover `gsap.timeline()` in detail on the next page, but for now think of it as "a container with one `from` inside it."
+
+## Being considerate of reduced-motion {#reduce}
+
+`gsap.matchMedia()` is a mechanism for "register this motion only while the current condition matches." `(prefers-reduced-motion: no-preference)` means "people who haven't reduced motion," so the animation is registered only for them — **for people who've turned on reducing motion, it appears already still** from the start (the information doesn't disappear). Toggle the setting and `matchMedia` automatically redoes the register/unregister.
+
+<Callout type="note" title="The same care as Framer Motion's useReducedMotion">
+
+In [Framer Motion we did the same thing with `useReducedMotion`](/libraries/framer-motion/reduced-motion). In GSAP, `gsap.matchMedia()` handles it. The tools differ, but the principle is the same: **remove only the motion, keep the information**.
+
+</Callout>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Writing gsap.from inside a raw useEffect and writing your own cleanup"
+  good="Writing it inside useGSAP (leaving cleanup and StrictMode's double-run to it)"
+  note="With useEffect, the dev-mode double-run makes the animation run twice. useGSAP handles that correctly."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Nothing moves** … Check that you wrote it inside `useGSAP`, and that the `scope` ref is attached to the target's parent.
+- **It also moves things elsewhere** … Without a `scope`, `.card` sweeps up same-named classes across the page. Add `{ scope: container }`.
+- **It runs twice during development** … Use `useGSAP` and it's handled correctly. Check you're not using a raw `useEffect`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write useGSAP(() => { gsap.from('.item', { opacity: 0, y: 20, stagger: 0.1 }) }, { scope: container }) and attach ref={container} to the parent (a ul or similar). With CSS Modules, .item is `.${styles.item}`. Because there is a scope, only the .item elements inside that box are targeted.">
+
+To make list items "fade in one by one," what do you write inside `useGSAP`, and what do you pass to `scope`?
+
+</Exercise>
+
+<SummaryBox>
+
+- `gsap.to` (now → specified) / `gsap.from` (specified → now = comes in) / `gsap.fromTo` (both specified)
+- In React, `useGSAP(() => { ... }, { scope: ref })`. Cleanup is automatic; `scope` limits selectors
+- `gsap.matchMedia()` for reduced-motion care (remove only the motion, keep the information)
+
+</SummaryBox>

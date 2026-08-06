@@ -1,5 +1,7 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 
+import { useLocale } from '@/hooks/useLocale'
+
 import styles from './Modal.module.scss'
 
 interface ModalProps {
@@ -14,6 +16,7 @@ interface ModalProps {
  * moves into the panel on open and returns to the trigger on close.
  */
 export function Modal({ open, onClose, title, children }: ModalProps) {
+  const en = useLocale() === 'en'
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -46,7 +49,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       >
         <header className={styles.head}>
           <h2 className={styles.title}>{title}</h2>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="閉じる">
+          <button type="button" className={styles.close} onClick={onClose} aria-label={en ? 'Close' : '閉じる'}>
             ✕
           </button>
         </header>

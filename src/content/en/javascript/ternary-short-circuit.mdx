@@ -1,0 +1,200 @@
+---
+title: Ternary and short-circuit evaluation
+minutes: 8
+slug: ternary-short-circuit
+section: javascript
+description: "The ternary operator that turns if into an expression, plus && / || short-circuit evaluation. The foundation for React's way of conditionally showing different things."
+level: beginner
+prerequisites: ['javascript/truthy-falsy']
+---
+
+<LearnBox>
+
+- Pick one of two values with `condition ? A : B` (the ternary operator)
+- Use `&&` to "return something only when true", and `||` to "return a fallback when false"
+- The trap where `0 && …` returns `0` (the real cause of that React display bug)
+
+</LearnBox>
+
+## Why use these instead of if {#why}
+
+In React, you can't write an `if` statement inside JSX (inside the `{ }`). Instead, you have to write conditionals in a form that **returns a value**. The tools for that are the **ternary operator `? :`** and **short-circuit evaluation `&&` / `||`**. Let's nail down how they work in plain JavaScript first.
+
+## Ternary: pick one of two {#ternary}
+
+`condition ? A : B` is an expression that "returns `A` if the condition is true, and `B` if it's false". Think of it as an `if / else` squeezed onto one line.
+
+```js
+const stock = 0
+const label = stock > 0 ? 'In stock' : 'Out of stock'
+
+console.log(label) // Out of stock
+```
+
+`stock > 0` is false, so the `'Out of stock'` after the `:` was chosen. Before the `?` is the condition, between `?` and `:` is the "when true" value, and after the `:` is the "when false" value.
+
+Let's break this one line into parts and name them.
+
+```js
+   condition ? A : B
+// ↑           ↑   ↑
+// │           │   └─ value returned when false (after the :)
+// │           └─ value returned when true (between ? and :)
+// └─ the condition to evaluate. An expression that becomes true / false
+```
+
+- **`condition`** … an expression that becomes `true` / `false` (like `stock > 0`)
+- **`? A`** … the value returned when the condition is **true**
+- **`: B`** … the value returned when the condition is **false**
+- As a whole, one **expression that returns a value**. It can go inside a variable or a React `{ }`
+
+<JsNote feature="? : is an expression (it returns a value)">
+
+An `if` statement is a "statement" and doesn't return a value. The ternary operator `? :` is an "**expression**" and returns the resulting value. That's why you can write `const label = ... ? ... : ...`, storing it in a variable or dropping it inside React's `{ }`.
+
+</JsNote>
+
+## && : return something only when true {#and}
+
+`A && B` behaves like this: "if `A` is truthy, return `B`; otherwise return `A` (the falsy value)". In React you use it for "show this only when the condition is true".
+
+```js
+const isMember = true
+const message = isMember && 'Welcome, valued member'
+
+console.log(message) // Welcome, valued member
+```
+
+`isMember` is true, so the string on the right was returned. If `isMember` were `false`, `message` would be `false`, and React would show **nothing** (`false` doesn't render on screen). This "show it only when true" is exactly what `&&` is for.
+
+Let's break `&&` into parts and name them too.
+
+```js
+   A && B
+// ↑ ↑  ↑
+// │ │  └─ the value returned only when A is truthy
+// │ └─ && "returns the right side if the left is truthy"
+// └─ the left value. If falsy, this is returned as-is (the 0 trap)
+```
+
+- **`A` (left)** … the value checked first for truthy / falsy. If falsy, **this is returned as-is**
+- **`&&`** … the operator that "returns the right side only when the left is truthy"
+- **`B` (right)** … the value returned when the left is true (in React, the JSX you want to show)
+- If the left is a number that can be `0`, then `0` gets returned and leaks onto the screen → make the left a boolean like `count > 0`
+
+## || : return a fallback when false {#or}
+
+`A || B` is the opposite: "if `A` is truthy, return `A`; if it's falsy, return `B` (the fallback)". You can use it for "if there's no value, use a default".
+
+```js
+const nickname = ''
+const display = nickname || 'Anonymous'
+
+console.log(display) // Anonymous ('' is falsy, so the fallback is returned)
+```
+
+`nickname` is an empty string (falsy), so the fallback `'Anonymous'` was returned.
+
+## Break it on purpose: 0 && returns 0 {#break-zero-and}
+
+The most famous gotcha with `&&` is **when the left is `0`**. On the previous page we learned "`0` is falsy". Here it bares its teeth.
+
+```js
+const count = 0
+const result = count && 'Has items'
+
+console.log(result) // 0   ← not '' or false, the number 0
+```
+
+`count` is `0` (falsy), so `&&` **returned the left `0` as-is** without looking at the right. So far this is exactly as specified. The problem comes next. If you write `{count && <p>Has items</p>}` in React, then when `count` is `0`, the number **"0" shows up on the screen as-is**. "It should show nothing" turns into "it shows 0" — a famous bug.
+
+The way to prevent it is to **always make the left true / false**.
+
+```js
+const result = count > 0 && 'Has items' // make the left count > 0 (true/false)
+```
+
+`count > 0` becomes `false` (a boolean), so `&&` returns `false` and React shows nothing. **Don't put a number that could be `0` directly on the left of `&&`** — that's the iron rule (we'll cover rendering in React in detail in a later part).
+
+<Callout type="warn">
+
+When "0 shows up" in `{something && <JSX/>}`, suspect that the left of `&&` is a number that can be `0` (a `length` or a count). Fix the left to a boolean like `> 0` and it disappears.
+
+</Callout>
+
+<Together
+  task="Using the ternary operator, build a string shipping that returns 'Free shipping' when the price price is 1000 or more, and '300 yen shipping' otherwise."
+  hint="The shape is price >= 1000 ? 'Free shipping' : '300 yen shipping'."
+>
+
+```js
+const price = 800
+const shipping = price >= 1000 ? 'Free shipping' : '300 yen shipping'
+
+console.log(shipping) // 300 yen shipping
+```
+
+`price >= 1000` is false (800 is under 1000), so the `'300 yen shipping'` after the `:` was chosen. When you want to output "either A or B, definitely one of them", use the ternary operator; when you want to "show something only sometimes", use `&&`.
+
+</Together>
+
+## Writing catalog: various ways to conditionally show things {#catalog}
+
+Use "`? :` for two choices", "`&&` to show just one side", and "`||` for a fallback when there's nothing".
+
+```tsx
+const label = stock > 0 ? 'In stock' : 'Out of stock' // one of two strings
+const badge = isSale ? <Tag>SALE</Tag> : null          // show/hide an element (null for none)
+const fee = isFree ? 0 : 300                           // numbers work too
+const msg = isMember && 'Welcome'                       // just one side (&&)
+const name = nickname || 'Anonymous'                    // fallback when absent (||)
+const view = a ? 'first' : b ? 'second' : 'third'       // nesting is hard to read → pull into variables
+```
+
+Nesting ternary operators for three or more choices quickly becomes unreadable. In that case, build the branch into a variable first, then drop it into the JSX.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="{count && <List />} (0 shows up when count is 0)"
+  good="{count > 0 && <List />}"
+  note="Make the left of && a boolean. Leaving it as a number leaks 0 onto the screen."
+/>
+
+<Diff
+  bad="Trying to write if inside JSX's { }"
+  good="Use condition ? A : B, or condition && A"
+  note="You can't write an if statement inside JSX. Branch with the ternary or short-circuit, which return a value."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Use the ternary for two choices and && to show just one side, and always make the left of && a boolean"
+  alt="When branches grow to three or more, it reads better to build them into a variable outside the JSX and drop it in. Avoid nested ternary operators."
+>
+
+Use `? :` for "A or B" and `&&` for "only sometimes". When the left of `&&` is a number, fix it to a boolean like `count > 0 &&`. Nested ternary operators quickly become unreadable, so in that case pull the branch out into a variable.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`0` shows up on screen** … the left of `&&` is a number that becomes `0`. Make the left a boolean like `> 0`.
+- **The ternary is unreadable / errors out** … check whether `?` and `:` are properly paired, and whether you've nested too much. If nested, split it into variables.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write {isSoldOut ? 'Sold out' : `${price} yen`}, a two-way choice with the ternary. Since you always show one of the two based on whether it's sold out, ? : is the right fit rather than &&.">
+
+When you want to show "Sold out" if `isSoldOut` is `true` and the price if it's `false`, how would you write it?
+
+</Exercise>
+
+<SummaryBox>
+
+- `condition ? A : B` is two choices, `A && B` is "only when true", and `A || B` is "a fallback when false"
+- `? :` is an expression that returns a value, so it can go inside a variable or a React `{ }`
+- Putting a number that becomes `0` on the left of `&&` returns `0` and leaks it onto the screen. Make the left a boolean
+
+</SummaryBox>

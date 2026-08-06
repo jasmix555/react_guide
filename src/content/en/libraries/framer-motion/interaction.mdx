@@ -1,0 +1,81 @@
+---
+title: Responding to hover and tap
+minutes: 7
+slug: interaction
+section: framer-motion
+description: "Use whileHover and whileTap to react to input with motion. Bigger on hover, smaller on press, and a spring to make it feel good."
+level: beginner
+prerequisites: ['libraries/framer-motion/motion-basics']
+---
+
+import { HoverTapDemo } from '@/demos/HoverTap'
+
+<LearnBox>
+
+- `whileHover`: the state while the pointer is over the element
+- `whileTap`: the state while the element is pressed
+- Give a little motion back as feedback to input
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Hover over the button and it grows a little; press it and it shrinks a little. Give it a try.
+
+<Demo title="whileHover / whileTap">
+  <HoverTapDemo />
+</Demo>
+
+## whileHover / whileTap {#while}
+
+Where `initial` / `animate` describe "the motion on mount," **`whileHover`** and **`whileTap`** describe the state **while** you are doing that action. Let go or move the pointer away and it returns to normal automatically.
+
+```tsx
+import { motion } from 'motion/react'
+
+<motion.button
+  whileHover={{ scale: 1.06 }} // slightly bigger while hovered
+  whileTap={{ scale: 0.94 }} // slightly smaller while pressed
+  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+>
+  Hover / press
+</motion.button>
+```
+
+- **`whileHover={{ scale: 1.06 }}`** … 1.06x only while the pointer is over it. Move away and it returns.
+- **`whileTap={{ scale: 0.94 }}`** … 0.94x only while pressed. Release and it returns.
+
+"Sinks a little when pressed" gives your finger the feedback that **the press registered**. It is close to CSS `:hover`, but because it springs back it has a softer feel.
+
+## Don't overdo it {#restraint}
+
+Keep the reaction **small** by default. Around `scale: 1.06` (6%) is plenty. Big movements like `1.5` get noisy and make the button harder to press. "Barely noticeable unless someone points it out" is just about the right amount.
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="A big move like whileHover={{ scale: 1.5 }}"
+  good="A restrained reaction around whileHover={{ scale: 1.05 }}"
+  note="Keep input feedback small. Too big is noisy and hard to press."
+/>
+
+## When it doesn't work {#trouble}
+
+- **It won't return** … `whileHover` / `whileTap` are "while doing" states. Check that you aren't pinning the element with `animate`.
+- **whileHover doesn't fire on mobile** … touch has no hover. For reactions you also need on mobile, use `whileTap`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Add whileHover={{ scale: 1.05 }} and whileTap={{ scale: 0.95 }} to the <motion.button>. It holds that state only while hovered or pressed, and returns when you let go. Keep the reaction restrained (a few percent).">
+
+What props would you add to make a button "grow a little on hover and shrink a little on press"?
+
+</Exercise>
+
+<SummaryBox>
+
+- `whileHover` is the state while hovered, `whileTap` while pressed. Both return when you let go
+- Sinking a little when pressed reads as "the press registered" feedback
+- Keep the reaction restrained (a few percent). Too big is noisy and hard to press
+
+</SummaryBox>

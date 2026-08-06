@@ -1,0 +1,188 @@
+---
+title: Using our shared mixins (getVw and mq)
+minutes: 11
+slug: shared-mixin
+section: styling
+description: "Bring the _mixin.scss we reuse on the job into React. Put it in the styles folder, load it with @use, and build from PC to SP with getVw and mq."
+level: beginner
+prerequisites: ['styling/responsive']
+---
+
+<LearnBox>
+
+- Bring the shared `_mixin.scss` we use on the job into a React project
+- Put it in `styles/` and load it from `.module.scss` with `@use`
+- Build the usual responsive layout with `getVw` (px→vw) and `mq` (switch to SP at 767px)
+
+</LearnBox>
+
+## This mixin is "our standard" {#why}
+
+The shared `_mixin.scss` (`getVw`, `mq`) we've used all along for LP work can be used as-is in React too. Instead of relearning a whole new way to think about styling, the goal of this page is to **bring familiar tools into SCSS Modules**. First, let's grab the file.
+
+<Download href="/downloads/_mixin.scss" filename="_mixin.scss">Download _mixin.scss</Download>
+
+Inside are the usual functions and mixins.
+
+- **`getVw($px, $viewport)`** … Converts px to vw (scales with the screen width).
+- **`mq($breakpoint)`** … A media query. The default is `medium` (**767px and under = SP**).
+- `fontSizeVw` / `fontSizeRem` / `lineHeight` / `getRatio` … Helpers for fonts and ratios.
+
+<Callout type="note" title="We tidied up just one thing">
+
+The distributed version **consolidates the duplicate `mq` definition** that was in the original file into one, and unifies the deprecated `map-get` to the newer **`map.get`** (`@use "sass:map"`). The behavior is the same, but it runs without warnings on newer Dart Sass. It's a good idea to fix your own master copy the same way.
+
+</Callout>
+
+## Put it in the styles folder {#place}
+
+Put the downloaded `_mixin.scss` in your project's `src/styles/`.
+
+```
+my-shop/src/
+├─ styles/
+│  ├─ _mixin.scss     ← put it here
+│  └─ tokens.scss     ← color tokens (previous page)
+├─ components/
+└─ ...
+```
+
+The leading `_` (underscore) in the file name is Sass's marker for "this is a partial and isn't output on its own." Keep `_mixin.scss` as-is.
+
+## Load it from .module.scss with @use {#use}
+
+At the **top** of each component's `.module.scss`, load it with `@use`. Modern Sass uses **`@use`**, not the `@import` from the LP days.
+
+```scss title="ProductCard.module.scss (top)"
+@use '../../styles/mixin' as *;
+```
+
+```scss
+@use '../../styles/mixin' as *;
+//   ↑                      ↑
+//   │                      └─ as * = call getVw / mq directly, with no namespace
+//   └─ relative path to styles/_mixin.scss (drop the leading _ and .scss)
+```
+
+Adding `as *` lets you use `getVw(...)` and `@include mq` exactly the way you always have (if you want a namespace, you can write `as m` and use `m.getVw(...)` instead). The relative path is the route from that file to `styles/mixin` (from `components/ProductCard/`, that's `../../styles/mixin`).
+
+## getVw: turn px into vw {#getvw}
+
+`getVw` converts **a design's px into vw that scales with the screen width**. The default reference width is **750** (= the width of an SP design).
+
+```scss
+.title {
+  padding-left: getVw(30); // equivalent to 30px in a 750px design; shrinks on narrower screens
+}
+```
+
+```scss
+padding-left: getVw(30);
+//            ↑      ↑
+//            │      └─ the px you want to convert (the size in the design)
+//            └─ px → vw. Default reference width is 750 (SP design)
+```
+
+When you want to base it on a PC design (a different width), pass the reference width as the second argument. And **capping the maximum with `min()`** is our go-to.
+
+```scss
+// On PC, scale with vw but never exceed 148px
+padding-left: min(getVw(148, 1200), 148px);
+```
+
+`getVw(148, 1200)` is "148px in a 1200px-wide design" turned into vw. `min(that, 148px)` stops it at 148px even when the screen is wider than the design. As it gets narrower, it shrinks by the vw amount.
+
+## mq: switch to SP at 767px {#mq}
+
+`mq` is a mixin that groups styles for "that width **and under**." The default is **`medium` = 767px**. Our "PC → SP" switch is usually right here.
+
+```scss
+.box {
+  // PC styles (this is the base)
+  display: flex;
+  gap: 40px;
+
+  @include mq {
+    // only at 767px and under (SP) does this override
+    display: block;
+    gap: 0;
+  }
+}
+```
+
+Inside `@include mq { ... }` is for SP. For a different width, pass a key from `$mq-breakpoints` (`small` / `medium` / `large` / `xlarge`), like `@include mq(large)`.
+
+## Real example: the usual `&__inner` {#example}
+
+This shape we often write on the job works as-is too.
+
+```scss title="Section.module.scss"
+@use '../../styles/mixin' as *;
+
+.section {
+  &__inner {
+    width: min(100%, 1200px);
+    margin: 0 auto;
+    padding-left: min(getVw(148, 1200), 148px); // PC: scales with vw, max 148px
+
+    @include mq {
+      // 767px and under (SP)
+      width: auto;
+      padding-left: 0;
+    }
+  }
+}
+```
+
+There are three things to read here. On **PC**, `min(getVw(...), 148px)` means "shrinks with vw but never exceeds 148px." At **767px and under**, the `@include mq` block switches to the SP layout (`padding-left: 0`). Where you want vw to take effect on the SP side, use a 750-based `getVw` like `getVw(30)`.
+
+<Together
+  task="At the top of ProductCard.module.scss, write @use, set .name's left padding to getVw(24), and reset it to 0 inside @include mq."
+  hint="Add @use '../../styles/mixin' as *; at the top, then write padding-left: getVw(24); and @include mq { padding-left: 0; } on .name."
+>
+
+```scss title="ProductCard.module.scss"
+@use '../../styles/mixin' as *;
+
+.name {
+  padding-left: getVw(24);
+
+  @include mq {
+    padding-left: 0;
+  }
+}
+```
+
+Once `@use` is at the top, you can write `getVw` and `@include mq` with the same feel as in LP work. Even inside SCSS Modules (`styles.name`), the shared mixins stay just as useful.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="@import 'mixin' in each .module.scss (the old way)"
+  good="@use '../../styles/mixin' as *; at the top of each .module.scss"
+  note="Modern Sass uses @use. @import is deprecated. as * lets you use getVw / mq with no namespace."
+/>
+
+## When things go wrong {#trouble}
+
+- **`Undefined function getVw` / `no mixin named mq`** … Check that you wrote `@use '.../mixin' as *;` at the top of that `.module.scss` (it's needed in every file).
+- **`@use` rules must be written before any other rules** … `@use` must always go at the **top** of the file.
+- **The path isn't found** … Check the relative path (from `components/ProductCard/`, that's `../../styles/mixin`). Drop the `_` and `.scss`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write @use '../../styles/mixin' as *; at the top of that file (as * means no namespace). The path is relative from components/X/ to styles/mixin, dropping the leading _ and .scss. Then you can use getVw and @include mq inside that file.">
+
+To use `getVw` and `mq` in a new component's `.module.scss`, what do you write first? Include where to write it and the path caveats.
+
+</Exercise>
+
+<SummaryBox>
+
+- Put the shared `_mixin.scss` in `src/styles/`, and at the top of each `.module.scss` write `@use '.../mixin' as *;`
+- `getVw($px)` is px→vw (default reference 750). On PC, cap it with `min(getVw($px, reference width), $px)`
+- `@include mq { }` is 767px and under (SP). Do the switch here, as always
+
+</SummaryBox>

@@ -1,0 +1,183 @@
+---
+title: "JSX: JavaScript that looks like HTML"
+minutes: 8
+slug: jsx
+section: components
+description: "The basics of JSX, which lets you write HTML-like markup inside React. Embedding JS with curly braces, differences from HTML like className, and the rule that you return a single element."
+level: beginner
+prerequisites: ['components/goal']
+---
+
+<LearnBox>
+
+- What JSX is (looks like HTML, but it's JavaScript)
+- Embedding variables and expressions with curly braces `{ }`
+- Differences from HTML like `className`, and the rule "return a single element"
+
+</LearnBox>
+
+## What JSX is {#what}
+
+A React component is written as **a function that returns "what the screen looks like"**. The HTML-like markup you return is called **JSX**.
+
+```tsx
+function Hello() {
+  return <h1>Hello</h1>
+}
+```
+
+The `return <h1>Hello</h1>` part is JSX. At a glance it looks like ordinary HTML, but it's **special syntax written inside JavaScript** that ultimately gets converted into something the browser can display (the "build" from Part 1 is doing this). Almost all of your HTML knowledge carries over as-is, so your LP experience pays off directly.
+
+## Embed JavaScript with curly braces {#braces}
+
+Inside JSX, **writing curly braces `{ }` drops you back into JavaScript**. You can inject variables and computed results into the screen.
+
+```tsx
+function Price() {
+  const price = 3200
+  return <p>{price.toLocaleString()} yen</p> // → 3,200 yen
+}
+```
+
+Let's break down the curly-brace part.
+
+```tsx
+return <p>{price.toLocaleString()} yen</p>
+//        ↑                        ↑
+//        │                        └─ "yen" is plain text (outside the braces)
+//        └─ Inside { } is JavaScript. The result of the expression is injected
+```
+
+Inside the braces of `{price.toLocaleString()}` is just JavaScript. The `toLocaleString()` and the ternary operator you did in Part 2 both work as-is inside `{ }`. Remember it as: **"no braces when you want to show a string; braces when you want to inject a value or expression."**
+
+<JsNote feature="Curly braces { } are a window that says 'JavaScript starts here'">
+
+The `{ }` inside JSX is a window that says "evaluate just this part as JavaScript." What you can write inside is an **expression that returns a value** (a variable, a computation, a `function call`, a ternary, and so on). You can't write "statements" like an `if` statement. When you want to branch, use the ternary `? :` (we'll cover this in detail on the conditional rendering page).
+
+</JsNote>
+
+## A few things that differ from HTML {#differences}
+
+JSX looks just like HTML, but **because it's JavaScript there are a few small differences**. Here are just the ones you'll use often.
+
+- **`class` → `className`** ... `class` is a reserved word in JavaScript, so you write CSS classes as `className`.
+- **`for` → `htmlFor`** ... the `for` on `<label>` becomes `htmlFor` for the same reason.
+- **Attributes are camelCase** ... `onclick` → `onClick`, `tabindex` → `tabIndex`.
+- **Always close your tags** ... `<img>` and `<br>` get closed at the end too, as `<img />` and `<br />`.
+
+```tsx
+<img src={product.imageUrl} alt={product.name} className={styles.image} />
+```
+
+Apart from `className`, this is the familiar `<img>`. When you put a variable in an attribute value, you use curly braces `{ }` here too.
+
+## Break it on purpose: returning two elements side by side {#break-two-roots}
+
+JSX has an important rule: **"you can only return one element from return."** As a test, let's try returning a heading and a paragraph side by side.
+
+```tsx
+function Card() {
+  return (
+    <h3>Tomato</h3>
+    <p>150 yen</p>
+  )
+}
+```
+
+You'll get this and the build fails.
+
+```
+Adjacent JSX elements must be wrapped in an enclosing tag.
+```
+
+It means "**adjacent JSX elements have to be wrapped in a single tag.**" The `<h3>` and `<p>` are side by side, so it can't decide which one is "the thing being returned" -- hence the complaint. The fix is to wrap the whole thing in a single element. When you don't want to add a pointless `<div>`, use an **empty wrapping tag `<>...</>` (a fragment)**.
+
+```tsx title="src/components/Card/Card.tsx (new file, full)"
+export function Card() {
+  return (
+    <>
+      <h3>Tomato</h3>
+      <p>150 yen</p>
+    </>
+  )
+}
+```
+
+You open with `<>` and close with `</>`. `<>...</>` puts no tag on the screen at all -- it exists only to "gather multiple elements into one." **When you see `Adjacent JSX elements must be wrapped`, wrap it in `<>...</>`** -- that fixes it.
+
+<Together
+  task="Put a product name in a variable called name and write a Card function that returns <h3>that product name</h3>. Inject the product name with curly braces."
+  hint="Set const name = 'Tomato', then embed it with braces like return <h3>{name}</h3>."
+>
+
+```tsx
+function Card() {
+  const name = 'Tomato'
+  return <h3>{name}</h3> // → <h3>Tomato</h3>
+}
+```
+
+The curly braces in `{name}` inject the contents of the variable `name`. If you leave the braces off and write `<h3>name</h3>`, the literal text **"name"** shows up instead of the variable. Let's build the habit of "braces when you want to inject a value" right here.
+
+</Together>
+
+## Syntax catalog: what you can put in curly braces {#catalog}
+
+Inside `{ }` you can write anything that's an **expression returning a value**. Here are the common forms.
+
+```tsx
+<p>{name}</p>                          // a variable
+<p>{price * count}</p>                 // a computation
+<p>{price.toLocaleString()} yen</p>    // the result of a function call
+<p>{inStock ? 'In stock' : 'Sold out'}</p> // a ternary
+<img src={product.imageUrl} alt={product.name} /> // passing variables to attributes
+```
+
+Conversely, you can't write "statements" like an `if` statement. When you want to branch, use a ternary or `&&` (see [Conditional rendering](/guide/components/conditional)).
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="<div class='card'> (writing class out of HTML habit)"
+  good="<div className='card'>"
+  note="In JSX it's className, not class. for becomes htmlFor too."
+/>
+
+<Diff
+  bad="writing <h3>name</h3> when you meant <h3>{name}</h3>"
+  good="<h3>{name}</h3>"
+  note="Use braces to inject a variable. Without them, the literal string name shows up."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="When returning multiple elements, use <>...</> (a fragment) if there's no meaningful wrapper, and don't add a useless <div>"
+  alt="If the wrapper actually has a style or role (the whole card, etc.), wrap it in a meaningful tag like <div className={styles.card}>. For plain 'gathering,' use <>...</>."
+>
+
+To follow "return a single element," wrapping things in a meaningless `<div>` adds pointless boxes to the screen. When you're only gathering, use `<>...</>`. Use a real tag only when the wrapper has a role -- that's how to choose between them.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`Adjacent JSX elements must be wrapped in an enclosing tag`** ... you're returning multiple elements side by side. Wrap them in `<>...</>`.
+- **`class` has no effect / a warning appears** ... in JSX you use `className`.
+- **A variable name shows up as literal text** ... you forgot the curly braces `{ }`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Wrap the return in <>...</> (or one meaningful tag). JSX can only return a single element, so when you line up two or more, you must always gather them into one.">
+
+You tried to return both `<h3>` and `<p>` and got `Adjacent JSX elements must be wrapped`. How should you fix it?
+
+</Exercise>
+
+<SummaryBox>
+
+- JSX is "JavaScript that looks like HTML" -- the syntax for the look a function returns
+- Inside curly braces `{ }` is JavaScript; you can inject variables and expressions (`toLocaleString()`, ternaries, and so on)
+- `class` becomes `className`, attributes are camelCase, and you return a single element (wrap multiples in `<>...</>`)
+
+</SummaryBox>

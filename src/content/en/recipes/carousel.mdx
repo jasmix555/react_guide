@@ -1,0 +1,147 @@
+---
+title: Carousel (drag slider)
+minutes: 10
+slug: carousel
+section: recipes
+description: "A horizontal-scrolling carousel. Let CSS scroll-snap handle the scrolling, and just add prev/next buttons and mouse dragging."
+level: intermediate
+prerequisites: ['state/use-effect/basics']
+---
+
+import { CarouselDemo } from '@/demos/Carousel'
+
+<LearnBox>
+
+- A horizontal-scrolling carousel built with CSS `scroll-snap`
+- Add prev/next buttons (`scrollBy`) and mouse dragging
+- Get touch and keyboard support without writing it yourself
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Swipe with your finger (touch), drag with a mouse, or use the buttons at the bottom right to move it.
+
+<Demo title="Carousel">
+  <CarouselDemo />
+</Demo>
+
+## Let CSS handle the scrolling {#scroll-snap}
+
+If you build a carousel by "calculating coordinates every frame and moving it with `transform`," it ends up heavy and fragile. **Horizontal scrolling and snapping (stopping crisply in place) can be done with CSS alone.**
+
+- `overflow-x: auto` … Makes a box that scrolls horizontally (touch swiping comes for free).
+- `scroll-snap-type: x mandatory` … Always snaps to some position along the horizontal axis.
+- `scroll-snap-align: center` on each slide … Stops crisply at the center.
+
+```scss title="Carousel.module.scss (key parts)"
+.track {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+}
+
+.slide {
+  flex: 0 0 70%; // 70% per slide. The next one peeks in a little
+  scroll-snap-align: center;
+}
+```
+
+At this point, **both touch swiping and keyboard scrolling already work**. We haven't written a single line of JavaScript yet.
+
+## Add prev/next buttons and mouse dragging {#js}
+
+For desktop, we add "Prev / Next" buttons and grab-and-drag with the mouse. The buttons just scroll a little with `scrollBy`. For mouse dragging, we remember the press position and `scrollLeft`, then shift by however far the mouse moved.
+
+```tsx title="src/components/Carousel/Carousel.tsx (new file, full source)"
+import { useRef } from 'react'
+
+import styles from './Carousel.module.scss'
+
+interface Slide {
+  title: string
+  tint: string
+}
+
+export function Carousel({ slides }: { slides: Slide[] }) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const drag = useRef({ down: false, startX: 0, startLeft: 0 })
+
+  function step(dir: number) {
+    const track = trackRef.current
+    if (!track) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: reduce ? 'auto' : 'smooth' })
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (e.pointerType !== 'mouse') return // leave touch to native scrolling
+    const track = trackRef.current
+    if (!track) return
+    drag.current = { down: true, startX: e.clientX, startLeft: track.scrollLeft }
+    track.setPointerCapture(e.pointerId)
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    const track = trackRef.current
+    if (!drag.current.down || !track) return
+    track.scrollLeft = drag.current.startLeft - (e.clientX - drag.current.startX)
+  }
+
+  function endDrag() {
+    drag.current.down = false
+  }
+
+  return (
+    <div>
+      <div
+        ref={trackRef}
+        className={styles.track}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        {slides.map((s) => (
+          <div key={s.title} className={styles.slide} style={{ background: s.tint }}>
+            {s.title}
+          </div>
+        ))}
+      </div>
+      <button type="button" aria-label="Prev" onClick={() => step(-1)}>‹</button>
+      <button type="button" aria-label="Next" onClick={() => step(1)}>›</button>
+    </div>
+  )
+}
+```
+
+<JsNote feature="Hold the drag position in useRef, not useState">
+
+Updating `useState` every time the mouse moves triggers a re-render each time, which makes it stutter. Keep the in-progress drag values (start position, starting scroll amount) in `useRef` and write `scrollLeft` directly. These aren't values shown on screen, so no re-render is needed.
+
+</JsNote>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Calculating coordinates every frame and moving slides with transform"
+  good="Let overflow-x + scroll-snap do the work, and just add buttons and dragging"
+  note="A hand-rolled animation means rebuilding touch, keyboard, and momentum too. Letting the browser handle scrolling is lighter and correct."
+/>
+
+## When it doesn't work {#trouble}
+
+- **It won't snap into place** … You need both `scroll-snap-type` on the box and `scroll-snap-align` on each slide.
+- **Text gets selected while dragging** … Add `user-select: none` to the slides.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Horizontal scrolling and snapping are CSS (`overflow-x` + `scroll-snap-type` + `scroll-snap-align`)
+- Prev/next buttons use `scrollBy`; mouse dragging writes `scrollLeft` directly
+- Keep in-progress drag values in `useRef`, not `useState` (no re-render)
+
+</SummaryBox>

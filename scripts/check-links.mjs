@@ -27,14 +27,27 @@ function listMdx(dir) {
 // Tabs with their own top-level path (mirror of lib/nav.ts NON_GUIDE_PREFIXES).
 const NON_GUIDE_PREFIXES = ['recipes/', 'standards/', 'project/', 'libraries/']
 
-// content/foo/bar.mdx → route. Top-level tabs keep their prefix, everything else /guide.
+// Content lives under a per-locale folder (ja/…, en/…) but links/prerequisites
+// are authored locale-neutral (MdxLink adds the locale at render). Strip the
+// leading locale segment so a neutral link resolves against either locale.
+const LOCALES = ['ja', 'en']
+function stripLocale(rel) {
+  const i = rel.indexOf('/')
+  const seg = i === -1 ? rel : rel.slice(0, i)
+  return LOCALES.includes(seg) ? rel.slice(i + 1) : rel
+}
+
+// content/<locale>/foo/bar.mdx → neutral route. Top-level tabs keep their prefix,
+// everything else /guide.
 function routeFor(rel) {
   return NON_GUIDE_PREFIXES.some((p) => rel.startsWith(p)) ? `/${rel}` : `/guide/${rel}`
 }
 
 const files = listMdx(contentRoot)
 const validRoutes = new Set(
-  files.map((f) => routeFor(path.relative(contentRoot, f).replace(/\\/g, '/').replace(/\.mdx$/, ''))),
+  files.map((f) =>
+    routeFor(stripLocale(path.relative(contentRoot, f).replace(/\\/g, '/').replace(/\.mdx$/, ''))),
+  ),
 )
 validRoutes.add('/')
 

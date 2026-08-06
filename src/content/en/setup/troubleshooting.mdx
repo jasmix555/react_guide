@@ -1,0 +1,106 @@
+---
+title: When things don't work
+minutes: 8
+slug: setup-troubleshooting
+section: setup
+description: "The classic errors that trip you up in the first five minutes, shown exactly as they appear. Watch out especially for the Windows execution policy."
+level: beginner
+prerequisites: ['setup/npm-run-dev']
+---
+
+<LearnBox>
+
+- How to fix the "running scripts is disabled" error that always appears on Windows
+- Handling `is not recognized` / port in use / `ERESOLVE` / permission errors
+- A tip for using the error text itself as a search query
+
+</LearnBox>
+
+Environment setup tends to trip you up in a fairly predictable set of spots. Here we line up **the ones especially likely to appear in our environment (Windows + XAMPP)**, shown exactly as the error text appears. If you see the same text, jump to that section. Copying the text and searching for it works well too.
+
+## PowerShell says "running scripts is disabled" {#execution-policy}
+
+The most common one on Windows, and the most disheartening. The moment you type `npm`, this appears.
+
+```
+npm : File C:\Program Files\nodejs\npm.ps1 cannot be loaded because running
+scripts is disabled on this system.
+```
+
+**Cause**: by default, Windows blocks PowerShell script execution for safety. `npm` is a script (`npm.ps1`), so it runs into this restriction.
+
+**Fix**: open PowerShell and run this just once.
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+When asked `Y` (yes), answer `Y`. This permits running `npm` and the like. Reopen the terminal, then try `npm run dev` again.
+
+<Callout type="warn">
+
+Always add `-Scope CurrentUser`. This means "apply to **only your current user**" and doesn't change the setting for the whole PC. `RemoteSigned` is a safety-leaning setting: "allow scripts you wrote yourself to run, but block unsigned ones downloaded from the internet". It doesn't require administrator privileges either.
+
+</Callout>
+
+## node / npm "is not recognized" {#not-recognized}
+
+```
+node : The term 'node' is not recognized as the name of a cmdlet, function,
+script file, or operable program.
+```
+
+**Cause**: Node.js isn't installed, or you just installed it and the terminal hasn't picked it up yet.
+
+**Fix**: install Node.js on pages 4–5. If it still appears after you've installed it, **close and reopen every terminal and VS Code**. If that still doesn't work, restarting the PC makes it take effect.
+
+## Port in use {#port-in-use}
+
+```
+Port 5173 is in use, trying another one...
+```
+
+**Cause**: this actually isn't an error. A server you started earlier is still running, and Vite simply switched to the next port (5174, etc.).
+
+**Fix**: open the newly shown URL (`http://localhost:5174/`) and it works. Stop the extra server by pressing `Ctrl` + `C` in that terminal.
+
+## npm ERR! ERESOLVE {#eresolve}
+
+```
+npm error code ERESOLVE
+npm error ERESOLVE unable to resolve dependency tree
+```
+
+**Cause**: the versions the libraries require don't line up (a conflict like "A requires React 18, B requires React 19"). Toward the bottom of the error body, in the form `Found:` and `Could not resolve:`, it tells you **which packages conflicted**. Read there first.
+
+**Fix**: usually the cause is that one of the libraries doesn't support the latest React yet. The proper fix is to wait for a compatible version or drop that library. As a stopgap when you're in a hurry, you can install with `npm install <package> --legacy-peer-deps`, but that's **just papering over the compatibility problem**, so avoid using it routinely.
+
+## Permission errors (EPERM / EACCES) {#permission}
+
+```
+npm error code EPERM
+npm error Error: EPERM: operation not permitted
+```
+
+**Cause**: on Windows, the most common one is that a file is being used by another program and can't be overwritten. Often the dev server or the editor is holding onto the file. Sometimes antivirus software is monitoring `node_modules` and getting in the way.
+
+**Fix**: stop `npm run dev` with `Ctrl` + `C`, close any other open terminals, then run it again. If that still doesn't work, restart the PC and try again.
+
+## A tip for searching error text {#search}
+
+When an unfamiliar error appears, **copy the first line (the English part) exactly and search for it**. Searching in your own language for something like "React error showed up" gets you worse results than **searching the original text**, like `Target container is not a DOM element`, which lands you on an accurate answer in one shot. That's why this guide shows errors in their original form rather than a translation.
+
+<Callout type="note">
+
+Errors aren't your enemy; they're a map. Don't reflexively close the red text — the first line tells you **which file, which line number, and what happened**, so read it there calmly. That's the fastest route.
+
+</Callout>
+
+<SummaryBox>
+
+- The Windows "running scripts is disabled" error is solved with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+- `is not recognized` means Node isn't installed or hasn't been picked up (reopen the terminal)
+- `ERESOLVE` is a version conflict. Read the `Found:` / `Could not resolve:` in the body
+- For an unfamiliar error, search the original first line exactly as it appears
+
+</SummaryBox>

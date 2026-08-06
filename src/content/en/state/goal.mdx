@@ -1,0 +1,80 @@
+---
+title: Goal of this part
+minutes: 5
+slug: state-goal
+section: state
+description: "state is the heart of React. It holds values tied to the screen, and updating them redraws it automatically. By the end of this part, you can build screens that move when you press them."
+level: beginner
+prerequisites: ['components/summary']
+---
+
+import { FavoriteDemo } from '@/demos/Favorite'
+
+<PartIntro>
+
+This is the **heart of React**. The screens you built in the previous part looked great, but "**nothing happened when you pressed them**." Press a button and the number goes up, toggle a favorite on and off—these **movements** come from **state**, which is what you'll learn in this part.
+
+The project on your machine is `my-shop`. At the end of Part 3, you got as far as `map`ping over `products.json` to display a product list.
+
+```
+my-shop/src/
+├─ App.tsx                       ← maps over products to show the list
+├─ components/ProductCard/
+│  └─ ProductCard.tsx            ← receives name and price via props
+└─ data/products.json            ← 12 product records
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- What state is, and why it's the single most important thing in React
+- What you'll be able to build by the end of this part
+- How this part is structured
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Try pressing the "Favorite" button below. The heart and the text switch.
+
+<Demo title="Press it and the screen changes (state)">
+  <FavoriteDemo />
+</Demo>
+
+Each press **changes the display itself**. That's state. You hold the value "is this a favorite right now?" in state, and when you update it, React **redraws the screen for you automatically**. You're moving from the "just display it" of the earlier parts to something that **moves**.
+
+You'll learn this button's **code by writing it out in full on each page** of this part (this page is just a preview of the finished result). For now, just carry the feeling of "press it and it changes" as you move on.
+
+## Why state is the core of React {#why}
+
+As you learn React, `useState` is a **central topic you can't get around**. That's because almost all of an app's "movement" is made of state.
+
+- The cart count goes up → hold the count in state
+- A modal opens and closes → hold whether it's open in state
+- Search narrows the list → hold the search term in state
+- A favorite toggles → hold whether it's a favorite in state
+
+**Behind anything where "the screen changes," there is always state**—you can safely assume so. That's why you should take this part slowly, working through it by hand. When something is unclear, the fastest route is to actually touch the demo and compare it with the code.
+
+## How this part is structured {#roadmap}
+
+From the top down, you'll deepen your understanding of state step by step.
+
+1. **What is state** — why "just a variable" won't do (this is the key part).
+2. **The basics of useState** — hold a value, update it, and redraw the screen.
+3. **Changing state on events** — toggle it with a click.
+4. **Object state** — update it without breaking the original (reference and copy from Part 2).
+5. **Array state** — add, remove, and reorder.
+6. **Updating from the previous value** — what `setCount(c => c + 1)` means.
+7. **useEffect** — "side effects" that run after the display.
+
+Each page comes with a **live demo** and **practice**. Don't just read—always write it out yourself and run it.
+
+<SummaryBox>
+
+- state is "a value tied to the screen." Update it and React redraws the screen automatically
+- Almost all of an app's "movement" is made of state. It's the core of React
+- Work through this part by touching the demos and writing code by hand
+
+</SummaryBox>

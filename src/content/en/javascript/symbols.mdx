@@ -1,0 +1,263 @@
+---
+title: "Reading the symbols (! !! % ===)"
+minutes: 9
+slug: symbols
+section: javascript
+description: "You can't look up a symbol whose name you don't know. Flip a value with !, convert any value to a boolean with !!, get the remainder with %. Also confirm hands-on why to use === instead of ==."
+level: beginner
+prerequisites: ['javascript/optional-chaining']
+---
+
+<LearnBox>
+
+- A quick reference for the symbols seen so far (`=>` `...` `? :` `&&` `||` `?.` `??`)
+- `!` (flip it) and `!!` (convert any value to `true` / `false`)
+- `%` (remainder after division), why comparisons use `===`, and the `||=` `??=` you'll come across
+
+</LearnBox>
+
+## You can't look up a symbol whose name you don't know {#why}
+
+Programs are full of not only alphabetic keywords but also lots of **symbols**. When people first see `!!` or `%`, many get stuck because "**they don't know the symbol's name, so they can't even search for it**". You can look up `for` or `map` by name, but searching for `!!` is hard.
+
+This page is a **quick reference where you can look up meaning from appearance**. We'll organize the symbols so far in one place, and learn the ones we haven't explained yet — the "seen everywhere but I don't know the name" symbols — hands-on. You don't need to memorize everything. It's enough to reach the state of "I've seen it" and "I know how to look it up".
+
+<Callout type="analogy">
+
+It's the same as road signs. If you know each one's meaning, you can read them; a sign you don't know only tells you "this is warning me about something". Symbols are the same — once you know the meaning, you'll read them smoothly every time.
+
+</Callout>
+
+## Symbols already covered (quick reference) {#seen}
+
+These are symbols whose meaning we covered in earlier parts. If you've forgotten one, go back to the linked page.
+
+- `=>` … arrow function (an arrow for writing functions concisely). [Arrow functions](/guide/javascript/arrow-functions)
+- `` ` `` … template literal (embedding values inside a string). [Template literals](/guide/javascript/template-literals)
+- `...` … spread / rest (spreading out or gathering up arrays and objects). [Spread and rest](/guide/javascript/spread-rest)
+- `? :` … the ternary operator (picking one of two). [Ternary and short-circuit evaluation](/guide/javascript/ternary-short-circuit)
+- `&&` … "return something only when true". In React you use `condition && display` for "show only when the condition is true" (covered in detail in Part 7)
+- `||` … "return a fallback when false" (a default)
+- `?.` … safely walk a path that might not exist. [?. and ??](/guide/javascript/optional-chaining)
+- `??` … a default only when `null` / `undefined`
+
+Everything below is symbols we haven't explained yet.
+
+## ! : flip it {#not}
+
+`!` is "**negation**"; it **flips** a value's truthiness. `true` becomes `false`, and `false` becomes `true`.
+
+```js
+console.log(!true)  // false
+console.log(!false) // true
+
+const isOpen = false
+if (!isOpen) console.log('It is closed') // → It is closed (!false is true)
+```
+
+`if (!isOpen)` means "if **not** `isOpen`". It lets you write "when it's not open" plainly. `!` also applies to truthy / falsy evaluation: `!''` (an empty string is falsy) is `true`, and `!'a'` (a string with content is truthy) is `false`.
+
+<JsNote feature="! flips the 'truthiness'">
+
+`!value` first evaluates whether the value is truthy or falsy, then returns the **opposite** as `true` / `false`. `!0` is `true` (`0` is falsy), and `!'text'` is `false` (a string is truthy). Recall the 6 from [truthy and falsy](/guide/javascript/truthy-falsy) and you can read it.
+
+</JsNote>
+
+## !! : convert any value to true / false {#double-not}
+
+`!!` — `!` doubled up — is "the opposite of the opposite" = back to the original truthiness. But the return value is always `true` or `false`. In other words, `!!` is the symbol for "**convert any value into a real `true` / `false`**".
+
+```js
+console.log(!!'text') // true   (a string is truthy → true)
+console.log(!!'')     // false  (an empty string is falsy → false)
+console.log(!!0)      // false  (0 is falsy → false)
+console.log(!!42)     // true
+```
+
+Let's break `!!` into parts and name them.
+
+```js
+   !!value
+// ↑ ↑
+// │ └─ takes any value (string, number, null…)
+// └─ ! twice. Flip-of-a-flip, so it always becomes true / false
+```
+
+- **`!`** … **flip** the truthiness (`true`↔`false`; it also evaluates truthy / falsy and flips)
+- **`!!`** … `!` twice. Flip-of-a-flip, so **any value becomes `true` / `false`**
+- Use: make the left of `&&` a boolean to prevent `0` leaking onto the screen (`!!items.length`)
+
+Why bother converting? For example, when you want to hold "**whether there's a value with content**" as a `true` / `false` flag. In particular, `!!` prevents the "`0 && …` returns `0` and leaks onto the screen" trap we covered in [ternary and short-circuit evaluation](/guide/javascript/ternary-short-circuit). Putting `items.length` (a number) directly on the left of `&&` leaks `0`, but `!!items.length` makes `0` become `false`, so it doesn't leak.
+
+<Together
+  task="From user.nickname (sometimes an empty string '', sometimes a filled-in name), build hasNickname that expresses 'does it have a nickname' as true / false. Try both '' and 'Taro' in the console."
+  hint="Adding !! to the front converts a string into true / false."
+>
+
+```js
+const user = { nickname: '' }
+const hasNickname = !!user.nickname
+console.log(hasNickname) // false ('' is falsy)
+
+const user2 = { nickname: 'Taro' }
+console.log(!!user2.nickname) // true (a string with content is truthy)
+```
+
+`!!user.nickname` becomes `false` for an empty string and `true` when there's content. Use `!!` when you want to hold "**whether it's present or absent, as a boolean**" rather than "the value itself".
+
+</Together>
+
+## % : remainder after division {#modulo}
+
+`%` gives the **remainder** of a division (not the quotient). `10 % 3` is "the remainder of 10 divided by 3" = `1`.
+
+```js
+console.log(10 % 3) // 1  (10 ÷ 3 = 3 remainder 1)
+console.log(10 % 2) // 0  (divides evenly)
+console.log(7 % 2)  // 1  (doesn't divide evenly)
+```
+
+Let's break `%` into parts and name them too.
+
+```js
+   n % 2
+// ↑ ↑ ↑
+// │ │ └─ the divisor
+// │ └─ % gives the "remainder after division" (not the quotient)
+// └─ the number being divided
+```
+
+- **`%`** … the **remainder** of a division (not the quotient). `10 % 3` is `1`
+- **`n % 2 === 0`** … even-number check (remainder is 0)
+- **`index % 3`** … cycles `0,1,2,0,1,2…`. Useful for column counts and such
+
+The most common use is **checking for even / odd numbers**. "If the remainder of dividing by 2 is 0, it's even." You use it for things like alternating row colors in a list (stripes).
+
+```js
+const n = 4
+console.log(n % 2 === 0 ? 'even' : 'odd') // even
+```
+
+`%` is also useful for "**cycling**". When you want to loop `0, 1, 2, 0, 1, 2 …`, `index % 3` always cycles within the range `0–2`. It's handy for getting "which column" in a 3-column grid, for instance (we'll cover rendering lists in React in detail in Part 7).
+
+<Together
+  task="For a list index (0, 1, 2, 3, 4 …), write stripe using % that returns 'white' for even positions and 'gray' for odd positions."
+  hint="index % 2 === 0 is an even position. Pick the color with a ternary."
+>
+
+```js
+const index = 3
+const stripe = index % 2 === 0 ? 'white' : 'gray'
+console.log(stripe) // gray (3 is an odd position)
+```
+
+`index % 2` becomes `0` (even position) or `1` (odd position). We checked it with `=== 0` to pick the color. Stripe patterns and processing like "break every 3 items" are all built on this `%`.
+
+</Together>
+
+## Break it on purpose: == matches even across different types {#break-loose-equality}
+
+For comparison, there's two-equals `==` and three-equals `===`. They look similar, but **they behave differently**. Because `==` "**converts types before comparing, even when the types differ**", it produces counterintuitive results. Let's check in the console.
+
+```js
+console.log(0 == '')    // true   ← the number 0 and an empty string are "equal"
+console.log(0 == '0')   // true   ← 0 and the character '0' are "equal"
+console.log('' == '0')  // false  ← yet these two are "not equal"
+```
+
+`0` equals `''`, and `0` also equals `'0'`, yet `''` and `'0'` are not equal — **it's inconsistent**. Because `==` converts types behind the scenes, these unexpected matches happen. It's a breeding ground for bugs.
+
+The fix is simple: always use **`===` (three equals)**. `===` decides "equal **only when both value and type are the same**", so no accidents from conversion.
+
+```js
+console.log(0 === '')   // false (different types = not equal. Plain)
+console.log(0 === 0)    // true
+```
+
+For comparison symbols, remembering these 5 kinds is enough.
+
+| Symbol | Meaning |
+|---|---|
+| `===` | value and type are the same (**use this**) |
+| `!==` | value or type differs (the opposite of `===`) |
+| `>` `<` | greater than / less than |
+| `>=` `<=` | greater than or equal / less than or equal |
+| `==` `!=` | loose comparison (converts types before comparing — **don't use**) |
+
+<Callout type="warn">
+
+`==` / `!=` (two equals) convert types on their own and create unexpected matches. In new code, always use `===` / `!==` (three equals). Even in [things you don't need to know yet](/guide/javascript/not-yet) we've decided to "avoid `==`".
+
+</Callout>
+
+## Just be able to read it when you see it: logical assignment ||= ??= &&= {#logical-assign}
+
+`||=` `??=` `&&=` are shorthand symbols you sometimes see in existing code. **You don't need to write them — just being able to read them is enough.** They're nothing more than the "assignment version" of the short-circuit evaluation we've already covered.
+
+- `x ||= y` … shorthand for `x = x || y`. If `x` is falsy, put `y` in
+- `x ??= y` … shorthand for `x = x ?? y`. Put `y` in only when `x` is `null` / `undefined`
+- `x &&= y` … shorthand for `x = x && y`. Put `y` in only when `x` is truthy
+
+```js
+let name = ''
+name ||= 'Anonymous' // name is falsy, so 'Anonymous' is put in
+console.log(name) // Anonymous
+```
+
+The meanings from [ternary and short-circuit evaluation](/guide/javascript/ternary-short-circuit) and [?. and ??](/guide/javascript/optional-chaining) apply directly. If you can read it as "that short-circuit with `=` attached, the assignment version", you're good. You don't need to force yourself to use them.
+
+## Writing catalog: symbol quick reference {#catalog}
+
+Here are the symbols from this page laid out in their usage forms. Use it as a cue to recall "appearance → meaning".
+
+```js
+!isOpen      // ! : flip the truthiness (write "not open" plainly)
+!!value      // !! : convert any value to true / false
+n % 2 === 0  // % : even check via remainder
+a === b      // === : same value and type (use this for comparison)
+a !== b      // !== : the opposite of ===
+x ?? 0       // ?? : default only when null / undefined
+```
+
+Use the accident-free `===` / `!==` for comparison, and when the left of `&&` is a number, convert it to a boolean with `!!` — nail these two and you won't get stuck in everyday code.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="if (count == 0) (== converts types before comparing)"
+  good="if (count === 0)"
+  note="Use === for comparison, which also checks the type. == produces unexpected matches like 0 == ''."
+/>
+
+<Diff
+  bad="{items.length && <List />} (0 leaks onto the screen when it's 0)"
+  good="{!!items.length && <List />}"
+  note="Converting length to true / false with !! keeps 0 from leaking."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Always use === / !== for comparison. In situations where you want a boolean, convert explicitly with !!"
+  alt="Logical assignment (||= etc.) is fine to just be able to read; you don't have to force yourself to use it. First choose the original x = x || y form, whichever conveys the intent."
+>
+
+For symbols, "**being able to read them**" is the top priority. When writing, choose the one that conveys your intent. Use the accident-free `===` / `!==` for comparison. When the left of `&&` is a number, make it a boolean with `!!` or `> 0`. Keep in mind that `%` is the "remainder", not division, and you won't get stuck in everyday code.
+
+</Std>
+
+## Summary & practice {#summary}
+
+<Exercise answer="i % 2 === 1 checks 'is it an odd position' (the remainder of dividing by 2 is 1 = odd). !!'' becomes false (an empty string is falsy, so converting gives false).">
+
+What does `i % 2 === 1` check? And will `!!''` be `true` or `false`?
+
+</Exercise>
+
+<SummaryBox>
+
+- `!` flips the truthiness. `!!` converts **any value** to `true` / `false`
+- `%` is the remainder after division. Use `n % 2 === 0` for an even check, `index % 3` for cycling too
+- Use `===` / `!==`, which check both value and type, for comparison. `==` converts types and matches unexpectedly
+
+</SummaryBox>

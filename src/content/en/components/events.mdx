@@ -1,0 +1,186 @@
+---
+title: Responding to clicks (events)
+minutes: 8
+slug: events
+section: components
+description: "Respond to clicks with events like onClick. A function is something you 'pass', not something you 'call' — the difference between onClick={fn} and onClick={fn()}. Changing the screen comes next, with state."
+level: beginner
+prerequisites: ['components/conditional', 'javascript/functions-as-values']
+---
+
+<LearnBox>
+
+- Respond to clicks with `onClick`
+- A function is something you "pass", not something you "call" (`onClick={fn}`)
+- The trap where writing `onClick={fn()}` runs it before the click
+
+</LearnBox>
+
+## Responding to clicks {#what}
+
+Do something when a button is pressed — you write this with an **event**. The one you'll use most is `onClick` for clicks. Add `onClick` to a `<button>` and **pass it the function you want to run**.
+
+```tsx
+function BuyButton() {
+  function handleClick() {
+    console.log('The buy button was clicked')
+  }
+
+  return <button onClick={handleClick}>Buy</button>
+}
+```
+
+Every time the button is pressed, `handleClick` runs and a message appears in the console (`F12`). It's similar to HTML's `onclick`, but in JSX it's camelCase `onClick`, and **what you pass is the function itself, not a string**.
+
+Let's break down `onClick={handleClick}`.
+
+```tsx
+<button onClick={handleClick}>Buy</button>
+//      ↑        ↑
+//      │        └─ pass only the function's name (handleClick, without ())
+//      └─ the event name (runs on click)
+```
+
+- **Event name** … `onClick` fires when the button is clicked
+- **Pass only the function's name** … write `handleClick`. Don't add `()` to make it `handleClick()`
+
+Here's `BuyButton` as a full file.
+
+```tsx title="src/components/BuyButton/BuyButton.tsx (full file)"
+export function BuyButton() {
+  function handleClick() {
+    console.log('The buy button was clicked')
+  }
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Buy
+    </button>
+  )
+}
+```
+
+<JsNote feature="What you pass to onClick is only the function's name">
+
+`onClick={handleClick}` is exactly Part 2's [Passing functions as values](/guide/javascript/functions-as-values). You're passing the **function `handleClick` by name only**. React receives it as "when clicked, please run this function" and calls it at the moment the button is actually pressed.
+
+</JsNote>
+
+## Break it on purpose: `onClick={fn()}` runs before the click {#break-call}
+
+The most common mistake is adding `()` when you pass it. The trap we covered in Part 2 shows up here as a real-world symptom.
+
+```tsx
+return <button onClick={handleClick()}>Buy</button>
+```
+
+Written this way, **`handleClick` runs the moment the screen appears, even though you haven't pressed the button**. And when you do click, nothing happens anymore.
+
+The reason is just as in Part 2. `handleClick()` is "the **result of calling the function right now**". So what gets passed to `onClick` isn't a function — it's "the value left over after it already ran". What you pass to `onClick` is always **`handleClick` (name only, no `()`)**. When something "runs even though you didn't click" or "doesn't run when you click", first suspect that you added `()`.
+
+## When you want to pass an argument, wrap it in an arrow function {#arrow}
+
+Sometimes you want to "call a function with an argument on click". But writing `onClick={buy(product)}` gives you the trap from before — it runs immediately. So you **wrap it in an arrow function** to pass it.
+
+```tsx
+<button onClick={() => buy(product)}>Buy this</button>
+```
+
+`() => buy(product)` is "a function that runs `buy(product)` when called". Since what you pass is **the function itself**, it doesn't run immediately; `buy(product)` runs only when the button is clicked. "When you want to pass an argument, wrap it in an arrow function" — memorize this as a standard pattern.
+
+Let's break down `onClick={() => buy(product)}`.
+
+```tsx
+<button onClick={() => buy(product)}>Buy this</button>
+//               ↑     ↑
+//               │     └─ call it with an argument (pass product to buy)
+//               └─ wrap it in an arrow function (runs on click)
+```
+
+- **Wrap it in an arrow function** … `() => …` makes "a function that runs when called"
+- **Call it with an argument** … inside the wrapper you can call `buy(product)` and pass an argument
+
+<Together
+  task="Build a button that shows alert('Added to cart') when pressed. Watch how you pass it to onClick (no () added, or wrap it in an arrow function)."
+  hint="Wrap it in an arrow function, like onClick={() => alert('Added to cart')}."
+>
+
+```tsx
+function AddButton() {
+  return (
+    <button onClick={() => alert('Added to cart')}>
+      Add to cart
+    </button>
+  )
+}
+```
+
+`onClick={() => alert('Added to cart')}` passes a function that runs `alert(...)` when clicked. If you wrote `onClick={alert('Added to cart')}`, the alert would fire the moment it renders. This is "when you want to call with an argument, wrap it in an arrow function" at work.
+
+</Together>
+
+## Changing the screen comes from "state" {#next}
+
+The events so far only did a `console.log` or an `alert`. To "change the actual display on the screen when pressed" — like increasing the cart count, or opening a modal — you need a mechanism called **state**.
+
+That's because in React, **rewriting an ordinary variable doesn't update the screen**. Values tied to the screen are held in state. We'll cover this in detail in the next part (more on it later). For now, it's enough to have the shape of "responding to clicks" (`onClick={function}`) down.
+
+## Pattern catalog: event handlers {#catalog}
+
+```tsx
+<button onClick={handleClick}>Submit</button>          // pass a function (no () added)
+<button onClick={() => buy(product)}>Buy</button>       // wrap in an arrow function to pass an argument
+<input onChange={(e) => setName(e.target.value)} />    // pull the value out of the event
+
+// named handler … pull a multi-line body out into a function and pass the name only
+// inline arrow   … for one line, write onClick={() => setOpen(true)} directly
+```
+
+The basic form is `onClick={fn}`. Only wrap it as `onClick={() => fn(x)}` when you need an argument.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="<button onClick={handleClick()}> (adding ())"
+  good="<button onClick={handleClick}>"
+  note="Adding () makes it run immediately on render. Pass only the function's name."
+/>
+
+<Diff
+  bad="<button onClick={buy(product)}> (runs immediately when trying to pass an argument)"
+  good="<button onClick={() => buy(product)}>"
+  note="When you want to call with an argument, wrap it in an arrow function."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Pass a function to events (onClick={fn}). Only wrap it in an arrow function when you need an argument (onClick={() => fn(x)})."
+  alt="If a handler is simple and one line, writing an inline arrow function is fine. When it grows to several lines, pull it out as handleClick to keep it readable."
+>
+
+`onClick={fn}` is the basic form. Don't add `()`. Only wrap it as `onClick={() => fn(x)}` when you want to pass an argument. Follow these two and you won't hit the beginner stumbles of "runs before the click" or "doesn't run when clicked".
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **Runs even though you didn't click / runs only once** … you added `()` as in `onClick={fn()}`. Change it to `onClick={fn}`.
+- **Nothing happens when you click** … same thing — check for a missing or extra `()`, or a misspelled function name.
+- **The screen doesn't change when pressed** … rewriting an ordinary variable doesn't update the screen. Use state from the next part.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Wrap it in an arrow function, as onClick={() => buy(item)}. onClick={buy(item)} would run immediately on render.">
+
+When you want to call `buy(item)` on click, how do you write it in `onClick`?
+
+</Exercise>
+
+<SummaryBox>
+
+- For clicks, **pass a function** to `onClick` (`onClick={handleClick}`, no `()`)
+- When you want to call with an argument, wrap it in an arrow function (`onClick={() => buy(x)}`)
+- Changing what's on screen when pressed needs state (the next part)
+
+</SummaryBox>

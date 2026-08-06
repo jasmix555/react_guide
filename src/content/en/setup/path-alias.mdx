@@ -1,0 +1,179 @@
+---
+title: Shorten relative paths with the @/ path alias
+minutes: 9
+slug: path-alias
+section: setup
+description: "Make @/ an alias for src and get rid of ../../.. Set it up first and every import from here on stays short. Includes why you write it in both tsconfig and vite."
+level: beginner
+prerequisites: ['setup/generated-files']
+---
+
+<LearnBox>
+
+- Import like `@/components/Button` without writing `../../`
+- Why you need the setting in **both tsconfig and vite**
+- Set it up once at the start and your imports stay short forever
+
+</LearnBox>
+
+## Why set this up first {#why}
+
+From here on, you'll create folders like `components/`, `styles/`, and `pages/` inside `src/`. As folders get deeper, imports like this pile up.
+
+```tsx
+import { Button } from '../../../components/Button/Button'
+```
+
+`../../../` is "**relative to that file's location**". So **if you move the file to another folder, everything shifts and breaks**, and even looking at it you can't tell "where it points" at a glance.
+
+That's why we make **`@/` an "alias for `src/`"**. Set it up **once at the start** of the project and, from any file from here on, you can import with the same short syntax.
+
+```tsx
+import { Button } from '@/components/Button/Button'
+```
+
+`@/components/Button/Button` means "`src/components/Button/Button`". No matter where you move the file, the path from `@/` doesn't change. The settings touch the **two files you saw on the previous page: `vite.config.ts` and `tsconfig`**.
+
+## Important: write it in two places (you need both) {#two-places}
+
+This is the key point. In a Vite project, making `@/` work requires **two settings, both of them**. They have different jobs.
+
+- **tsconfig** … tells **the editor and type checker** that "`@/` means `src/`". Without this, you get red squiggles and no autocomplete.
+- **vite** … lets **the actual build and dev server** resolve `@/`. Without this, `npm run dev` fails to load.
+
+<Callout type="warn" title="With only one, it 'works but doesn't work'">
+
+If you write **only tsconfig**, the editor is green but `npm run dev` crashes with `Failed to resolve import "@/..."`. If you write **only vite**, it runs but the editor is full of red squiggles (and `tsc` fails too). Next.js works with just tsconfig, so it's easy to think "it worked before", but **Vite needs both**.
+
+</Callout>
+
+## 1. Write it in tsconfig {#tsconfig}
+
+Add `paths` to the `compilerOptions` of `tsconfig.app.json` (Vite's template type-config file).
+
+```json title="tsconfig.app.json"
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+
+```json
+"@/*": ["./src/*"]
+//  ↑        ↑
+//  │        └─ map what follows to under src/ (@/components → src/components)
+//  └─ an import that starts with @/ and has something after it…
+```
+
+<Callout type="note" title="Do I need baseUrl?">
+
+The current Vite template uses `moduleResolution: "bundler"`, so you don't need `baseUrl` (`paths` is resolved relative to this tsconfig). With the older `"moduleResolution": "node"` setting, you also need to add `"baseUrl": "."`.
+
+</Callout>
+
+## 2. Write it in vite {#vite}
+
+In `vite.config.ts`, register `@` under `resolve.alias` as the absolute path to the `src` folder.
+
+```ts title="vite.config.ts"
+import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite'
+
+const src = fileURLToPath(new URL('./src', import.meta.url))
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': src, // "@/components/X" → "<project>/src/components/X"
+    },
+  },
+})
+```
+
+The one line `fileURLToPath(new URL('./src', import.meta.url))` just computes **"the absolute path to `src` as seen from this config file"**. It then assigns that to `@`. The important thing is that tsconfig and vite **point at the same `src`**.
+
+## Shorten SCSS's @use too {#scss}
+
+(This is about **when you start writing SCSS in Part 5**, but since the setting lives in the same `vite.config.ts`, let's add it while we're here.)
+
+The `@/` for JS/TS actually **doesn't work for SCSS's `@use`** (`@/` is Vite's alias for JS). SCSS has a separate mechanism. If you pass `src` to `loadPaths`, you can write `@use` **starting from `src`**.
+
+```ts title="vite.config.ts (add the css setting)"
+export default defineConfig({
+  resolve: {
+    alias: { '@': src },
+  },
+  css: {
+    preprocessorOptions: {
+      scss: { loadPaths: [src] }, // let @use search starting from src
+    },
+  },
+})
+```
+
+Now, when writing SCSS, instead of `../../styles/mixin` you can write this.
+
+```scss title="the same from any .module.scss"
+@use 'styles/mixin' as *; // starting from src, not ../../styles/mixin
+```
+
+JS/TS uses `@/`; SCSS uses `loadPaths` plus a path from the starting point. Remember they're **separate mechanisms** (we cover how to use SCSS in [Part 5](/guide/styling/shared-mixin)).
+
+## Break it on purpose: leave only tsconfig {#break}
+
+Delete the vite setting and leave only tsconfig. The editor stays green, but when you `npm run dev` you get this.
+
+```
+[plugin:vite:import-analysis] Failed to resolve import "@/components/Button"
+from "src/...". Does the file exist?
+```
+
+"Can't resolve `@/components/Button`". Even though the editor (tsconfig) understands it, **the build side (vite) doesn't know `@/`**. Restore vite's `resolve.alias` to fix it. **If "the editor is green but dev crashes", it's a missing setting on the vite side** — that's how you narrow it down.
+
+## Syntax catalog: before / after {#catalog}
+
+```tsx
+// before (relative paths)
+import { Button } from '../../../components/Button/Button'
+import { formatPrice } from '../../lib/format'
+
+// after (alias)
+import { Button } from '@/components/Button/Button'
+import { formatPrice } from '@/lib/format'
+import styles from './Card.module.scss' // same folder is fine kept relative
+```
+
+The same folder or one level up (`./`, `../`) is fine kept relative. Using the alias **when it gets deep (`../../` or more)** makes it more readable.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Writing only paths in tsconfig and being satisfied (Vite)"
+  good="Write both tsconfig (types) and vite's alias (resolution)"
+  note="Vite won't work with only one. One for the editor, one for runtime — point both at the same src."
+/>
+
+## When things don't work {#trouble}
+
+- **`Failed to resolve import "@/..."` (dev/build)** … you forgot to write vite's `resolve.alias`.
+- **Red squiggles in the editor / `tsc` fails** … you forgot to write tsconfig's `paths`.
+- **SCSS's `@use '@/styles/...'` doesn't work** … `@/` can't be used in SCSS. Set up `loadPaths` and write `@use 'styles/...'`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Because it's Vite. tsconfig's paths is for the editor and type checking, and actual build resolution separately needs resolve.alias in vite.config.ts. Point both at the same src and it works (it's easy to mix up because Next.js works with just tsconfig).">
+
+"I wrote `paths` in tsconfig, but `npm run dev` crashes with `Failed to resolve import "@/..."`". Why? How do you fix it?
+
+</Exercise>
+
+<SummaryBox>
+
+- Making `@/` an alias for `src/` gets rid of `../../` and makes you resilient to moving files
+- In Vite you need **both tsconfig's `paths` (editor) and vite's `resolve.alias` (runtime)**
+- SCSS is separate. Use `css.preprocessorOptions.scss.loadPaths` to write `@use 'styles/...'`
+
+</SummaryBox>

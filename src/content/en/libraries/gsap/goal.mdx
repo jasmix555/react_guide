@@ -1,0 +1,65 @@
+---
+title: Goal of this part
+minutes: 6
+slug: gsap-goal
+section: gsap
+description: "Add polished motion with GSAP. Sequence movements with a timeline, tie them to scroll with ScrollTrigger, and learn when to reach for GSAP versus Framer Motion."
+level: beginner
+prerequisites: ['data/summary']
+---
+
+import { GsapTimeline } from '@/demos/GsapTimeline'
+
+<PartIntro>
+
+**GSAP** (GreenSock Animation Platform) is the go-to library for web animation. The **polished effects** you often see on LPs — "elements move as you scroll," "several movements play one after another" — can be built with fine-grained control.
+
+The good news: as of **2025, every GSAP feature is free** (including plugins like ScrollTrigger that used to be paid). From React, you can use it safely through the official **`@gsap/react`** (the `useGSAP` hook).
+
+</PartIntro>
+
+<LearnBox>
+
+- What GSAP is good at, and when to use it
+- What you'll be able to build by the end of this part
+- How it relates to Framer Motion (both are in this tab)
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Below is an example of a GSAP **timeline**. Press "Play again" and ① → ② → ③ come in one after another, then "Done" bounces in at the end. Building **movements with an order** in just a few lines is GSAP's specialty.
+
+<Demo title="gsap.timeline (play in sequence)">
+  <GsapTimeline />
+</Demo>
+
+## What GSAP is good at {#why}
+
+[Framer Motion](/libraries/framer-motion/goal) was good at "animating in sync with React state" (mount, hover, enter/exit). GSAP goes one step further: it's good at **designing the movement itself in detail**.
+
+- **Timeline** … lay out **order and overlap** — "B after A, C slightly overlapping" — along a time axis.
+- **ScrollTrigger** … **tie** movement to scroll position (reveal when it comes into view, move in step with scroll amount = scrub, hold it in place = pin). This is the star of LPs.
+- **Fine control** … easing (the pace of movement), repeats, reverse, starting partway through, and more — the timeline is yours to command.
+
+For something like "a list fading in gently," Framer Motion is plenty. Reach for GSAP when you need **scroll-linked motion or intricate, ordered effects** — that's the division of labor (more on the [when-to-use-which page](/libraries/gsap/fm-vs-gsap)).
+
+## Give motion a "reason," and be considerate {#restraint}
+
+GSAP is powerful, so it's easy to overdo it. Following the same principle as the [Framer Motion part](/libraries/framer-motion/goal), **give motion a reason** (drawing attention, signaling a state change, responding to an action). And GSAP handles **consideration for `prefers-reduced-motion` (the reduce-motion setting)** from the start via `gsap.matchMedia()`. Every demo in this part builds in that consideration.
+
+## How this part unfolds {#roadmap}
+
+1. **Install** — install `gsap` and `@gsap/react`.
+2. **useGSAP basics** — `gsap.to` / `from` / `fromTo` and the `useGSAP` hook.
+3. **Timeline** — play in sequence with `gsap.timeline()`.
+4. **ScrollTrigger** — tie motion to scroll.
+5. **When to use which** — Framer Motion or GSAP, which to use.
+
+<SummaryBox>
+
+- GSAP is the standard for "polished motion." It's good at timelines and scroll-linked motion (ScrollTrigger)
+- As of 2025 all features are free. From React, use the official `@gsap/react` (`useGSAP`)
+- Simple motion → Framer Motion; scroll-linked or intricate effects → GSAP
+
+</SummaryBox>

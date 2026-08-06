@@ -1,0 +1,141 @@
+---
+title: Basic types
+minutes: 8
+slug: basic-types
+section: typescript
+description: "Type annotations for string, number, boolean, and arrays. Where to lean on inference and where to be explicit, all the way to function parameter and return types."
+level: beginner
+prerequisites: ['typescript/goal']
+---
+
+<LearnBox>
+
+- How to write type annotations (`: string`, `: number`, `: boolean`) and array types
+- Where you can lean on inference (no need to write it every time)
+- Function parameter and return types
+
+</LearnBox>
+
+## Type annotations: writing the kind of value {#annotation}
+
+Writing `: type-name` after a variable name lets you decide "this value is this type." The kinds you saw in [Part 2's values and types](/guide/javascript/values-and-types) become the type names directly.
+
+```ts
+const name: string = 'Sato'
+const price: number = 3200
+const inStock: boolean = true
+```
+
+Let's break one line apart.
+
+```ts
+const price: number = 3200
+//    ↑      ↑        ↑
+//    │      │        └─ the value you assign
+//    │      └─ type annotation: a type name after the : (string / number / boolean …)
+//    └─ variable name
+```
+
+## Array types {#array}
+
+For arrays, add `[]` after "the type of the contents." "An array of strings" is `string[]`.
+
+```ts
+const tags: string[] = ['cookware', 'IH-compatible']
+const prices: number[] = [3200, 2480, 1800]
+```
+
+## Type inference: figured out even without writing it {#inference}
+
+In fact, in the examples above the `: type` **doesn't need to be written**. TypeScript **infers the type automatically** from the value you assign.
+
+```ts
+const price = 3200 // TypeScript knows "this is a number"
+```
+
+The moment you assign `3200`, `price` is settled as `number`, and if you later try to assign a string like `price = 'cheap'`, it gets stopped. **So you normally don't write a type annotation on a variable that has an initial value** — it would just be redundant.
+
+<Callout type="note" title="Where do you write types">
+
+Because inference works, you don't need to write a type on every `const`. Being **explicit matters where inference can't help** — especially on **function parameters** and **props**. We'll get to those from the next page.
+
+</Callout>
+
+## Function parameters and return values {#function}
+
+TypeScript can't infer a function's **parameters** (at the time you write it, what will be passed in is unknown). So **you write types on parameters**. The return value can often be left to inference.
+
+```ts
+function toYen(price: number): string {
+  return `${price.toLocaleString()} yen`
+}
+//                ↑              ↑
+//                │              └─ return type (inferred even if omitted)
+//                └─ parameter type (write this)
+```
+
+With `price: number` in place, passing a string like `toYen('cheap')` produces a red squiggle the instant you do it.
+
+## Break it on purpose: assign a value that doesn't fit the type {#break}
+
+Let's watch types work. We'll assign a string to a `number` variable.
+
+```ts title="Types at work"
+const price: number = '3200' // ← assigned a string
+```
+
+A red squiggle appears on `'3200'`, saying:
+
+```
+Type 'string' is not assignable to type 'number'.
+```
+
+"A `string` value can't go where a `number` is expected." Drop the quotes to make it `3200` (a number) and it disappears. **It stopped the type mismatch before you ran the code.**
+
+## Syntax catalog: basic types {#catalog}
+
+```ts
+// Explicit (in places inference can't help, like parameters and props)
+const name: string = 'Sato'
+const price: number = 3200
+const inStock: boolean = true
+const tags: string[] = ['a', 'b']
+
+// Left to inference (variables with an initial value)
+const total = 3200 // inferred as number
+const items = ['a', 'b'] // inferred as string[]
+
+// Function
+function toYen(price: number): string {
+  return `${price} yen`
+}
+```
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Bothering to write : number on const price = 3200"
+  good="Leave variables with an initial value to inference; write types on function parameters and props"
+  note="Writing types where inference works is redundant. Concentrate types on 'places inference can't help'."
+/>
+
+## When things go wrong {#trouble}
+
+- **`Type 'X' is not assignable to type 'Y'`** … The value's type differs from the annotated or inferred type. Line up either the value or the type.
+- **`Parameter 'x' implicitly has an 'any' type`** … A function parameter has no type and can't be inferred. Write a type on the parameter.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write the number type on parameters x and y: function add(x: number, y: number). The return value is inferred as number, so it can be omitted. Parameters need types because inference doesn't reach them.">
+
+When you write a function `add` that adds two numbers, where should the types go? Do you need a return type?
+
+</Exercise>
+
+<SummaryBox>
+
+- A type annotation is `name: type`. Arrays are the content type + `[]`, like `string[]`
+- Leave variables with an initial value to **type inference** (don't write it)
+- Write types where inference can't help — especially **function parameters** and **props**
+
+</SummaryBox>

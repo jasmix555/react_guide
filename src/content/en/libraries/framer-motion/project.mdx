@@ -1,0 +1,87 @@
+---
+title: "End-to-end project: animating the list"
+minutes: 9
+slug: animation-project
+section: framer-motion
+description: "Add a staggered reveal and hover to the ProductCard list. Combine it with fetching from useProducts, and finish it off with care for reduced-motion."
+level: intermediate
+prerequisites: ['libraries/framer-motion/scroll-and-stagger']
+---
+
+<LearnBox>
+
+- Reveal the `ProductCard` list a little at a time with stagger
+- Combine it with `useProducts` (the fetch) from the previous part
+- Finish it off with care for `useReducedMotion`
+
+</LearnBox>
+
+## What we're building {#goal}
+
+We'll add Framer Motion **motion** to the "fetch and show a list" we built in Part 8. Once the data arrives, the cards line up **fading in a little at a time** — that's the finishing touch.
+
+## Make the list stagger {#stagger}
+
+Wrap the `ProductListPage` list in `motion`. The key point: **leave the fetch (`useProducts`) alone**, turn the display container into a `motion.div`, and add stagger.
+
+```tsx title="src/pages/ProductListPage.tsx (with animation, full file)"
+import { motion, useReducedMotion } from 'motion/react'
+
+import { ProductCard } from '@/components/ProductCard/ProductCard'
+import { useProducts } from '@/hooks/useProducts'
+import styles from './ProductListPage.module.scss'
+
+export function ProductListPage() {
+  const { products, status } = useProducts()
+  const reduce = useReducedMotion()
+
+  if (status === 'loading') {
+    return <p className={styles.msg}>Loading…</p>
+  }
+  if (status === 'error') {
+    return <p className={styles.error}>Failed to load.</p>
+  }
+
+  return (
+    <motion.div
+      className={styles.list}
+      initial="hidden"
+      animate="show"
+      variants={{
+        hidden: {},
+        show: { transition: { staggerChildren: reduce ? 0 : 0.06 } },
+      }}
+    >
+      {products.map((product) => (
+        <motion.div
+          key={product.id}
+          variants={{
+            hidden: reduce ? { opacity: 1 } : { opacity: 0, y: 16 },
+            show: { opacity: 1, y: 0 },
+          }}
+        >
+          <ProductCard product={product} />
+        </motion.div>
+      ))}
+    </motion.div>
+  )
+}
+```
+
+There are three things to read for. The `useProducts()` fetch and its 3 states are **unchanged** (Part 8). The list container becomes a `motion.div` with `staggerChildren`. Each card is wrapped in a `motion.div`, with `variants` for "fade up from below." **When `reduce` is on, set stagger to 0 and don't run the `initial`** (the care from [reduced-motion](/libraries/framer-motion/reduced-motion)).
+
+## What about the ProductCard's own hover? {#hover}
+
+If you want the card to lift on hover, make the outermost element inside `ProductCard` a `<motion.article>` and add `whileHover={reduce ? undefined : { y: -4 }}`. That said, back in Part 5 we already added a lift with **CSS `:hover`**. **Either one alone** is enough (don't double it up). Choose the motion side if you want a `spring` feel, or the CSS side if simple is fine.
+
+## Run it {#run}
+
+Open it with `npm run dev` and, after "Loading…", the cards appear **from the top, a little at a time**. Turn on the OS "reduce motion" setting and they line up from the start with no motion (the content doesn't disappear). **Fetch → display → a satisfying reveal** — now it all connects.
+
+<SummaryBox>
+
+- Leave the fetch (`useProducts`) alone. Turn the list container into a `motion.div` and add stagger
+- Wrap each card in a `motion.div`, and use `variants` for "fade up from below"
+- With `useReducedMotion`, set stagger to 0 and show from the start when reduce is on. Do hover in either CSS or motion, not both
+
+</SummaryBox>

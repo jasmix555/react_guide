@@ -1,0 +1,144 @@
+---
+title: Custom select
+minutes: 10
+slug: custom-select
+section: recipes
+description: "A select box you want to style freely. We recommend the native select first, and only build your own when you truly need to — being honest about what it costs."
+level: intermediate
+prerequisites: ['state/use-effect/basics']
+---
+
+import { CustomSelectDemo } from '@/demos/CustomSelect'
+
+<LearnBox>
+
+- Using the native `<select>` with some visual tweaks (start here)
+- A custom dropdown for when you truly need a free-form design
+- Being honest about what you lose by building your own (keyboard, phones, screen readers)
+
+</LearnBox>
+
+## See the finished version first {#goal}
+
+On the left is the native `<select>`, on the right a custom dropdown. Both let you pick the same "sort order," but the effort and the level of polish are worlds apart.
+
+<Demo title="CustomSelect">
+  <CustomSelectDemo />
+</Demo>
+
+## The bottom line first: normally, use `<select>` {#use-native}
+
+Let's start with the important part. **For a select box, in almost every case, you should use the native `<select>`.** The reason is that without writing anything yourself, it already does all of the following out of the box.
+
+- You can open, close, and choose with the keyboard alone (arrow keys, type-ahead to jump)
+- On phones, the OS-native picker appears
+- It's conveyed correctly to screen readers
+
+Reproducing all of this from scratch is genuinely hard. Start by using `<select>` with just a few visual tweaks.
+
+```tsx title="The native select (often all you need)"
+<select value={sort} onChange={(e) => setSort(e.target.value)}>
+  <option value="newest">Newest</option>
+  <option value="price-asc">Price: low to high</option>
+  <option value="popular">Most popular</option>
+</select>
+```
+
+<Callout type="note" title="How far can you style a select?">
+
+The outer frame (`border` / `padding` / background / arrow) can be changed with CSS. On the other hand, **the look of the option list when it's open** is the part that's hard to control across browsers. If you want "a tidy frame, but the standard list contents are fine," `<select>` is enough.
+
+</Callout>
+
+## Only build your own when you truly need to {#when-custom}
+
+Only when you want to **design the list contents freely** — putting images in the options, laying out color swatches, and so on — should you consider building your own. Hold the open/closed state in `state`, and close on an outside click and on Esc.
+
+```tsx title="src/components/CustomSelect/CustomSelect.tsx (new file, full source)"
+import { useEffect, useRef, useState } from 'react'
+
+interface Option {
+  value: string
+  label: string
+}
+
+export function CustomSelect({
+  options,
+  value,
+  onChange,
+}: {
+  options: Option[]
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = options.find((o) => o.value === value)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {selected?.label ?? 'Select an option'} ▾
+      </button>
+
+      {open && (
+        <ul role="listbox">
+          {options.map((o) => (
+            <li
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              onClick={() => {
+                onChange(o.value)
+                setOpen(false)
+              }}
+            >
+              {o.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+```
+
+There are two things to focus on. Inside `useEffect`, watch for the "outside click (`pointerdown`)" and "Esc" and close on them — then always remove them in the cleanup (`return () => …`). And `aria-haspopup` / `aria-expanded` / `role="listbox"` / `role="option"` tell screen readers that this is a select.
+
+## Be honest about the cost of building your own {#honesty}
+
+The custom version above feels nice with a mouse. But the following points, which the native `<select>` had, **still aren't there**.
+
+<Diff
+  bad="Ditching <select> purely for looks, then losing a11y by building your own"
+  good="Start with <select>. Only build your own when the list design truly requires it"
+  note="Arrow-key movement, type-ahead jumping, and the phone's native picker take considerable extra work to build yourself."
+/>
+
+Arrow-key movement, typing to jump to an option, the native picker on phones — as you add these, the code keeps growing. Choose your own build only once you understand that, in exchange for "design freedom," you'll be rebuilding "ease of use" yourself.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- For a select box, default to `<select>`. Keyboard, phones, and screen readers are correct from the start
+- The outer frame can be tweaked with CSS. Only build your own when you want the list contents to be free-form too
+- You can build your own with `state` + an outside click + Esc, but the cost is rebuilding a11y yourself
+
+</SummaryBox>

@@ -1,0 +1,202 @@
+---
+title: const and let
+minutes: 7
+slug: const-let
+section: javascript
+description: "Graduate from var to const and let. The difference between what can and cannot be reassigned, and why const is the default."
+level: beginner
+prerequisites: ['setup/summary']
+---
+
+<PartIntro>
+
+This part covers **JavaScript syntax only**. React does not appear yet. This is the place where getting stuck makes everything afterward painful, so don't rush—work through it one step at a time, hands on the keyboard.
+
+The quickest way to try things is to keep `npm run dev` running and type directly into the **console (open it with `F12`)** of the page you opened in the browser. When you want to touch a file, add a `console.log(...)` inside `src/App.tsx` and look at what shows up in the console.
+
+By the time you finish Part 1, your project should look like this. If it doesn't, go back to the last page of Part 1 and get it lined up.
+
+```
+my-shop/
+├─ src/
+│  ├─ App.tsx      ← just <h1>Product List app</h1>
+│  ├─ main.tsx     ← untouched (the startup entry point)
+│  └─ index.css    ← minimal
+├─ index.html
+└─ package.json
+```
+
+</PartIntro>
+
+<LearnBox>
+
+- The difference between `const` and `let` (can it be reassigned or not)
+- Why we avoid `var` and make `const` the default
+- That "reassignment" and "changing the contents" are two different things
+
+</LearnBox>
+
+## Why give up on var {#why}
+
+Code from the jQuery era declared every variable with `var`. In React code, `var` basically never shows up. Instead, we use two keywords depending on the situation: **`const` (constant)** and **`let` (variable)**.
+
+The reason is simple: `var` makes accidents easy—like "accidentally overwriting" a value or "leaking beyond the range you expected." `const` / `let` stop those accidents the moment you write the code or the moment it runs.
+
+<Callout type="analogy">
+
+`var` is "a box with no lock," and `const` is "a sealed box." Once it's sealed, if you later try to swap out the contents by mistake, it tells you: "this one is already sealed."
+
+</Callout>
+
+## const — the box you can't reassign {#const}
+
+A variable created with `const` **can't have a different value put back into it later**. Let's try it in the console.
+
+```js
+const price = 100
+console.log(price) // 100
+```
+
+Let's break this single line into parts and name each one.
+
+```js
+const price = 100
+//    ↑     ↑ ↑
+//    │     │ └─ the value to put in (here, 100)
+//    │     └─ = is the symbol for "put the right-hand value into the left" (not a math equals)
+//    └─ a sealed box. You can't put a different value in later
+```
+
+- **`const`** … a sealed box (constant). You **can't put a different value in later**. When you want to replace it, use `let`
+- **`price`** … the name attached to the box
+- **`=`** … the symbol for "put the right-hand value into the left-hand name." Not the math "equals"
+- **`100`** … the value put in first
+
+If you create it with `let price = 100`, you can **reassign** it later, like `price = 200`. The basic rule is: "`const` for values that don't change, `let` only for values that do."
+
+`price` is now fixed at `100`. This is the basic form. Remember: when you want to name a value, reach for `const` first.
+
+## let — the box you can reassign {#let}
+
+Use `let` only when "you want to change the contents later." For example, something like a counter, where the value increases.
+
+```js
+let count = 0
+count = count + 1
+console.log(count) // 1
+```
+
+With `count = count + 1`, you're putting a new value back into `count`. That's **reassignment**. `let` allows it.
+
+<JsNote feature="= means 'put in', not 'equals'">
+
+The `=` in programming is not the math "equals." It means **put the right-hand value into the left-hand name**. Read `count = count + 1` as "take the current count, add 1, and put that back into count."
+
+</JsNote>
+
+## Break it on purpose: reassigning a const stops things {#break-reassign}
+
+To check whether `const` really is a "sealed box," let's deliberately break it. Type the following into the console.
+
+```js
+const price = 100
+price = 200
+```
+
+You'll get this and it stops.
+
+```
+Uncaught TypeError: Assignment to constant variable.
+```
+
+The error says "this is an assignment to a constant variable." You tried to put a different value into `price`, which was sealed with `const`, so it was stopped. **If you want to put a different value in, use `let`**—when you see this error, thinking that way will fix it.
+
+## "Reassignment" and "changing the contents" are different {#mutation}
+
+This is where people get confused first. What `const` forbids is only "**swapping out the whole box**"; it does not stop you from "**changing the contents of the box**." With arrays and objects, this difference shows up clearly.
+
+```js
+const tags = ['cookware']
+tags.push('IH compatible') // this is OK (just added to the contents)
+console.log(tags) // ['cookware', 'IH compatible']
+
+tags = ['living'] // this is an error (swapping the whole box)
+```
+
+`tags.push(...)` just adds to the contents, so it passes even with `const`. `tags = [...]` tries to swap the whole box for something else, so it's stopped. Hold on to this for now: **"touching the contents" and "putting a different value into the name" are separate operations** (we'll cover this in detail on the "reference vs copy" page).
+
+<Together
+  task="In the console, create name with const and put 'Sato' in it, then on the next line try to put 'Tanaka' back into name. See with your own eyes what error you get."
+  hint="Write const name = 'Sato' and then name = 'Tanaka' on the next line, and run it."
+>
+
+```js
+const name = 'Sato'
+name = 'Tanaka'
+// Uncaught TypeError: Assignment to constant variable.
+```
+
+The `name` created with `const` is sealed, so trying to put `'Tanaka'` back in stops with `Assignment to constant variable.`. If you want to reassign it, use `let name = 'Sato'`.
+
+</Together>
+
+## Syntax catalog: choosing between const and let {#catalog}
+
+Decide based on one thing: "will it change later?" If it won't change, `const`; only for things that change, `let`. Here are the common forms.
+
+```js
+const price = 100             // a number. Won't change later → const
+const name = 'Sato'           // strings are basically const too
+let count = 0                 // let only for values that increase
+count = count + 1             // with let you can reassign
+const tags = ['cookware']     // arrays are const too (add to contents with push)
+const user = { name: 'Sato' } // objects are const too (contents can be changed)
+```
+
+Whether it's a number or a string, start by writing `const`. A spot where `let` appears becomes a marker that says "the value changes here," which makes the code easier to read.
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="var price = 100"
+  good="const price = 100"
+  note="Don't use var. Start with const, and use let only when you need reassignment."
+/>
+
+<Diff
+  bad="using let even for values that don't change"
+  good="const for values that don't change. let only for the ones that do"
+  note="The default is const. When lots of lets line up, it gets hard to read where the values change."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Write const first. Use let only where reassignment is truly needed"
+  alt="For variables whose whole purpose is to change—like a loop counter—it's fine to use let from the start."
+>
+
+Ask "will this value change later?" and if it won't, use `const`. Doing this makes each spot where `let` appears a marker for "the value changes here," which makes the code easier to read. We don't use `var`.
+
+</Std>
+
+## When things don't work {#trouble}
+
+- **`Assignment to constant variable.`** … You're reassigning a `const`. If you need to change that value, use `let`.
+- **`Cannot access '○○' before initialization`** … You're using a variable before creating it. Write the `const` / `let` above the line where you use it.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Write const total = price * count. The total just needs to be computed and settled once; there's no need to reassign it later, so const is the right choice.">
+
+When you build a total `total` from a product's price `price` and quantity `count`, should you write `total` with `const` or `let`? Think about the reason too.
+
+</Exercise>
+
+<SummaryBox>
+
+- Don't use `var`. When naming a value use `const`; use `let` only when you need reassignment
+- Reassigning a `const` stops with `Assignment to constant variable.`
+- What `const` forbids is only "swapping the whole box." It doesn't stop you from changing the contents of arrays or objects
+
+</SummaryBox>

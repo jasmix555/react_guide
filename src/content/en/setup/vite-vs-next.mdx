@@ -1,0 +1,81 @@
+---
+title: How it differs from the create-next-app options
+minutes: 6
+slug: setup-vite-vs-next
+section: setup
+description: "'What about Tailwind?' and 'What about the App Router?' are Next.js questions. Vite never asks them. A table clears up the confusion."
+level: beginner
+prerequisites: ['setup/variants']
+---
+
+<LearnBox>
+
+- Why you might assume you will be asked "will you use Tailwind?"
+- How the questions differ between create-next-app and create-vite
+- How to tell when an article's steps do not match your screen
+
+</LearnBox>
+
+Many React articles online are actually **Next.js** articles. And creating a Next.js project (`create-next-app`) asks you **completely different questions** than Vite does. If you do not know this, you freeze up thinking "the article says I will be asked about Tailwind, but it does not appear on my screen." That is normal.
+
+## Creating a Next.js project asks a lot {#next-prompts}
+
+When you run `npx create-next-app`, it asks this many questions (for reference — this is the Next.js side).
+
+```
+✔ What is your project named? … my-app
+✔ Would you like to use TypeScript? … Yes
+✔ Would you like to use ESLint? … Yes
+✔ Would you like to use Tailwind CSS? … Yes
+✔ Would you like your code inside a `src/` directory? … Yes
+✔ Would you like to use App Router? (recommended) … Yes
+✔ Would you like to customize the import alias (`@/*` by default)? … No
+```
+
+Tailwind, the `src/` directory, and the App Router are all **Next.js questions.**
+
+## Creating a Vite project asks only three things {#vite-prompts}
+
+On the other hand, the `npm create vite@latest` we ran asked **only three things.**
+
+```
+◇  Project name:        … my-shop
+◇  Select a framework:  … React
+◇  Select a variant:    … TypeScript
+```
+
+Vite does not ask about Tailwind or the App Router. That is because **you add those yourself later** (this guide adds them in a later part).
+
+## Seeing them side by side {#table}
+
+| Item asked | create-vite (Vite) | create-next-app (Next.js) |
+| --- | --- | --- |
+| Project name | Asked | Asked |
+| Framework choice | Asked (React, etc.) | Not asked (fixed to Next.js) |
+| TypeScript | Asked (via the variant) | Asked |
+| ESLint | Not asked | Asked |
+| Tailwind CSS | **Not asked** | Asked |
+| `src/` directory | **Not asked** | Asked |
+| App Router | **Not asked** (a Next concept) | Asked |
+| import alias | **Not asked** | Asked |
+
+<Callout type="note">
+
+**The App Router is a concept unique to Next.js.** There is no App Router in a Vite project. If an online article shows an `app/` folder or `page.tsx`, it is a Next.js article. Keep that in the back of your mind so the two do not get mixed up.
+
+</Callout>
+
+## How to tell when the article and your screen do not match {#tell}
+
+If the steps clash with your screen, first suspect "**is this a Vite article or a Next.js article?**" Here are the signs to tell them apart.
+
+- Starts with `npm create vite` → Vite (same as this guide)
+- Shows `create-next-app` / `next dev` / an `app/` folder / `page.tsx` → Next.js
+
+<SummaryBox>
+
+- Vite asks only three things: "name, framework, variant"
+- Tailwind, `src/`, and the App Router are Next.js questions. Vite does not ask them
+- When the article and your screen do not match, first suspect whether it is a Vite article or a Next.js article
+
+</SummaryBox>

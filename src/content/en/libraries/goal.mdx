@@ -1,0 +1,60 @@
+---
+title: "Intro — working with libraries"
+minutes: 5
+slug: libraries-goal
+section: libraries
+description: "A map for not adding libraries just 'because'. What npm install rewrites, how to decide what to use, and our policy on what we do and don't add — for people who can already write React on their own."
+level: beginner
+prerequisites: ['javascript/not-yet']
+---
+
+<Callout type="note">
+
+This is the **Libraries** track (a separate tab). It assumes you've finished the core (Parts 1–8) and can now **write React on your own**. If you're not there yet, work through the core parts first. This is a hands-on collection you "come back to when you need it."
+
+</Callout>
+
+<LearnBox>
+
+- What a library is, and why it matters to be able to state a reason before adding one
+- What `npm install` writes into `package.json` and elsewhere
+- A big-picture view of what this chapter covers
+
+</LearnBox>
+
+## Libraries are "ready-made parts" {#what}
+
+A library is a **ready-made part that someone else built and published**. Formatting dates nicely, adding animation, assembling class names — for these kinds of "common tasks," you can borrow someone's work instead of writing it from scratch.
+
+In LP work, you loaded and used jQuery plugins and sliders too. It's the same idea. The difference is that in React, instead of loading them with a `<script>` tag, you **bring them into your own project with `npm install`**.
+
+<Callout type="analogy">
+
+In cooking terms, it's the choice between making stock from scratch or using a store-bought stock pack. Store-bought items (libraries) are fast and reliable, but if you pile too many onto the shelf, managing them gets hard. The trick is to use only as many as you can keep track of — knowing "what's in there."
+
+</Callout>
+
+## Be able to say "why" before you add it {#why}
+
+The most important thing in this chapter isn't a technique — it's an **attitude**. **Before adding a part, stop once and ask "do I really need this?"** — just that alone dramatically reduces trouble down the line.
+
+There are two reasons. One is that once you add a part, you're **committed to maintaining it forever** (updates, bugs, compatibility with other parts). The other is that **the standard features, or parts you already have, are often enough**. "Turns out I didn't need that library" happens all the time.
+
+That's why, before covering individual libraries, this chapter starts with **how to choose them, and what changes when you add one**.
+
+## How to navigate this tab {#roadmap}
+
+This tab is broadly in two stages.
+
+1. **Working with libraries (this part)** — what `npm install` rewrites, how to choose, when types live in a separate package, environment variables, and removing / swapping / upgrading parts. Plus how to install `sass` / `clsx` / `react-router` / `motion`, which the core lessons use. This is the foundation for **"the judgment before adding" and "the steps to add."**
+2. **Hands-on parts for individual libraries** — starting with **Framer Motion**, then GSAP, Swiper, Tailwind, React Icons, and more, one library = one part, going deep from installation to real usage (added over time).
+
+Feel free to skim only the parts you need. If you already have a UI in mind, working backward from the [recipes](/recipes/modal) is also a shortcut.
+
+<SummaryBox>
+
+- Libraries are "ready-made parts." You bring them in with `npm install`, not a `<script>` tag
+- Before adding one, stop once and ask "do I really need this?" — an added part is something you maintain forever
+- This tab is a hands-on collection to read once you can already write React on your own
+
+</SummaryBox>

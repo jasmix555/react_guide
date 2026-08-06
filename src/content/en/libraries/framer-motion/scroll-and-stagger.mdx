@@ -1,0 +1,116 @@
+---
+title: Reveal on scroll, reveal one by one
+minutes: 10
+slug: scroll-and-stagger
+section: framer-motion
+description: "whileInView reveals things once they come into view, and staggerChildren reveals them one by one. Fade a list in sequence, just once with once."
+level: intermediate
+prerequisites: ['libraries/framer-motion/motion-basics']
+---
+
+import { MotionRevealDemo } from '@/demos/MotionReveal'
+
+<LearnBox>
+
+- `whileInView`: animate when the element enters the screen (reveal on scroll)
+- `staggerChildren`: reveal children **one by one**, slightly offset
+- `once` in `viewport` means "only once"
+
+</LearnBox>
+
+## whileInView: reveal when visible {#in-view}
+
+`animate` runs "on mount," but **`whileInView`** runs "**when the element enters the screen**." Scroll the box below and the items reveal in sequence as they come into view.
+
+<Demo title="whileInView (reveal when visible)">
+  <MotionRevealDemo />
+</Demo>
+
+You just swap `animate` for `whileInView`. Use `viewport` to set "only once (`once`)" and "how much needs to be visible (`amount`)."
+
+```tsx
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  whileInView={{ opacity: 1, y: 0 }} // animate to this state once visible
+  viewport={{ once: true, amount: 0.6 }} // only once, when 60% is visible
+  transition={{ duration: 0.4 }}
+>
+  Item
+</motion.div>
+```
+
+Without `once: true`, it re-runs every time the element scrolls in and out of view, which gets noisy. **The default is `once: true`.**
+
+<Callout type="note" title="No scroll event needed">
+
+`motion` handles the "is it visible?" check for you, so you don't need to write your own `scroll` event ([Reveal on scroll](/recipes/scroll-reveal) in the recipes did the same thing with plain JavaScript using `IntersectionObserver`. `motion` does that internally).
+
+</Callout>
+
+## staggerChildren: reveal one by one {#stagger}
+
+Revealing a list "**one item at a time, slightly delayed**" instead of "all at once" looks more refined. This is **stagger (a time offset)**. You put `staggerChildren` on the parent and the reveal behavior on the children. This uses `variants` (named states).
+
+```tsx
+// Parent: reveal children 0.08s apart
+<motion.ul
+  initial="hidden"
+  animate="show"
+  variants={{
+    hidden: {},
+    show: { transition: { staggerChildren: 0.08 } },
+  }}
+>
+  {items.map((item) => (
+    // Child: has its own hidden → show behavior
+    <motion.li
+      key={item.id}
+      variants={{
+        hidden: { opacity: 0, y: 16 },
+        show: { opacity: 1, y: 0 },
+      }}
+    >
+      {item.name}
+    </motion.li>
+  ))}
+</motion.ul>
+```
+
+- **`variants`** … states given **names**, like `hidden` / `show`.
+- The parent's `initial="hidden"` `animate="show"` **propagate to the children too**.
+- The parent's `staggerChildren: 0.08` makes each child switch to `show` **0.08s after the previous one**.
+
+The "cards appear one by one" you saw at the top of this page is exactly this. The key point is that naming states with `variants` lets you direct all the children at once from the parent.
+
+## Don't forget reduced-motion {#reduce}
+
+Both `whileInView` and `stagger` need to respect the [reduce-motion setting](/libraries/framer-motion/reduced-motion). If `useReducedMotion` is `true`, set `staggerChildren` to `0` and skip `initial` (show everything from the start).
+
+## Common mistake {#mistakes}
+
+<Diff
+  bad="Using whileInView without once"
+  good="viewport={{ once: true }} so it reveals only once"
+  note="Without once, it re-runs every time the element scrolls in and out of view, which is noisy. Default to once."
+/>
+
+## When it doesn't work {#trouble}
+
+- **It doesn't reveal on scroll / it reveals immediately** … adjust `viewport`'s `amount` (how much needs to be visible). For scrolling inside a box, pass `viewport={{ root: the box's ref }}`.
+- **The stagger reveals all at once** … check that the parent has `staggerChildren`, the children have `variants`, and the parent's `initial`/`animate` use the state names (`"hidden"`/`"show"`).
+
+## Summary & practice {#summary}
+
+<Exercise answer="Use whileInView instead of animate, and add viewport={{ once: true }}. Without once, it animates every time the element scrolls in and out of view, which gets noisy.">
+
+To "fade something in just once when it scrolls into view," what do you use instead of `animate`, and what do you add?
+
+</Exercise>
+
+<SummaryBox>
+
+- `whileInView` animates "when the element enters the screen." Use `viewport={{ once: true }}` for only once
+- `staggerChildren` reveals children one by one; name states with `variants` and direct them from the parent
+- For both, don't forget to respect `useReducedMotion` (stagger 0, shown from the start)
+
+</SummaryBox>

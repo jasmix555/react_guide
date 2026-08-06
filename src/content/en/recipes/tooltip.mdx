@@ -1,0 +1,115 @@
+---
+title: Tooltip
+minutes: 7
+slug: tooltip
+section: recipes
+description: "A bubble that appears on hover and focus. Built with just CSS :hover and :focus-within — no state, no JavaScript."
+level: beginner
+prerequisites: ['components/props']
+---
+
+import { TooltipDemo } from '@/demos/Tooltip'
+
+<LearnBox>
+
+- A CSS-only tooltip, with no `state` and no JavaScript
+- Showing it on keyboard focus too, with `:focus-within`
+- What to watch out for on phones, where there's no hover
+
+</LearnBox>
+
+## See the finished version first {#goal}
+
+Move the mouse over the button (or move to it with the keyboard), and a description appears above it.
+
+<Demo title="Tooltip">
+  <TooltipDemo />
+</Demo>
+
+## Start with the title attribute {#title-attr}
+
+The simplest tooltip is actually a built-in HTML feature. Add `title` to any element and a small bubble appears when you hover over it.
+
+```tsx title="The simplest tooltip"
+<button type="button" title="Adds this to your cart">Cart</button>
+```
+
+That said, `title` **can't be styled, appears a little slowly, and doesn't show on phones**. Only reach for the CSS version below when you need it to match your design.
+
+## Show it with CSS, no state {#css-only}
+
+If all you want is "show it on hover," you don't need React `state`. The most natural approach is to reveal it with CSS `:hover`. Set up a wrapper element and place both the content and the bubble inside it.
+
+```tsx title="src/components/Tooltip/Tooltip.tsx (new file, full source)"
+import type { ReactNode } from 'react'
+
+import styles from './Tooltip.module.scss'
+
+export function Tooltip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span className={styles.wrap}>
+      {children}
+      <span role="tooltip" className={styles.tip}>
+        {label}
+      </span>
+    </span>
+  )
+}
+```
+
+Showing and hiding is entirely on the CSS side. Keep it transparent (`opacity: 0`) normally, and reveal it when the wrapper receives hover or focus.
+
+```scss title="Tooltip.module.scss (key parts)"
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 8px); // place it just above the content
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.wrap:hover .tip,
+.wrap:focus-within .tip {
+  opacity: 1;
+}
+```
+
+## Show it for the keyboard too: focus-within {#focus-within}
+
+With `:hover` alone, only mouse users see it. For **people who navigate with the keyboard**, add `:focus-within` too. This CSS means "does something inside have focus?", so the bubble appears when the user tabs to the button inside. Paired with `role="tooltip"`, the meaning also comes across to screen readers.
+
+<Callout type="warn" title="Phones don't have hover">
+
+Touch devices have no "move the mouse over." A hover-based tooltip **either doesn't show on a phone, or flashes up briefly on tap**. If information must always be readable on phones, don't hide it in a tooltip — write it out on the screen from the start.
+
+</Callout>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Managing open/close in state with onMouseEnter / onMouseLeave"
+  good="Showing it with just :hover and :focus-within CSS"
+  note="If you only need it on hover, state is unnecessary. CSS is lighter, and keyboard support is one line with :focus-within."
+/>
+
+## When it doesn't work {#trouble}
+
+- **The bubble gets clipped / hidden** … A nearby parent with `overflow: hidden` will clip it. Watch out for `overflow` wherever a tooltip needs to appear.
+- **It doesn't show on keyboard** … Check that the content is a focusable element (`<button>` or `<a>`). A plain `<span>` can't receive focus.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Start with the `title` attribute. Only move to the CSS version when you need it to match your design
+- If you only need it on hover, `state` is unnecessary — CSS `:hover` is enough
+- Add `:focus-within` for the keyboard. On phones, write the text on the page instead of hiding it
+
+</SummaryBox>

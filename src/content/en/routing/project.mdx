@@ -1,0 +1,193 @@
+---
+title: "Capstone: make a multi-page app"
+minutes: 12
+slug: routing-project
+section: routing
+description: "Capstone. With Layout and Outlet for a shared nav, build up four routes with createBrowserRouter: list, product detail (:id), favorites, and 404."
+level: beginner
+prerequisites: ['routing/navigate']
+---
+
+<LearnBox>
+
+- Build nested routes, `Outlet`, `:id`, and 404 into one thing
+- Turn `my-shop` into a multi-page app with a list, detail, and favorites
+- Put each page in `pages/` and the shared layout in `components/Layout`
+
+</LearnBox>
+
+## The page structure you'll build {#structure}
+
+You'll gather four routes under a shared layout.
+
+- `/` … product list (the `index` route)
+- `/product/:id` … product detail
+- `/favorites` … favorites
+- `*` … everything else (404)
+
+## Folder structure {#tree}
+
+```
+my-shop/src/
+├─ main.tsx                       ← router setup
+├─ components/
+│  ├─ Layout.tsx                  ← shared nav + <Outlet />
+│  └─ ProductCard/
+├─ pages/
+│  ├─ ProductListPage.tsx
+│  ├─ ProductDetailPage.tsx
+│  ├─ FavoritesPage.tsx
+│  └─ NotFoundPage.tsx
+├─ types/product.ts
+└─ data/products.json
+```
+
+## 1. The router (full main.tsx) {#router}
+
+```tsx title="src/main.tsx (full file)"
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+
+import { Layout } from './components/Layout'
+import { FavoritesPage } from './pages/FavoritesPage'
+import { NotFoundPage } from './pages/NotFoundPage'
+import { ProductDetailPage } from './pages/ProductDetailPage'
+import { ProductListPage } from './pages/ProductListPage'
+import './styles/tokens.scss'
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <Layout />,
+    children: [
+      { index: true, element: <ProductListPage /> },
+      { path: 'product/:id', element: <ProductDetailPage /> },
+      { path: 'favorites', element: <FavoritesPage /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+])
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <RouterProvider router={router} />
+  </StrictMode>,
+)
+```
+
+## 2. The shared layout (Layout) {#layout}
+
+```tsx title="src/components/Layout.tsx (full file)"
+import { NavLink, Outlet } from 'react-router-dom'
+
+export function Layout() {
+  return (
+    <div>
+      <header>
+        <NavLink to="/">List</NavLink> <NavLink to="/favorites">Favorites</NavLink>
+      </header>
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+```
+
+The page for the current URL goes where `<Outlet />` is.
+
+## 3. The list page (Link to the detail) {#list}
+
+```tsx title="src/pages/ProductListPage.tsx (full file)"
+import { Link } from 'react-router-dom'
+
+import products from '../data/products.json'
+
+export function ProductListPage() {
+  return (
+    <div>
+      <h1>Product list</h1>
+      <ul>
+        {products.map((product) => (
+          <li key={product.id}>
+            <Link to={`/product/${product.id}`}>
+              {product.name} ({product.price.toLocaleString()} yen)
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+Each product name is a `<Link>`; pressing it moves to `/product/that id`.
+
+## 4. The detail page (find it with useParams) {#detail}
+
+This is what you built on the [URL parameters page](/guide/routing/route-params). It pulls out `:id`, finds the product with `find`, and shows a message if there's none.
+
+```tsx title="src/pages/ProductDetailPage.tsx (full file)"
+import { Link, useParams } from 'react-router-dom'
+
+import products from '../data/products.json'
+
+export function ProductDetailPage() {
+  const { id } = useParams()
+  const product = products.find((p) => p.id === id)
+
+  if (!product) {
+    return <p>Product not found.</p>
+  }
+
+  return (
+    <article>
+      <Link to="/">← Back to the list</Link>
+      <h1>{product.name}</h1>
+      <p>{product.price.toLocaleString()} yen</p>
+      <p>Category: {product.category}</p>
+    </article>
+  )
+}
+```
+
+## 5. The favorites and 404 pages {#others}
+
+For now, the favorites page is just a shell. **The mechanism for sharing "which products are favorited" across screens comes in a later part** (right now each card holds it on its own).
+
+```tsx title="src/pages/FavoritesPage.tsx"
+export function FavoritesPage() {
+  return (
+    <div>
+      <h1>Favorites</h1>
+      <p>Your favorite products will appear here (the sharing mechanism comes in a later part).</p>
+    </div>
+  )
+}
+```
+
+```tsx title="src/pages/NotFoundPage.tsx"
+import { Link } from 'react-router-dom'
+
+export function NotFoundPage() {
+  return (
+    <div>
+      <h1>Page not found</h1>
+      <Link to="/">Back to the list</Link>
+    </div>
+  )
+}
+```
+
+## Run it {#run}
+
+Open it with `npm run dev` and the list shows at `/`. Press a product name and the URL changes to something like `/product/p01`, showing the detail. The nav at the top lets you move between the list and favorites, and the browser's back/forward work too. Type a URL that doesn't exist (`/xyz`) and the 404 shows. **Your one-screen app is now a multi-page app that switches by URL.**
+
+<SummaryBox>
+
+- The shared nav is the parent route `Layout` + `<Outlet />`; each page is a `children`
+- The list uses `<Link>` to reach the detail; the detail takes `:id` with `useParams` and calls `find`
+- The catch-all is a `{ path: '*' }` 404. The favorites "sharing" comes in a later part
+
+</SummaryBox>

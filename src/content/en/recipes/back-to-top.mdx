@@ -1,0 +1,92 @@
+---
+title: Back to top
+minutes: 7
+slug: back-to-top
+section: recipes
+description: "A 'back to top' button that appears only after you scroll down. It decides using IntersectionObserver rather than the scroll event."
+level: intermediate
+prerequisites: ['recipes/scroll-reveal']
+---
+
+import { BackToTopDemo } from '@/demos/BackToTop'
+
+<LearnBox>
+
+- A "back to top" button that appears only when you've scrolled down
+- An approach that doesn't compute the position on the `scroll` event
+- Smooth scrolling, and handling the reduce-motion setting
+
+</LearnBox>
+
+## See the finished result first {#goal}
+
+Scroll down inside the frame and a button appears at the bottom right. Press it to return to the top.
+
+<Demo title="BackToTop">
+  <BackToTopDemo />
+</Demo>
+
+## Place a watcher and observe it {#sentinel}
+
+Avoid computing "how far you've scrolled" on every `scroll` event (it's the same idea as [Reveal on scroll](/recipes/scroll-reveal)). **Place a small watcher (a sentinel) at the very top, and show the button once it leaves the screen.** Let `IntersectionObserver` make the call.
+
+```tsx title="src/components/BackToTop/BackToTop.tsx (key parts)"
+const [show, setShow] = useState(false)
+const sentinel = useRef<HTMLDivElement>(null)
+
+useEffect(() => {
+  const el = sentinel.current
+  if (!el) return
+  // watcher not visible = treat it as having scrolled down
+  const io = new IntersectionObserver(([entry]) => setShow(!entry.isIntersecting))
+  io.observe(el)
+  return () => io.disconnect()
+}, [])
+```
+
+`entry.isIntersecting` is "whether the watcher is visible." Not visible (`!`) means you've moved away from the top, so we show the button.
+
+## Scroll back to the top {#scroll-top}
+
+When the button is pressed, return to the top with `scrollTo`. For people with reduce-motion on, turn off smoothness and jump back instantly.
+
+```tsx title="What the button does"
+function toTop() {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+}
+```
+
+Then render the button only when `show` is `true`. Pin its position to the bottom right of the screen.
+
+```tsx
+{show && (
+  <button type="button" onClick={toTop} className={styles.top}>
+    ↑ Top
+  </button>
+)}
+```
+
+<Callout type="note" title="This demo scrolls inside a frame">
+
+In production, you'd build this with whole-page scrolling (`window.scrollTo`) and pinning to the bottom right of the viewport (`position: fixed`). For explanation purposes, this demo sets the `IntersectionObserver`'s observed area (`root`) to the scrolling frame below.
+
+</Callout>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Reading scrollY every time with window.addEventListener('scroll', ...)"
+  good="Observe a sentinel placed at the top with IntersectionObserver"
+  note="A scroll event fires dozens of times in a single scroll. Letting the Observer decide visibility is lighter."
+/>
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Don't compute the scroll amount on the `scroll` event; observe a watcher at the top with `IntersectionObserver`
+- When the watcher leaves (`!isIntersecting`), show the button
+- Go to the top with `scrollTo`. For reduce-motion, use `behavior: 'auto'`
+
+</SummaryBox>

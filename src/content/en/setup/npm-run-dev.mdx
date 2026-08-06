@@ -1,0 +1,107 @@
+---
+title: Starting up with npm run dev
+minutes: 8
+slug: setup-npm-run-dev
+section: setup
+description: "Start the dev server and put a screen on show. What localhost and ports mean, how to stop it, and when a restart is needed."
+level: beginner
+prerequisites: ['setup/npm-install']
+---
+
+<LearnBox>
+
+- Start the dev server with `npm run dev`
+- What the `localhost` and port number in the output mean
+- How to stop the server (`Ctrl` + `C`), and when a restart is needed
+
+</LearnBox>
+
+The ingredients are ready. Now it's finally time to **start it up and get a screen in the browser**. The goal of this page is that opening `http://localhost:5173` shows the Vite sample page.
+
+## Step 1: Start it {#step-run}
+
+In the integrated terminal, type this.
+
+```bash
+npm run dev
+```
+
+In an instant, you'll see output like this.
+
+```
+  VITE v8.2.0  ready in 431 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+```
+
+If you see `ready` and the **URL** `Local: http://localhost:5173/`, startup succeeded.
+
+## What are localhost and ports {#localhost}
+
+Let's break down what `http://localhost:5173` means.
+
+- **`localhost`** … an address that points to '**this PC itself**'. Vite starts a small web server inside your PC and serves the app from there. It's not published to the internet — it's only visible inside your own PC.
+- **`5173`** … the **port number**. It's a 'room number' for telling multiple servers apart within the same PC. Vite uses room 5173 by default.
+
+<Callout type="analogy">
+
+`localhost` is 'your own building', and the port number is the 'room number'. Picture the Vite server open for business in room 5173.
+
+</Callout>
+
+## Step 2: Open it in the browser {#open}
+
+Hold `Ctrl` and click the `http://localhost:5173/` in the terminal to open it in the browser (you can also type it by hand). If you see the purple logo and the sample page with 'Get started' and 'Count is 0', then **React is running**.
+
+## How to stop it, and what leaving it on means {#stop}
+
+While developing, you keep this server **running the whole time**. `localhost` is only visible while it's on.
+
+To stop it, press **`Ctrl` + `C`** in the terminal where `npm run dev` is running. When the prompt comes back, it has stopped. The moment you stop it, `localhost:5173` can no longer be opened (because the server closed for business). When you want to see it again, turn it back on with `npm run dev`.
+
+<Callout type="warn">
+
+While the server is running, that terminal is 'occupied' and you can't type other commands in it. When you want to run a different command — like adding a library — either **open one more new terminal**, or stop the server first with `Ctrl` + `C` before typing.
+
+</Callout>
+
+## When a restart is needed {#restart}
+
+Most edits show up on the screen automatically once you save (you'll feel this on the next page). However, when you change **settings-related things** like the following, you need to **stop with `Ctrl` + `C` and start again with `npm run dev`**.
+
+- When you edit `vite.config.ts`
+- When you `npm install` a new library
+- When you change `.env` (the environment variables file)
+
+## Start a second one and watch the port change {#second-server}
+
+Let's get a feel for the port 'room number'. **Without stopping the server**, open one more new terminal and start it up again there.
+
+```bash
+npm run dev
+```
+
+Since room 5173 is in use, Vite says this and uses a different room.
+
+```
+Port 5173 is in use, trying another one...
+
+  ➜  Local:   http://localhost:5174/
+```
+
+It changed to `5174`. 'Port is in use' isn't an error — Vite is just being helpful and taking the room next door. Once you've confirmed it, press `Ctrl` + `C` in one of the terminals to stop the extra server.
+
+## When things go wrong {#trouble}
+
+- **The browser is blank** … check whether there's a red error in the terminal. It's usually a syntax mistake in the code you wrote, and the error shows the file name and line.
+- **`localhost` won't open** … check whether you left the server stopped with `Ctrl` + `C`, and whether the port number (5173 or 5174) matches.
+
+<SummaryBox>
+
+- `npm run dev` starts the dev server, and a screen appears at `http://localhost:5173`
+- `localhost` = this PC itself, port number = a room number that tells servers apart
+- Stop it with `Ctrl` + `C`. Restart when you change `vite.config` or libraries
+
+</SummaryBox>
