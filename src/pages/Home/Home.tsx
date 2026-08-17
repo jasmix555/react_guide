@@ -1,6 +1,8 @@
 import { useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 
+import { Footer } from '@/components/Footer'
+import { ProgressRing } from '@/components/ProgressRing'
 import { TopBar } from '@/components/TopBar'
 import { useDocumentMeta } from '@/hooks/useDocumentMeta'
 import { useLocale, useSite, useStrings } from '@/hooks/useLocale'
@@ -11,13 +13,42 @@ import { getPage, getTabs } from '@/lib/nav'
 
 import styles from './style.module.scss'
 
+interface HomeCard {
+  title: string
+  body: string
+  links: { label: string; to: string }[]
+}
+
+/** The card grid shared by "how to read this" and "what do you want to do". */
+function CardGrid({ items }: { items: HomeCard[] }) {
+  const locale = useLocale()
+  return (
+    <div className={styles.pathGrid}>
+      {items.map((c) => (
+        <div key={c.title} className={styles.card}>
+          <h3 className={styles.cardTitle}>{c.title}</h3>
+          <p className={styles.cardBody}>{c.body}</p>
+          <ul className={styles.cardLinks}>
+            {c.links.map((l) => (
+              <li key={l.to}>
+                <Link to={withLocale(l.to, locale)}>{l.label} →</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function Home() {
   const locale = useLocale()
   const site = useSite()
   const strings = useStrings()
   useDocumentMeta(site.name, site.tagline, locale)
 
-  const learnTab = getTabs(locale).find((t) => t.id === 'learn')
+  const tabs = getTabs(locale)
+  const learnTab = tabs.find((t) => t.id === 'learn')
   const learnPages = learnTab?.pages ?? []
   const firstLearn = learnPages[0]?.href ?? `/${locale}`
   const learnRoutes = learnPages.map((p) => p.route)
@@ -127,23 +158,63 @@ export function Home() {
           <h2 id="paths-h" className={styles.sectionTitle}>
             {strings.home.pathsTitle}
           </h2>
-          <div className={styles.pathGrid}>
-            {strings.home.paths.map((p) => (
-              <div key={p.title} className={styles.card}>
-                <h3 className={styles.cardTitle}>{p.title}</h3>
-                <p className={styles.cardBody}>{p.body}</p>
-                <ul className={styles.cardLinks}>
-                  {p.links.map((l) => (
-                    <li key={l.to}>
-                      <Link to={withLocale(l.to, locale)}>{l.label} →</Link>
-                    </li>
-                  ))}
-                </ul>
+          <CardGrid items={strings.home.paths} />
+        </section>
+
+        {/* Goal-first entry points. The routes above answer "where do I start
+            reading"; these answer "what will I be able to do", and they're what
+            surfaces the Libraries and Recipes sections to a first-time reader. */}
+        <section aria-labelledby="goals-h" className={styles.goals}>
+          <h2 id="goals-h" className={styles.sectionTitle}>
+            {strings.home.goalsTitle}
+          </h2>
+          <p className={styles.sectionLead}>{strings.home.goalsLead}</p>
+          <CardGrid items={strings.home.goals} />
+        </section>
+
+        {/* Every part of every section, straight from the nav — so a new part
+            appears here the moment it's added, with no second list to maintain. */}
+        <section aria-labelledby="browse-h" className={styles.browse}>
+          <h2 id="browse-h" className={styles.sectionTitle}>
+            {strings.home.browseTitle}
+          </h2>
+          <p className={styles.sectionLead}>{strings.home.browseLead}</p>
+
+          {tabs
+            .filter((tab) => tab.parts.length > 0)
+            .map((tab) => (
+              <div className={styles.tabGroup} key={tab.id}>
+                <h3 className={styles.tabName}>{tab.title}</h3>
+                <div className={styles.partGrid}>
+                  {tab.parts.map((part) => {
+                    const first = part.pages[0]
+                    if (!first) return null
+                    const partDone = countRead(part.pages.map((p) => p.route))
+                    const minutes = part.pages.reduce((n, p) => n + (p.minutes ?? 0), 0)
+                    return (
+                      <Link to={first.href} className={styles.partCard} key={part.id}>
+                        <span className={styles.partCardHead}>
+                          <span className={styles.partCardTitle}>
+                            {part.no != null && (
+                              <span className={styles.partCardNo}>{part.no}. </span>
+                            )}
+                            {part.title}
+                          </span>
+                          <ProgressRing done={partDone} total={part.pages.length} size={18} />
+                        </span>
+                        <span className={styles.partCardMeta}>
+                          {part.pages.length} {strings.progress.unit}
+                          {minutes > 0 && ` · ${strings.page.readingShort(minutes)}`}
+                        </span>
+                      </Link>
+                    )
+                  })}
+                </div>
               </div>
             ))}
-          </div>
         </section>
       </main>
+      <Footer />
     </>
   )
 }

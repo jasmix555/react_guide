@@ -253,6 +253,89 @@
   flex: 1 1 auto;
 }
 
+.goals {
+  margin-top: var(--sp-12);
+}
+
+// ── Browse by part ──
+.browse {
+  margin-top: var(--sp-12);
+}
+
+// Where a lead paragraph follows the heading, the heading gives up its gap.
+.goals,
+.browse {
+  .sectionTitle {
+    margin-bottom: var(--sp-2);
+  }
+}
+
+.sectionLead {
+  margin: 0 0 var(--sp-6);
+  color: var(--c-muted);
+  font-size: var(--fs-small);
+}
+
+.tabGroup + .tabGroup {
+  margin-top: var(--sp-8);
+}
+
+.tabName {
+  font-family: var(--font-head);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-muted);
+  margin: 0 0 var(--sp-3);
+}
+
+.partGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--sp-3);
+}
+
+.partCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+  color: var(--c-text);
+  text-decoration: none;
+
+  &:hover {
+    border-color: var(--c-accent);
+    background: var(--c-accent-tint);
+  }
+}
+
+.partCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.partCardTitle {
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: var(--fs-small);
+  line-height: 1.45;
+}
+
+.partCardNo {
+  color: var(--c-muted);
+}
+
+.partCardMeta {
+  color: var(--c-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .cardLinks {
   list-style: none;
   padding: 0;

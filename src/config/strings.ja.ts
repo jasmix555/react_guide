@@ -100,6 +100,65 @@ export const strings = {
     searchHintPost: 'で検索',
     lastNote: '前回のつづき：',
     pathsTitle: '読み方の順路',
+    goalsTitle: '何ができるようになりたい？',
+    goalsLead:
+      '目的から入り口を選べます。ここから先は、ライブラリ編やレシピにも入っていきます。',
+    goals: [
+      {
+        title: '画面に動きを付けられるようになる',
+        body: 'ふわっと出す、スクロールで動かす、スライダーを回す。CSS だけでは面倒な動きを React 側から付けます。',
+        links: [
+          { label: 'Framer Motion（motion）', to: '/libraries/framer-motion/goal' },
+          { label: 'GSAP：時間軸で組み立てる', to: '/libraries/gsap/goal' },
+          { label: 'Swiper：スライダー', to: '/libraries/swiper/goal' },
+        ],
+      },
+      {
+        title: 'サーバーのデータを画面に出せるようになる',
+        body: 'サーバーと API とは何かから、読み込み中・エラー・成功の出し分け、届いたデータの検証まで。',
+        links: [
+          { label: 'Part 8：データ取得', to: '/guide/data/goal' },
+          { label: 'axios でサーバーとやり取りする', to: '/libraries/axios' },
+          { label: 'zod でデータの形を検証する', to: '/libraries/zod' },
+        ],
+      },
+      {
+        title: '入力フォームをちゃんと作れるようになる',
+        body: '入力の検証、エラー文の出し方、二重送信の防止、そして読み上げソフトに届く配線まで。',
+        links: [
+          { label: 'react-hook-form でフォームを作る', to: '/libraries/react-hook-form' },
+          { label: 'zod でルールを 1 か所にまとめる', to: '/libraries/zod' },
+        ],
+      },
+      {
+        title: '型で自分を守れるようになる',
+        body: 'props と state に型を付けて、書き間違いを動かす前に見つける。TypeScript を「怒られる道具」から味方にします。',
+        links: [
+          { label: 'Part 6：React のための TypeScript', to: '/guide/typescript/goal' },
+          { label: 'props に型を付ける', to: '/guide/typescript/typing-props' },
+        ],
+      },
+      {
+        title: '見た目を自分で組み立てられるようになる',
+        body: 'SCSS Modules、デザイントークン、レスポンシブ、アイコン。LP で培った CSS がそのまま効きます。',
+        links: [
+          { label: 'Part 5：スタイリング', to: '/guide/styling/goal' },
+          { label: 'レスポンシブ', to: '/guide/styling/responsive' },
+          { label: 'react-icons でアイコンを出す', to: '/libraries/react-icons' },
+        ],
+      },
+      {
+        title: 'チームで通用するコードにする',
+        body: 'ライブラリの選び方を言葉にして、コード品質を根性ではなく仕組みで担保します。',
+        links: [
+          { label: 'ライブラリの選び方', to: '/libraries/choosing' },
+          { label: 'ESLint で間違いに気づく', to: '/libraries/eslint' },
+          { label: 'Prettier で整形する', to: '/libraries/prettier' },
+        ],
+      },
+    ],
+    browseTitle: 'パートから探す',
+    browseLead: '気になるところから飛び込んで大丈夫です。リングはそのパートの既読の進み具合。',
     paths: [
       {
         title: 'まず 1 日で全体像',
