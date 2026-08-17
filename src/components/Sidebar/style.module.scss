@@ -167,18 +167,22 @@
   align-items: center;
 }
 
-// Always rendered, empty when unread, so titles line up in one column either way.
+// Its own flex column, always rendered (empty when unread) so read and unread
+// titles start on the same line — and so a title that wraps lines up under
+// itself instead of sliding back under the tick.
 .check {
-  display: inline-block;
-  width: 1.2em;
+  flex: 0 0 auto;
+  width: 0.8em;
+  font-size: 0.85em;
   color: var(--c-success);
-  font-size: 0.6875rem;
 }
 
 .pageLink {
   flex: 1 1 auto;
-  display: block;
-  padding: 5px var(--sp-2);
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  padding: 5px var(--sp-2) 5px var(--sp-1);
   border-radius: var(--radius-sm);
   border-left: 2px solid transparent;
   color: var(--c-muted);
