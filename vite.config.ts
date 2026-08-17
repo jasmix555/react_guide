@@ -27,7 +27,10 @@ export default defineConfig(({ command }) => ({
   // Served from /study/react_guide/ on the site — production build only.
   // Dev and the render gate stay at root ("/") so their URLs need no prefix.
   // This is a PATH only (no domain), so it works under any site/host.
-  base: command === 'build' ? '/study/react_guide/' : '/',
+  // ponytail: BASE_PATH env overrides it; Vercel serves from root, so "/" there.
+  base:
+    process.env.BASE_PATH ??
+    (command === 'build' && !process.env.VERCEL ? '/study/react_guide/' : '/'),
   plugins: [
     // Runs before MDX: bridges `{#slug}` and serves virtual:content-index.
     contentPlugin({ contentDir }),
