@@ -1,147 +1,314 @@
 ---
 title: カルーセル（ドラッグスライダー）
-minutes: 10
+minutes: 14
 slug: carousel
 section: recipes
-description: 横スクロールのカルーセル。スクロールは CSS の scroll-snap に任せ、前後ボタンとマウスのドラッグだけ足す。
+description: 1 段ずつ積み上げて作る。まず CSS の scroll-snap だけ、次に前後ボタン、次にページネーションのドット、最後にマウスドラッグ。どの段階も単体で動くので、必要なところで止められる。
 level: intermediate
 prerequisites: ['state/use-effect/basics']
 ---
 
-import { CarouselDemo } from '@/demos/Carousel'
+import {
+  CarouselArrowsDemo,
+  CarouselDemo,
+  CarouselDotsDemo,
+  CarouselSnapDemo,
+} from '@/demos/Carousel'
 
 <LearnBox>
 
-- CSS の `scroll-snap` で作る横スクロールカルーセル
-- 前後ボタン（`scrollBy`）と、マウスでのドラッグを足す
-- タッチ・キーボードを自分で書かずに済ませる
+- **段階 1** — 横スクロールとスナップを、CSS だけで
+- **段階 2** — `scrollBy` の前後ボタン
+- **段階 3** — 現在地を示し、押せば移動するドット
+- **段階 4** — マウスでのつかんでドラッグ
+- どこで止めるか、そしていつ Swiper に切り替えるか
 
 </LearnBox>
 
-## 完成形を先に見る {#goal}
+## 完成形 {#goal}
 
-指（タッチ）でスワイプ、マウスならドラッグ、または右下のボタンで動きます。
+全部入り。タッチでスワイプ、マウスでドラッグ、矢印、ドット。
 
-<Demo title="Carousel">
+<Demo title="Carousel — 全 4 段階">
   <CarouselDemo />
 </Demo>
 
-## スクロールは CSS に任せる {#scroll-snap}
+これを 4 段に分けて作ります。**どの段階も単体で動きます**。デザイン上、段階 1 で足りるならそこで止めてください。それ以降は「あえて引き受ける数行」です。
 
-カルーセルを「毎フレーム座標を計算して `transform` で動かす」と作ると、重くて壊れやすくなります。**横スクロールとスナップ（ピタッと止まる）は、CSS だけでできます**。
+## 段階 1 — トラック {#track}
 
-- `overflow-x: auto` … 横スクロールできる箱にする（タッチのスワイプが自動で付く）。
-- `scroll-snap-type: x mandatory` … 横方向に、必ずどこかにスナップする。
-- 各スライドに `scroll-snap-align: center` … 中央でピタッと止める。
+JavaScript は書きません。1 行も。
 
-```scss title="Carousel.module.scss（要点）"
+<Demo title="段階 1 — scroll-snap だけ">
+  <CarouselSnapDemo />
+</Demo>
+
+スマホでスワイプしても、スクロールバーをドラッグしても、クリックして矢印キーを押しても動きます。ただの「横スクロールする箱」だからです。
+
+```scss title="Carousel.module.scss"
 .track {
   display: flex;
   gap: var(--sp-3);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
+  overflow-x: auto; // ← スクロールも、タッチのスワイプも、慣性もここ
+  scroll-snap-type: x mandatory; // ← 必ずスライドの位置で止まる
   scroll-behavior: smooth;
 }
 
 .slide {
-  flex: 0 0 70%; // 1 枚 70%。次の 1 枚が少し見える
-  scroll-snap-align: center;
+  flex: 0 0 70%; // 1 枚 70%。次が少し覗く
+  scroll-snap-align: center; // ← スライドのどこを合わせるか
+  user-select: none;
 }
 ```
 
-この時点で、**タッチのスワイプもキーボードのスクロールも動きます**。JavaScript はまだ 1 行も書いていません。
-
-## 前後ボタンとマウスドラッグを足す {#js}
-
-デスクトップ用に「前へ／次へ」ボタンと、マウスでの掴んで動かす操作を足します。ボタンは `scrollBy` で少しスクロールするだけ。マウスドラッグは、押した位置と `scrollLeft` を覚えて、動いた分だけずらします。
-
-```tsx title="src/components/Carousel/Carousel.tsx（新規作成・全文）"
-import { useRef } from 'react'
-
-import styles from './Carousel.module.scss'
-
-interface Slide {
-  title: string
-  tint: string
-}
-
-export function Carousel({ slides }: { slides: Slide[] }) {
-  const trackRef = useRef<HTMLDivElement>(null)
-  const drag = useRef({ down: false, startX: 0, startLeft: 0 })
-
-  function step(dir: number) {
-    const track = trackRef.current
-    if (!track) return
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: reduce ? 'auto' : 'smooth' })
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    if (e.pointerType !== 'mouse') return // タッチはネイティブのスクロールに任せる
-    const track = trackRef.current
-    if (!track) return
-    drag.current = { down: true, startX: e.clientX, startLeft: track.scrollLeft }
-    track.setPointerCapture(e.pointerId)
-  }
-
-  function onPointerMove(e: React.PointerEvent) {
-    const track = trackRef.current
-    if (!drag.current.down || !track) return
-    track.scrollLeft = drag.current.startLeft - (e.clientX - drag.current.startX)
-  }
-
-  function endDrag() {
-    drag.current.down = false
-  }
-
-  return (
-    <div>
-      <div
-        ref={trackRef}
-        className={styles.track}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-      >
-        {slides.map((s) => (
-          <div key={s.title} className={styles.slide} style={{ background: s.tint }}>
-            {s.title}
-          </div>
-        ))}
-      </div>
-      <button type="button" aria-label="前へ" onClick={() => step(-1)}>‹</button>
-      <button type="button" aria-label="次へ" onClick={() => step(1)}>›</button>
+```tsx
+<div className={styles.track}>
+  {slides.map((s) => (
+    <div key={s.title} className={styles.slide}>
+      {s.title}
     </div>
-  )
+  ))}
+</div>
+```
+
+これを全部やっているのはプロパティ 3 つです。
+
+- **`overflow-x: auto`** … 横スクロールする箱を作ります。タッチのスワイプ、慣性、キーボードでのスクロールが付いてきます。しかも各プラットフォームに合わせてブラウザが調整済みです。
+- **`scroll-snap-type: x mandatory`** … スライドの途中では止まれません。`mandatory` は必ずスナップ、`proximity` はスナップ位置の近くで止まったときだけ。
+- **`scroll-snap-align: center`** … 各スライドの*どこ*を合わせるか。左端に揃えるカルーセルなら `start` が定番です。
+
+<Callout type="note">
+
+`transform` とフレームごとのループでカルーセルを自作しない理由が、まさにこれです。自作するとアニメーションを書くだけでは済みません。タッチ、慣性、キーボード、そしてプラットフォームごとのスクロールの手触りまで、全部書き直すことになります。どれもブラウザのほうが上手です。
+
+</Callout>
+
+## 段階 2 — 前へ / 次へ {#arrows}
+
+スクロール位置を少し動かすボタンを 2 つ。
+
+<Demo title="段階 2 — 矢印を追加">
+  <CarouselArrowsDemo />
+</Demo>
+
+```tsx
+const trackRef = useRef<HTMLDivElement>(null)
+
+/** スライド 1 枚ぶんの幅（gap 込み）。全スライドが同じ幅なので割るだけ。 */
+const stepSize = (track: HTMLDivElement) => track.scrollWidth / slides.length
+
+function step(dir: number) {
+  const track = trackRef.current
+  if (!track) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  track.scrollBy({ left: dir * stepSize(track), behavior: reduce ? 'auto' : 'smooth' })
 }
 ```
 
-<JsNote feature="ドラッグ位置は useState ではなく useRef で持つ">
+```tsx
+<div ref={trackRef} className={styles.track}>{/* スライド */}</div>
 
-マウスを動かすたびに `useState` を更新すると、そのたびに再描画が走ってカクつきます。ドラッグの途中経過（開始位置・開始スクロール量）は `useRef` に入れ、`scrollLeft` を直接書き換えます。画面に出す値ではないので、再描画は要りません。
+<button type="button" aria-label="前へ" onClick={() => step(-1)}>‹</button>
+<button type="button" aria-label="次へ" onClick={() => step(1)}>›</button>
+```
+
+`scrollBy` は今いる位置からの*相対*移動です。ここではそれが正解で、利用者がすでにスワイプした位置とうまく噛み合い、あとはスナップが仕上げてくれます。命令ではなく、ひと押しです。
+
+`stepSize` を `scrollWidth / slides.length` から導いているので、px を直書きしません。`.slide` がレスポンシブでも、gap がブレークポイントで変わっても、そのまま通用します。
+
+<Callout type="warn">
+
+`‹` と `›` は飾りの記号です。`aria-label` が無いと「単一左向き角引用符」と読まれるか、何も読まれません。アイコンだけのボタンには必ず名前が要ります。[react-icons のページ](/libraries/react-icons)と同じ規則です。
+
+</Callout>
+
+## 段階 3 — ページネーションのドット {#dots}
+
+ドットの仕事は 2 つ。現在地を示すことと、押されたら飛ぶこと。どちらにも段階 2 には無かったもの——**現在の番号**——が必要です。
+
+<Demo title="段階 3 — ドットを追加">
+  <CarouselDotsDemo />
+</Demo>
+
+```tsx
+const [index, setIndex] = useState(0)
+
+function onScroll() {
+  const track = trackRef.current
+  if (!track) return
+  setIndex(Math.round(track.scrollLeft / stepSize(track)))
+}
+
+function goTo(i: number) {
+  const track = trackRef.current
+  if (!track) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  track.scrollTo({ left: i * stepSize(track), behavior: reduce ? 'auto' : 'smooth' })
+}
+```
+
+```tsx
+<div ref={trackRef} className={styles.track} onScroll={onScroll}>
+  {/* スライド */}
+</div>
+
+<div className={styles.dots}>
+  {slides.map((s, i) => (
+    <button
+      key={s.title}
+      type="button"
+      className={styles.dot}
+      aria-current={i === index ? 'true' : undefined}
+      aria-label={`${i + 1} 枚目へ`}
+      onClick={() => goTo(i)}
+    />
+  ))}
+</div>
+```
+
+データの向きに注目してください。番号は**スクロール位置から読み取って**います。真実として保存しているのではありません。だからスワイプでも、矢印キーでも、矢印ボタンでも、ドットでも更新されますし、それぞれが互いを知る必要もありません。真実はスクロール位置ただ 1 つで、`index` はその読み取り結果です。
+
+`goTo` が `scrollTo`（絶対）なのは、`step` の `scrollBy`（相対）と違って「3 枚目へ」が目的地だからです。ひと押しではありません。
+
+<JsNote feature="スクロールのたびに setIndex して再描画されないの？" to="/guide/state/use-state/basics">
+
+呼ばれる回数は多いですが、`Math.round(...)` の結果はそのほとんどで**同じ数値**です。React は新しい state を `Object.is` で比べ、一致していれば再描画そのものを飛ばします。
+
+なので実際の再描画は「スクロールイベントごと」ではなく「スライドを 1 枚またぐごと」。ここでスロットリングを入れるのは、起きていない問題への最適化です。
 
 </JsNote>
+
+現在のドットのスタイルは ARIA 属性から当てます。「どのスライドが現在か」を属性とクラスの両方に持たず、1 か所に収められます。
+
+```scss
+.dot[aria-current='true'] {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+}
+```
+
+## 段階 4 — マウスでドラッグ {#drag}
+
+タッチはすでにスワイプできます。マウスはできません。この層は意図的にデスクトップ専用です。
+
+<Demo title="段階 4 — ドラッグを追加">
+  <CarouselDemo />
+</Demo>
+
+```tsx
+const drag = useRef({ down: false, startX: 0, startLeft: 0 })
+
+function onPointerDown(e: React.PointerEvent) {
+  if (e.pointerType !== 'mouse') return // タッチはネイティブのスクロールに任せる
+  const track = trackRef.current
+  if (!track) return
+  drag.current = { down: true, startX: e.clientX, startLeft: track.scrollLeft }
+  track.setPointerCapture(e.pointerId)
+}
+
+function onPointerMove(e: React.PointerEvent) {
+  const track = trackRef.current
+  if (!drag.current.down || !track) return
+  track.scrollLeft = drag.current.startLeft - (e.clientX - drag.current.startX)
+}
+
+function endDrag() {
+  drag.current.down = false
+}
+```
+
+全体を支えているのは 3 点です。
+
+- **`if (e.pointerType !== 'mouse') return`** … ポインタイベントはタッチでも発火します。そこを奪うと、ブラウザの優秀なスワイプを、自作の劣ったスワイプで置き換えることになります。
+- **`setPointerCapture`** … カーソルが箱の外に出ても、以降のポインタイベントをトラックに届けます。無いと、勢いよくドラッグして外へ出た瞬間、`down` が true のまま取り残されます。
+- **`useState` ではなく `useRef`** … ドラッグ中の値の置き場所。
+
+<JsNote feature="ドラッグ位置を useRef に置く理由">
+
+`onPointerMove` は 1 秒に何十回も走ります。`useState` に入れると、そのたびにコンポーネント全体の再描画が積まれます。ドラッグはカクつき、しかもこれらの値は画面に出ないので、その再描画は全部無駄です。
+
+`useRef` は、描画をまたいで生き残り、**描画を起こさない**書き換え可能な入れ物です。`track.scrollLeft` を直接書いているのも同じ発想で、DOM を直接動かしていて、React が知る必要はありません。
+
+目安：**素早く変わり、画面に出ない値は ref に置く。**
+
+</JsNote>
+
+## 仕上げ {#polish}
+
+4 層が揃ったあとの細かい話です。
+
+**両端で矢印を無効にする。** 段階 3 で `index` を持っているので、属性 1 つずつで済みます。
+
+```tsx
+<button disabled={index === 0} onClick={() => step(-1)}>‹</button>
+<button disabled={index === slides.length - 1} onClick={() => step(1)}>›</button>
+```
+
+**動きを減らす設定に配慮する。** スムーススクロールも動きなので、JS 側だけでなく CSS 側にも逃げ道を用意します。
+
+```scss
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    scroll-behavior: auto;
+  }
+}
+```
+
+**つかめるときだけ、つかめるカーソルを出す。** `cursor: grab` はドラッグを有効にしたときだけ付くクラスに置きます。マウスを無視するトラックに grab カーソルを出すのは、守らない約束をしていることになります。
+
+## どこで止めて Swiper に切り替えるか {#swiper}
+
+ここまでで約 40 行、依存はゼロです。商品の横並び、お客様の声、ギャラリー——このあたりなら妥当な取引です。
+
+ライブラリ（このガイドでは [Swiper](/libraries/swiper/goal)）に切り替えるのは、**無限ループ**、**ホバーやフォーカスで止まるオートプレイ**、**サムネイル連動**、**coverflow や 3D の効果**、**複数カルーセルの連動**が要るときです。どれも小さな追加ではありません。ループひとつ取っても、スライドを複製してスクロール中に位置を差し替える必要があり、自作カルーセルが手に負えなくなるのはたいていここからです。
+
+正直な線引きはこうです。「コントロール付きの、横に並んだものの列」と説明できるなら自作する。**端がどこかについて嘘をつく**必要が出たら Swiper を入れる。
 
 ## よくある間違い {#mistakes}
 
 <Diff
-  bad="毎フレーム座標を計算して transform でスライドを動かす"
-  good="overflow-x + scroll-snap に任せ、ボタンとドラッグだけ足す"
-  note="自作アニメはタッチ・キーボード・慣性まで作り直しになる。スクロールはブラウザに任せるのが軽くて正しい。"
+  bad="フレームごとに座標を計算して transform でスライドを動かす"
+  good="overflow-x + scroll-snap を土台にして、ボタンとドラッグだけ足す"
+  note="自作するとタッチ・慣性・キーボードも作り直しになる。3 つともブラウザのほうが上手い。"
+/>
+
+<Diff
+  bad="現在のスライド番号を state に保存し、それに合わせてスクロールさせる"
+  good="スクロール時に scrollLeft から番号を読み取る"
+  note="真実が 2 つあるとズレる。スワイプで飛ばされた瞬間に保存した番号は嘘になる。真実はスクロール位置。"
+/>
+
+<Diff
+  bad="マウスだけでなくタッチのポインタドラッグも自前で処理する"
+  good="if (e.pointerType !== 'mouse') return"
+  note="ブラウザのネイティブなスワイプ（慣性もラバーバンドも込み）を、劣ったもので置き換えることになる。"
+/>
+
+<Diff
+  bad="ドラッグ中のオフセットを useState に持つ"
+  good="useRef にして、track.scrollLeft を直接書く"
+  note="pointermove ごとの再描画でドラッグがカクつくうえ、その値は画面のどこにも出ない。"
 />
 
 ## うまくいかないとき {#trouble}
 
-- **ピタッと止まらない** … 箱に `scroll-snap-type`、各スライドに `scroll-snap-align` の両方が要ります。
+- **スナップしない** … **トラック**に `scroll-snap-type`、**各スライド**に `scroll-snap-align` の両方が必要です。片方だけでは何も起きません。
 - **ドラッグ中に文字が選択される** … スライドに `user-select: none` を付けます。
+- **スワイプにドットが追従しない** … `onScroll` がトラックに付いていないか、番号を読み取らず保存しています。
+- **カーソルが箱の外に出るとドラッグが止まる** … `setPointerCapture` がありません。
+- **矢印の移動量が大きすぎる／小さすぎる** … `stepSize` が実際のスライド幅と合っていません。px を直書きせず `scrollWidth / slides.length` から導きます。
+- **ドラッグがもたつく** … オフセットが `useState` に入っています。ref に移します。
+- **カルーセル内のドロップダウンやツールチップが切れる** … トラックはスクロールコンテナなので中身を切り取ります。重ねて出すものはトラックの外に描画します。
 
 ## まとめ {#summary}
 
 <SummaryBox>
 
-- 横スクロールとスナップは CSS（`overflow-x` + `scroll-snap-type` + `scroll-snap-align`）
-- 前後ボタンは `scrollBy`、マウスドラッグは `scrollLeft` を直接書き換える
-- ドラッグの途中経過は `useState` ではなく `useRef`（再描画を起こさない）
+- **段階 1**：`overflow-x: auto` + `scroll-snap-type` + `scroll-snap-align`。タッチ・慣性・キーボードが無料で付き、JavaScript は 0 行
+- **段階 2**：相対移動の `scrollBy`。アイコンだけのボタンには `aria-label`
+- **段階 3**：スクロール時に `scrollLeft` から `index` を読み、移動は `scrollTo`。真実はスクロール位置ただ 1 つ
+- **段階 4**：ポインタはマウスのときだけ、`setPointerCapture`、ドラッグ中の値は `useRef`。`useState` は使わない
+- 現在のドットは `aria-current` からスタイルを当てて、状態を 1 か所に
+- ループ・オートプレイ・サムネイルが要らないならここで止める。要るなら [Swiper](/libraries/swiper/goal) の出番
 
 </SummaryBox>

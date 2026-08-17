@@ -9,8 +9,13 @@
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   padding-bottom: var(--sp-2);
-  cursor: grab;
   scrollbar-width: thin;
+}
+
+// Only when mouse dragging is switched on — a grab cursor on a track you can't
+// actually drag is a promise the component doesn't keep.
+.grab {
+  cursor: grab;
 
   &:active {
     cursor: grabbing;
@@ -33,9 +38,41 @@
 
 .controls {
   display: flex;
-  justify-content: flex-end;
-  gap: var(--sp-2);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
   margin-top: var(--sp-3);
+}
+
+.dots {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: 1px solid var(--c-muted);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--c-text);
+  }
+}
+
+// Styled from the ARIA attribute, so "which slide is current" lives in one place.
+.dot[aria-current='true'] {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+.arrows {
+  display: flex;
+  gap: var(--sp-2);
+  margin-left: auto;
 }
 
 .arrow {
@@ -45,12 +82,17 @@
   border-radius: var(--radius-pill);
   background: var(--c-surface);
   color: var(--c-text);
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
   cursor: pointer;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--c-sunk);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 }
 

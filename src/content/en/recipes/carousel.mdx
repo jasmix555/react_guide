@@ -1,147 +1,314 @@
 ---
 title: Carousel (drag slider)
-minutes: 10
+minutes: 14
 slug: carousel
 section: recipes
-description: "A horizontal-scrolling carousel. Let CSS scroll-snap handle the scrolling, and just add prev/next buttons and mouse dragging."
+description: "Built up one layer at a time: CSS scroll-snap on its own, then prev/next, then pagination dots, then mouse dragging. Each stage works by itself, so you can stop at the one you actually need."
 level: intermediate
 prerequisites: ['state/use-effect/basics']
 ---
 
-import { CarouselDemo } from '@/demos/Carousel'
+import {
+  CarouselArrowsDemo,
+  CarouselDemo,
+  CarouselDotsDemo,
+  CarouselSnapDemo,
+} from '@/demos/Carousel'
 
 <LearnBox>
 
-- A horizontal-scrolling carousel built with CSS `scroll-snap`
-- Add prev/next buttons (`scrollBy`) and mouse dragging
-- Get touch and keyboard support without writing it yourself
+- **Stage 1** — horizontal scrolling and snapping, in CSS alone
+- **Stage 2** — prev / next arrows with `scrollBy`
+- **Stage 3** — pagination dots that both show and set the position
+- **Stage 4** — click-and-drag with a mouse
+- Where to stop, and when to reach for Swiper instead
 
 </LearnBox>
 
-## See the finished result first {#goal}
+## The finished thing {#goal}
 
-Swipe with your finger (touch), drag with a mouse, or use the buttons at the bottom right to move it.
+Everything switched on: swipe on touch, drag with a mouse, arrows, dots.
 
-<Demo title="Carousel">
+<Demo title="Carousel — all four stages">
   <CarouselDemo />
 </Demo>
 
-## Let CSS handle the scrolling {#scroll-snap}
+We'll build it in four layers. **Every stage below works on its own**, so if stage 1 is all your design needs, stop there — each layer after it is a few lines you're choosing to take on.
 
-If you build a carousel by "calculating coordinates every frame and moving it with `transform`," it ends up heavy and fragile. **Horizontal scrolling and snapping (stopping crisply in place) can be done with CSS alone.**
+## Stage 1 — the track {#track}
 
-- `overflow-x: auto` … Makes a box that scrolls horizontally (touch swiping comes for free).
-- `scroll-snap-type: x mandatory` … Always snaps to some position along the horizontal axis.
-- `scroll-snap-align: center` on each slide … Stops crisply at the center.
+No JavaScript. None.
 
-```scss title="Carousel.module.scss (key parts)"
+<Demo title="Stage 1 — scroll-snap only">
+  <CarouselSnapDemo />
+</Demo>
+
+Swipe it on a phone, drag the scrollbar, or click it and use the arrow keys. All of that already works, because it's an ordinary scrolling box:
+
+```scss title="Carousel.module.scss"
 .track {
   display: flex;
   gap: var(--sp-3);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
+  overflow-x: auto; // ← the scrolling, the touch swipe, the momentum
+  scroll-snap-type: x mandatory; // ← always come to rest on a slide
   scroll-behavior: smooth;
 }
 
 .slide {
-  flex: 0 0 70%; // 70% per slide. The next one peeks in a little
-  scroll-snap-align: center;
+  flex: 0 0 70%; // 70% each, so the next one peeks in
+  scroll-snap-align: center; // ← the point on the slide that snaps
+  user-select: none;
 }
 ```
 
-At this point, **both touch swiping and keyboard scrolling already work**. We haven't written a single line of JavaScript yet.
-
-## Add prev/next buttons and mouse dragging {#js}
-
-For desktop, we add "Prev / Next" buttons and grab-and-drag with the mouse. The buttons just scroll a little with `scrollBy`. For mouse dragging, we remember the press position and `scrollLeft`, then shift by however far the mouse moved.
-
-```tsx title="src/components/Carousel/Carousel.tsx (new file, full source)"
-import { useRef } from 'react'
-
-import styles from './Carousel.module.scss'
-
-interface Slide {
-  title: string
-  tint: string
-}
-
-export function Carousel({ slides }: { slides: Slide[] }) {
-  const trackRef = useRef<HTMLDivElement>(null)
-  const drag = useRef({ down: false, startX: 0, startLeft: 0 })
-
-  function step(dir: number) {
-    const track = trackRef.current
-    if (!track) return
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: reduce ? 'auto' : 'smooth' })
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    if (e.pointerType !== 'mouse') return // leave touch to native scrolling
-    const track = trackRef.current
-    if (!track) return
-    drag.current = { down: true, startX: e.clientX, startLeft: track.scrollLeft }
-    track.setPointerCapture(e.pointerId)
-  }
-
-  function onPointerMove(e: React.PointerEvent) {
-    const track = trackRef.current
-    if (!drag.current.down || !track) return
-    track.scrollLeft = drag.current.startLeft - (e.clientX - drag.current.startX)
-  }
-
-  function endDrag() {
-    drag.current.down = false
-  }
-
-  return (
-    <div>
-      <div
-        ref={trackRef}
-        className={styles.track}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-      >
-        {slides.map((s) => (
-          <div key={s.title} className={styles.slide} style={{ background: s.tint }}>
-            {s.title}
-          </div>
-        ))}
-      </div>
-      <button type="button" aria-label="Prev" onClick={() => step(-1)}>‹</button>
-      <button type="button" aria-label="Next" onClick={() => step(1)}>›</button>
+```tsx
+<div className={styles.track}>
+  {slides.map((s) => (
+    <div key={s.title} className={styles.slide}>
+      {s.title}
     </div>
-  )
+  ))}
+</div>
+```
+
+Three properties are doing all of it:
+
+- **`overflow-x: auto`** makes a horizontally scrolling box. Touch swiping, momentum, and keyboard scrolling arrive with it, tuned per platform by the browser.
+- **`scroll-snap-type: x mandatory`** means it can't stop between slides. `mandatory` always snaps; `proximity` only snaps when you end up near a snap point.
+- **`scroll-snap-align: center`** on each slide is *which part* lines up. `start` is the other common choice, for a carousel flush to the left edge.
+
+<Callout type="note">
+
+This is the whole reason not to hand-roll a carousel with `transform` and a frame loop. Do that and you're not just writing the animation — you're rewriting touch, momentum, keyboard support, and the platform's scroll feel, all of which the browser already does better.
+
+</Callout>
+
+## Stage 2 — prev / next {#arrows}
+
+Two buttons that nudge the scroll position.
+
+<Demo title="Stage 2 — plus arrows">
+  <CarouselArrowsDemo />
+</Demo>
+
+```tsx
+const trackRef = useRef<HTMLDivElement>(null)
+
+/** Width of one slide including its gap — every slide is the same size. */
+const stepSize = (track: HTMLDivElement) => track.scrollWidth / slides.length
+
+function step(dir: number) {
+  const track = trackRef.current
+  if (!track) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  track.scrollBy({ left: dir * stepSize(track), behavior: reduce ? 'auto' : 'smooth' })
 }
 ```
 
-<JsNote feature="Hold the drag position in useRef, not useState">
+```tsx
+<div ref={trackRef} className={styles.track}>{/* slides */}</div>
 
-Updating `useState` every time the mouse moves triggers a re-render each time, which makes it stutter. Keep the in-progress drag values (start position, starting scroll amount) in `useRef` and write `scrollLeft` directly. These aren't values shown on screen, so no re-render is needed.
+<button type="button" aria-label="Previous" onClick={() => step(-1)}>‹</button>
+<button type="button" aria-label="Next" onClick={() => step(1)}>›</button>
+```
+
+`scrollBy` moves *relative* to where you are, which is the right choice here: it composes with wherever the user has already swiped to, and snapping still finishes the job. You're nudging, not commanding.
+
+Deriving `stepSize` from `scrollWidth / slides.length` avoids hardcoding a pixel width, so it survives a responsive `.slide` and the gap changing with the breakpoint.
+
+<Callout type="warn">
+
+`‹` and `›` are decorative glyphs. Without `aria-label` the buttons are announced as "single left-pointing angle quotation mark" or nothing at all. Every icon-only button needs a name — same rule as the [react-icons page](/libraries/react-icons).
+
+</Callout>
+
+## Stage 3 — pagination dots {#dots}
+
+Dots do two jobs: show where you are, and jump when clicked. Both need something stage 2 didn't: the **current index**.
+
+<Demo title="Stage 3 — plus dots">
+  <CarouselDotsDemo />
+</Demo>
+
+```tsx
+const [index, setIndex] = useState(0)
+
+function onScroll() {
+  const track = trackRef.current
+  if (!track) return
+  setIndex(Math.round(track.scrollLeft / stepSize(track)))
+}
+
+function goTo(i: number) {
+  const track = trackRef.current
+  if (!track) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  track.scrollTo({ left: i * stepSize(track), behavior: reduce ? 'auto' : 'smooth' })
+}
+```
+
+```tsx
+<div ref={trackRef} className={styles.track} onScroll={onScroll}>
+  {/* slides */}
+</div>
+
+<div className={styles.dots}>
+  {slides.map((s, i) => (
+    <button
+      key={s.title}
+      type="button"
+      className={styles.dot}
+      aria-current={i === index ? 'true' : undefined}
+      aria-label={`Go to slide ${i + 1}`}
+      onClick={() => goTo(i)}
+    />
+  ))}
+</div>
+```
+
+Note the direction of the data. The index is **read from the scroll position**, not stored as the source of truth — so swiping, arrow keys, the arrow buttons and the dots all update it, and none of them need to know about each other. Scroll position is the one truth; `index` is a reading of it.
+
+`goTo` uses `scrollTo` (absolute) where `step` used `scrollBy` (relative), because "go to slide 3" is a destination, not a nudge.
+
+<JsNote feature="Doesn't setIndex on every scroll event re-render constantly?" to="/guide/state/use-state/basics">
+
+It fires often, but `Math.round(...)` returns the **same number** for most of them. React compares the new state to the old with `Object.is` and, when they match, skips the re-render entirely.
+
+So you get roughly one re-render per slide crossed, not one per scroll event. Reaching for a throttle here would be optimising something that isn't happening.
 
 </JsNote>
+
+Style the active dot off the ARIA attribute, so "which slide is current" is stored once rather than in both an attribute and a class:
+
+```scss
+.dot[aria-current='true'] {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+}
+```
+
+## Stage 4 — mouse dragging {#drag}
+
+Touch already swipes; a mouse doesn't. This layer is desktop-only by design.
+
+<Demo title="Stage 4 — plus mouse drag">
+  <CarouselDemo />
+</Demo>
+
+```tsx
+const drag = useRef({ down: false, startX: 0, startLeft: 0 })
+
+function onPointerDown(e: React.PointerEvent) {
+  if (e.pointerType !== 'mouse') return // leave touch to native scrolling
+  const track = trackRef.current
+  if (!track) return
+  drag.current = { down: true, startX: e.clientX, startLeft: track.scrollLeft }
+  track.setPointerCapture(e.pointerId)
+}
+
+function onPointerMove(e: React.PointerEvent) {
+  const track = trackRef.current
+  if (!drag.current.down || !track) return
+  track.scrollLeft = drag.current.startLeft - (e.clientX - drag.current.startX)
+}
+
+function endDrag() {
+  drag.current.down = false
+}
+```
+
+Three details carry the whole thing:
+
+- **`if (e.pointerType !== 'mouse') return`** — pointer events fire for touch too, and hijacking those would replace the browser's excellent native swipe with your worse one.
+- **`setPointerCapture`** routes further pointer events to the track even when the cursor leaves it. Without it, dragging fast and slipping outside the box strands the carousel mid-drag with `down` still true.
+- **`useRef`, not `useState`** for the drag values.
+
+<JsNote feature="Why the drag position lives in useRef">
+
+`onPointerMove` fires dozens of times a second. In `useState`, each one queues a re-render of the whole component — the drag stutters, and every re-render is wasted because these values are never displayed.
+
+`useRef` holds a mutable value that survives renders **without causing one**. Writing `track.scrollLeft` directly is the same idea: you're driving the DOM, and React never needs to know.
+
+The rule of thumb: if a value changes rapidly and isn't rendered, it belongs in a ref.
+
+</JsNote>
+
+## Polish {#polish}
+
+Small things, once the four layers are in place.
+
+**Disable the arrows at the ends.** You already have `index` from stage 3, so it costs one attribute each:
+
+```tsx
+<button disabled={index === 0} onClick={() => step(-1)}>‹</button>
+<button disabled={index === slides.length - 1} onClick={() => step(1)}>›</button>
+```
+
+**Respect reduced motion.** Smooth scrolling is motion, so give it the CSS escape hatch as well as the JS one:
+
+```scss
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    scroll-behavior: auto;
+  }
+}
+```
+
+**Only show a grab cursor if you can grab.** Put `cursor: grab` on a modifier class applied when dragging is enabled — a grab cursor on a track that ignores the mouse is a promise the component doesn't keep.
+
+## When to stop and use Swiper {#swiper}
+
+Everything above is about 40 lines and needs no dependency. That's the right trade for a product row, a testimonial strip, a gallery.
+
+Reach for a library — the guide covers [Swiper](/libraries/swiper/goal) — once you need **infinite loop**, **autoplay with pause on hover and on focus**, **thumbnail navigation**, **coverflow or 3D effects**, or **linked carousels**. Those aren't small additions; loop alone means duplicating slides and fixing the scroll position mid-scroll, which is where a hand-rolled carousel usually starts to fight you.
+
+The honest line: if you can describe it as "a scrolling row of things with controls", build it. If it needs to *lie* about where the ends are, install Swiper.
 
 ## Common mistakes {#mistakes}
 
 <Diff
   bad="Calculating coordinates every frame and moving slides with transform"
-  good="Let overflow-x + scroll-snap do the work, and just add buttons and dragging"
-  note="A hand-rolled animation means rebuilding touch, keyboard, and momentum too. Letting the browser handle scrolling is lighter and correct."
+  good="overflow-x + scroll-snap, then add buttons and dragging"
+  note="Hand-rolling means rebuilding touch, momentum and keyboard too. The browser already does all three better."
+/>
+
+<Diff
+  bad="Storing the current slide in state and scrolling to match it"
+  good="Reading the index from scrollLeft on scroll"
+  note="Two sources of truth drift apart: swipe past a slide and the stored index is wrong. Scroll position is the truth."
+/>
+
+<Diff
+  bad="Handling pointer drag for touch as well as mouse"
+  good="if (e.pointerType !== 'mouse') return"
+  note="You'd be replacing the browser's native swipe — momentum, rubber-banding and all — with a worse one."
+/>
+
+<Diff
+  bad="Keeping the in-progress drag offset in useState"
+  good="useRef, and writing track.scrollLeft directly"
+  note="A re-render per pointermove makes the drag stutter, and nothing on screen uses the value."
 />
 
 ## When it doesn't work {#trouble}
 
-- **It won't snap into place** … You need both `scroll-snap-type` on the box and `scroll-snap-align` on each slide.
-- **Text gets selected while dragging** … Add `user-select: none` to the slides.
+- **It doesn't snap** … You need `scroll-snap-type` on the **track** and `scroll-snap-align` on **each slide**. One without the other does nothing.
+- **Text gets selected while dragging** … `user-select: none` on the slides.
+- **The dots don't follow a swipe** … `onScroll` isn't on the track, or you're storing the index instead of reading it.
+- **Dragging stops if the cursor leaves the box** … `setPointerCapture` is missing.
+- **Arrows jump too far or too little** … `stepSize` doesn't match the real slide width. Derive it from `scrollWidth / slides.length` rather than hardcoding.
+- **Dragging feels laggy** … The offset is in `useState`. Move it to a ref.
+- **A dropdown or tooltip inside the carousel is cut off** … The track is a scroll container, so it clips. Render overlays outside it.
 
 ## Summary {#summary}
 
 <SummaryBox>
 
-- Horizontal scrolling and snapping are CSS (`overflow-x` + `scroll-snap-type` + `scroll-snap-align`)
-- Prev/next buttons use `scrollBy`; mouse dragging writes `scrollLeft` directly
-- Keep in-progress drag values in `useRef`, not `useState` (no re-render)
+- **Stage 1**: `overflow-x: auto` + `scroll-snap-type` + `scroll-snap-align`. Touch, momentum and keyboard for free, zero JavaScript
+- **Stage 2**: `scrollBy` for relative nudges, with `aria-label` on the icon-only buttons
+- **Stage 3**: read `index` from `scrollLeft` on scroll; `scrollTo` to jump. Scroll position is the single source of truth
+- **Stage 4**: pointer events for mouse only, `setPointerCapture`, and drag values in `useRef` — never `useState`
+- Style the active dot from `aria-current`, so the state lives in one place
+- Stop here unless you need loop, autoplay or thumbnails — that's where [Swiper](/libraries/swiper/goal) starts to pay
 
 </SummaryBox>

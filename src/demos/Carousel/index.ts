@@ -1,1 +1,6 @@
-export { CarouselDemo } from './CarouselDemo'
+export {
+  CarouselArrowsDemo,
+  CarouselDemo,
+  CarouselDotsDemo,
+  CarouselSnapDemo,
+} from './CarouselDemo'
