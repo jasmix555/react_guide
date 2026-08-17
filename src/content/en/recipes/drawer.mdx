@@ -1,9 +1,9 @@
 ---
 title: Drawer / hamburger menu
-minutes: 10
+minutes: 12
 slug: drawer
 section: recipes
-description: "A side menu that opens from a hamburger button. Uses the dialog element so focus trapping, Esc, and backdrop clicks come from built-in features."
+description: "A side menu that opens from a hamburger button. The dialog element gives you focus trapping and Esc for free — closing on a backdrop click is the one piece you have to add yourself."
 level: intermediate
 prerequisites: ['recipes/modal']
 ---
@@ -13,14 +13,15 @@ import { DrawerDemo } from '@/demos/Drawer'
 <LearnBox>
 
 - A menu that slides in from the side, built with `<dialog>`
-- Getting focus trapping, Esc, and backdrop clicks from **built-in features**
+- What `showModal()` gives you for free — and the one thing it doesn't
+- Closing on a backdrop click with a single target comparison
 - The slide animation, and locking background scroll
 
 </LearnBox>
 
 ## See the finished version first {#goal}
 
-The one you know from phones: press the hamburger and a menu slides out from the right. It closes on a link inside it, the ✕, Esc, or a backdrop click.
+The one you know from phones: press the hamburger and a menu slides out from the right. It closes on a link inside it, the ✕, Esc, or a click on the dimmed area outside.
 
 <Demo title="Drawer">
   <DrawerDemo />
@@ -36,6 +37,55 @@ Open a `<dialog>` element with `showModal()` and these come **built in from the 
 ref.current?.showModal() // open (with backdrop, focus trapping, and Esc)
 ref.current?.close() // close
 ```
+
+<Callout type="warn">
+
+Be precise about what "built in" covers, because one item is missing and almost everyone assumes it isn't:
+
+| Behaviour | Free with `showModal()`? |
+| --- | --- |
+| Dimmed backdrop (`::backdrop`) | Yes |
+| Focus trapped inside | Yes |
+| Esc closes it | Yes |
+| Everything behind made inert | Yes |
+| **Clicking the backdrop closes it** | **No — you add this** |
+
+The backdrop is drawn for you, but it does nothing when clicked. That's the next section.
+
+</Callout>
+
+## Close it when the outside is clicked {#backdrop}
+
+Since `::backdrop` is a pseudo-element, there's nothing to attach a handler to. The trick is what a backdrop click reports as its target:
+
+**A click on the backdrop lands on the `<dialog>` element itself.** A click on the menu inside lands on the inner element you clicked. So comparing the target is the whole test:
+
+```tsx
+<dialog
+  ref={ref}
+  onClick={(e) => {
+    if (e.target === ref.current) ref.current.close()
+  }}
+>
+  <div className={styles.panel}>{/* menu contents */}</div>
+</dialog>
+```
+
+The inner `<div>` matters as much as the handler. Without it, the empty strip below the last link is still the `<dialog>` element — so clicking inside your own menu would close it. Give the panel `height: 100%` so it covers the dialog completely, and "target is the dialog" can only mean the backdrop:
+
+```scss title="Drawer.module.scss (addition)"
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+```
+
+<Callout type="note">
+
+This is the same idea as the [Modal recipe](/recipes/modal), where the overlay is a real `<div>` and the panel calls `stopPropagation()`. Two ways to answer the same question — "did the click land outside?" — and `<dialog>` needs the target comparison because its backdrop isn't an element you can put a handler on.
+
+</Callout>
 
 ## The Drawer component {#drawer-body}
 
@@ -64,24 +114,41 @@ export function Drawer({ items }: { items: DrawerLink[] }) {
         Menu
       </button>
 
-      <dialog ref={ref} className={styles.drawer} aria-label="Menu">
-        <button type="button" aria-label="Close" onClick={() => ref.current?.close()}>
-          ✕
-        </button>
-        <nav>
-          {items.map((item) => (
-            <a key={item.href} href={item.href} onClick={() => ref.current?.close()}>
-              {item.label}
-            </a>
-          ))}
-        </nav>
+      <dialog
+        ref={ref}
+        className={styles.drawer}
+        aria-label="Menu"
+        onClick={(e) => {
+          if (e.target === ref.current) ref.current.close()
+        }}
+      >
+        <div className={styles.panel}>
+          <button type="button" aria-label="Close" onClick={() => ref.current?.close()}>
+            ✕
+          </button>
+          <nav>
+            {items.map((item) => (
+              <a key={item.href} href={item.href} onClick={() => ref.current?.close()}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </div>
       </dialog>
     </>
   )
 }
 ```
 
-There are two things to note. Grab the real `<dialog>` with `ref` and call `showModal()` from the hamburger's `onClick`. And **close it with `close()` when a link is pressed** (it's natural for a menu to close once you pick something).
+Three things to note. Grab the real `<dialog>` with `ref` and call `showModal()` from the hamburger's `onClick`. **Close it with `close()` when a link is pressed** (it's natural for a menu to close once you pick something). And the `onClick` on the dialog is what adds backdrop-close.
+
+<JsNote feature="Why e.target and not e.currentTarget" to="/guide/components/events">
+
+`e.currentTarget` is always the element the handler is attached to — here, the dialog, every single time. It would make the condition permanently true.
+
+`e.target` is where the click **actually landed**, before it bubbled up. That's the one carrying the information you want: the backdrop reports the dialog, a link reports the link.
+
+</JsNote>
 
 ## Slide it in from the side {#animate}
 
@@ -93,6 +160,7 @@ By default a `<dialog>` appears in the center of the screen. Turn it into a tall
   inset: 0 0 0 auto; // pinned to the right edge, full height
   width: min(320px, 85vw);
   margin: 0;
+  padding: 0; // so .panel can fill it edge to edge
   transform: translateX(100%);
   transition:
     transform 0.25s ease,
@@ -111,6 +179,8 @@ By default a `<dialog>` appears in the center of the screen. Turn it into a tall
   }
 }
 ```
+
+`padding: 0` is doing quiet work here too: with padding, the strip between the dialog's edge and the panel is still the dialog, so clicking just inside the drawer would close it.
 
 <JsNote feature="@starting-style and allow-discrete">
 
@@ -136,16 +206,33 @@ While it's open, being able to scroll the page behind it is distracting. Without
   note="A hand-built version easily leaks focus trapping. With dialog, focus is trapped correctly from the start."
 />
 
+<Diff
+  bad="Assuming showModal() also closes on a backdrop click"
+  good="Adding onClick on the dialog and comparing e.target to it"
+  note="The backdrop is drawn for you but is inert. This is the single most common dialog surprise."
+/>
+
+<Diff
+  bad="The target comparison with no inner panel filling the dialog"
+  good="A .panel with height: 100%, and padding: 0 on the dialog"
+  note="Otherwise the empty area below your links is still the dialog, so clicking inside the menu closes it."
+/>
+
 ## When it doesn't work {#trouble}
 
-- **Clicking the background doesn't close it** … Are you opening with `showModal()`? (`show()` gives you neither the backdrop nor focus trapping.)
+- **Clicking the background doesn't close it** … The `onClick` target comparison is missing. `showModal()` alone never closes on a backdrop click — check you didn't only add the CSS.
+- **It closes when you click inside the menu** … The panel isn't covering the dialog. Add `height: 100%` to `.panel` and `padding: 0` to the dialog.
+- **It closes on every click, even a link** … You compared `e.currentTarget` instead of `e.target`, so the condition is always true.
+- **There's no backdrop at all** … You opened it with `show()` instead of `showModal()`. `show()` gives you neither the backdrop nor focus trapping.
 - **It doesn't animate** … Check that `@starting-style` and `allow-discrete` are present. Opening and closing still work without them.
 
 ## Summary {#summary}
 
 <SummaryBox>
 
-- Don't build a drawer yourself — use `<dialog>` + `showModal()` / `close()`. Esc, focus, and the backdrop come built in
+- Don't build a drawer yourself — `<dialog>` + `showModal()` / `close()` gives you Esc, focus trapping, inert background, and the dimmed backdrop
+- **Closing on a backdrop click is not included.** Add `onClick` on the dialog and close when `e.target === ref.current`
+- That test only holds if an inner panel with `height: 100%` fills the dialog and the dialog has `padding: 0`
 - Position it with `inset: 0 0 0 auto` at the right edge. Slide it with `transform` + `@starting-style`
 - Lock background scroll with `overflow: hidden` on `html:has(dialog[open])`
 

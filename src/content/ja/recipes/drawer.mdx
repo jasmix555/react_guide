@@ -1,9 +1,9 @@
 ---
 title: ドロワー / ハンバーガーメニュー
-minutes: 10
+minutes: 12
 slug: drawer
 section: recipes
-description: ハンバーガーで開く横からのメニュー。dialog 要素を使い、フォーカスの閉じ込め・Esc・背景クリックを標準機能でまかなう。
+description: ハンバーガーで開く横からのメニュー。dialog 要素でフォーカスの閉じ込めと Esc は標準で付くが、背景クリックで閉じるのだけは自分で足す必要がある。
 level: intermediate
 prerequisites: ['recipes/modal']
 ---
@@ -13,14 +13,15 @@ import { DrawerDemo } from '@/demos/Drawer'
 <LearnBox>
 
 - `<dialog>` で作る、横からスライドインするメニュー
-- フォーカスの閉じ込め・Esc・背景クリックを**標準機能**で済ませる
+- `showModal()` で無料で付いてくるもの、そして 1 つだけ付いてこないもの
+- 背景クリックで閉じるのを、target の比較 1 行で足す
 - スライドのアニメーションと、背景スクロールの固定
 
 </LearnBox>
 
 ## 完成形を先に見る {#goal}
 
-スマホでおなじみの、ハンバーガーを押すと右から出てくるメニューです。メニュー内のリンク・✕・Esc・背景クリックで閉じます。
+スマホでおなじみの、ハンバーガーを押すと右から出てくるメニューです。メニュー内のリンク・✕・Esc・外側の暗い部分のクリックで閉じます。
 
 <Demo title="Drawer">
   <DrawerDemo />
@@ -36,6 +37,55 @@ import { DrawerDemo } from '@/demos/Drawer'
 ref.current?.showModal() // 開く（暗幕・フォーカス閉じ込め・Esc 付き）
 ref.current?.close() // 閉じる
 ```
+
+<Callout type="warn">
+
+「標準で付いてくる」の範囲は正確に押さえてください。1 つだけ含まれておらず、しかもほぼ全員が含まれていると思い込む項目があります。
+
+| 挙動 | `showModal()` で無料？ |
+| --- | --- |
+| 暗幕（`::backdrop`） | 付く |
+| フォーカスが中に閉じ込められる | 付く |
+| Esc で閉じる | 付く |
+| 背後が操作不能になる | 付く |
+| **背景クリックで閉じる** | **付かない（自分で足す）** |
+
+暗幕は描かれますが、押しても何も起きません。それが次の節です。
+
+</Callout>
+
+## 外側を押したら閉じる {#backdrop}
+
+`::backdrop` は擬似要素なので、ハンドラを付ける相手がいません。鍵になるのは、背景クリックがどこを target として報告するかです。
+
+**背景のクリックは `<dialog>` 要素そのものに当たります。** 中のメニューを押したときは、押した中の要素に当たります。つまり target を比べるだけで判定できます。
+
+```tsx
+<dialog
+  ref={ref}
+  onClick={(e) => {
+    if (e.target === ref.current) ref.current.close()
+  }}
+>
+  <div className={styles.panel}>{/* メニューの中身 */}</div>
+</dialog>
+```
+
+内側の `<div>` はハンドラと同じくらい重要です。これが無いと、最後のリンクより下の空いている部分はまだ `<dialog>` なので、自分のメニューの中を押したのに閉じてしまいます。パネルに `height: 100%` を与えて dialog を覆い切れば、「target が dialog」＝背景、と言い切れます。
+
+```scss title="Drawer.module.scss（追記）"
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+```
+
+<Callout type="note">
+
+考え方は[モーダルのレシピ](/recipes/modal)と同じです。あちらはオーバーレイが本物の `<div>` で、パネル側が `stopPropagation()` を呼びます。「クリックは外側だったか？」という同じ問いへの答え方が 2 通りあるだけで、`<dialog>` は暗幕がハンドラを付けられる要素ではないので target の比較になります。
+
+</Callout>
 
 ## Drawer 本体 {#drawer-body}
 
@@ -64,24 +114,41 @@ export function Drawer({ items }: { items: DrawerLink[] }) {
         メニュー
       </button>
 
-      <dialog ref={ref} className={styles.drawer} aria-label="メニュー">
-        <button type="button" aria-label="閉じる" onClick={() => ref.current?.close()}>
-          ✕
-        </button>
-        <nav>
-          {items.map((item) => (
-            <a key={item.href} href={item.href} onClick={() => ref.current?.close()}>
-              {item.label}
-            </a>
-          ))}
-        </nav>
+      <dialog
+        ref={ref}
+        className={styles.drawer}
+        aria-label="メニュー"
+        onClick={(e) => {
+          if (e.target === ref.current) ref.current.close()
+        }}
+      >
+        <div className={styles.panel}>
+          <button type="button" aria-label="閉じる" onClick={() => ref.current?.close()}>
+            ✕
+          </button>
+          <nav>
+            {items.map((item) => (
+              <a key={item.href} href={item.href} onClick={() => ref.current?.close()}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </div>
       </dialog>
     </>
   )
 }
 ```
 
-ポイントは 2 つです。`ref` で本物の `<dialog>` を掴み、ハンバーガーの `onClick` で `showModal()`。そして**リンクを押したら `close()`** で閉じる（メニューは選んだら閉じるのが自然です）。
+ポイントは 3 つです。`ref` で本物の `<dialog>` を掴み、ハンバーガーの `onClick` で `showModal()`。**リンクを押したら `close()`** で閉じる（メニューは選んだら閉じるのが自然です）。そして dialog の `onClick` が、背景クリックで閉じる機能を足している部分です。
+
+<JsNote feature="なぜ e.currentTarget ではなく e.target なのか" to="/guide/components/events">
+
+`e.currentTarget` は常に「ハンドラを付けた要素」——ここでは毎回 dialog です。条件が永久に真になってしまいます。
+
+`e.target` は、バブリングして上がってくる前に**実際にクリックが当たった場所**。欲しい情報を持っているのはこちらです。背景なら dialog を、リンクならリンクを報告します。
+
+</JsNote>
 
 ## 横からスライドさせる {#animate}
 
@@ -93,6 +160,7 @@ export function Drawer({ items }: { items: DrawerLink[] }) {
   inset: 0 0 0 auto; // 右端いっぱい・上下フル
   width: min(320px, 85vw);
   margin: 0;
+  padding: 0; // .panel が端まで埋められるように
   transform: translateX(100%);
   transition:
     transform 0.25s ease,
@@ -111,6 +179,8 @@ export function Drawer({ items }: { items: DrawerLink[] }) {
   }
 }
 ```
+
+`padding: 0` もここで地味に効いています。padding があると、dialog の端とパネルの間の帯はまだ dialog なので、ドロワーのすぐ内側を押したときに閉じてしまいます。
 
 <JsNote feature="@starting-style と allow-discrete">
 
@@ -136,16 +206,33 @@ export function Drawer({ items }: { items: DrawerLink[] }) {
   note="自作はフォーカスの閉じ込め漏れが起きやすい。dialog なら最初から正しく閉じ込められる。"
 />
 
+<Diff
+  bad="showModal() なら背景クリックでも閉じると思い込む"
+  good="dialog に onClick を付け、e.target と比較する"
+  note="暗幕は描かれるが反応しない。dialog で最も多い勘違いがこれ。"
+/>
+
+<Diff
+  bad="target の比較だけ足して、dialog を覆う内側パネルを作らない"
+  good=".panel に height: 100%、dialog に padding: 0"
+  note="リンクより下の空白部分はまだ dialog なので、メニューの中を押したのに閉じてしまう。"
+/>
+
 ## うまくいかないとき {#trouble}
 
-- **背景を押しても閉じない** … `showModal()` で開いていますか（`show()` だと暗幕もフォーカス閉じ込めも付きません）。
+- **背景を押しても閉じない** … `onClick` の target 比較がありません。`showModal()` だけでは背景クリックで閉じることは決してないので、CSS だけ足していないか確認します。
+- **メニューの中を押すと閉じる** … パネルが dialog を覆えていません。`.panel` に `height: 100%`、dialog に `padding: 0` を足します。
+- **リンクを含め、どこを押しても閉じる** … `e.target` ではなく `e.currentTarget` を比べていて、条件が常に真になっています。
+- **そもそも暗幕が出ない** … `showModal()` ではなく `show()` で開いています。`show()` だと暗幕もフォーカス閉じ込めも付きません。
 - **アニメーションしない** … `@starting-style` と `allow-discrete` が入っているか確認します。無くても開閉自体は動きます。
 
 ## まとめ {#summary}
 
 <SummaryBox>
 
-- ドロワーは自作せず `<dialog>` + `showModal()` / `close()`。Esc・フォーカス・暗幕が標準で付く
+- ドロワーは自作せず `<dialog>` + `showModal()` / `close()`。Esc・フォーカス閉じ込め・背後の無効化・暗幕が標準で付く
+- **背景クリックで閉じるのは含まれない。** dialog に `onClick` を付け、`e.target === ref.current` のとき閉じる
+- その判定が成り立つのは、`height: 100%` の内側パネルが dialog を覆い、dialog に `padding: 0` がある場合だけ
 - 位置は `inset: 0 0 0 auto` で右端。スライドは `transform` + `@starting-style`
 - 背景スクロールは `html:has(dialog[open])` に `overflow: hidden` で止める
 

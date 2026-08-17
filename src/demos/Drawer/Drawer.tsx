@@ -10,8 +10,9 @@ interface DrawerLink {
 }
 
 /**
- * A side menu opened by a hamburger button. Using <dialog> gives you focus trapping,
- * close-on-Esc, and close-on-backdrop-click (the overlay) for free from the browser.
+ * A side menu opened by a hamburger button. <dialog> + showModal() gives you focus
+ * trapping, close-on-Esc and the dimmed backdrop for free — but NOT close-on-
+ * backdrop-click, which is the one people assume is included. See onClick below.
  */
 export function Drawer({ items }: { items: DrawerLink[] }) {
   const en = useLocale() === 'en'
@@ -29,30 +30,43 @@ export function Drawer({ items }: { items: DrawerLink[] }) {
         {en ? 'Menu' : 'メニュー'}
       </button>
 
-      <dialog ref={ref} className={styles.drawer} aria-label={en ? 'Menu' : 'メニュー'}>
-        <div className={styles.head}>
-          <span className={styles.title}>{en ? 'Menu' : 'メニュー'}</span>
-          <button
-            type="button"
-            className={styles.close}
-            aria-label={en ? 'Close' : '閉じる'}
-            onClick={() => ref.current?.close()}
-          >
-            ✕
-          </button>
-        </div>
-        <nav className={styles.nav}>
-          {items.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className={styles.link}
+      <dialog
+        ref={ref}
+        className={styles.drawer}
+        aria-label={en ? 'Menu' : 'メニュー'}
+        // A click on the backdrop lands on the <dialog> element itself, while a
+        // click inside lands on .panel or its children — so comparing the target
+        // is what separates "outside" from "inside". Needs .panel to fill the
+        // dialog, or the empty strip below the links would count as outside.
+        onClick={(e) => {
+          if (e.target === ref.current) ref.current.close()
+        }}
+      >
+        <div className={styles.panel}>
+          <div className={styles.head}>
+            <span className={styles.title}>{en ? 'Menu' : 'メニュー'}</span>
+            <button
+              type="button"
+              className={styles.close}
+              aria-label={en ? 'Close' : '閉じる'}
               onClick={() => ref.current?.close()}
             >
-              {item.label}
-            </a>
-          ))}
-        </nav>
+              ✕
+            </button>
+          </div>
+          <nav className={styles.nav}>
+            {items.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className={styles.link}
+                onClick={() => ref.current?.close()}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </div>
       </dialog>
     </>
   )

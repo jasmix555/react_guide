@@ -86,6 +86,15 @@
   }
 }
 
+// Fills the dialog so every click inside the drawer lands on the panel, never on
+// the <dialog> itself — that's what makes the target comparison in Drawer.tsx a
+// reliable "did they click outside?" test.
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .head {
   display: flex;
   align-items: center;
