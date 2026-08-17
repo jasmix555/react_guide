@@ -1,7 +1,10 @@
+// No `overflow: hidden` here on purpose. It used to be the easy way to keep the
+// header inside the rounded corners, but it also clipped anything a demo popped
+// out of the stage — a dropdown, a tooltip, a menu. Demos that need clipping do
+// it themselves (Carousel, Tabs, Accordion all set their own overflow).
 .demo {
   border: 1px solid var(--c-line);
   border-radius: var(--radius);
-  overflow: hidden;
   margin-top: var(--sp-4);
   background: var(--c-surface);
 }
@@ -13,6 +16,9 @@
   padding: var(--sp-2) var(--sp-3);
   background: var(--c-sunk);
   border-bottom: 1px solid var(--c-line);
+  // Matches the container's corners from the inside (minus its 1px border), so
+  // the sunk background doesn't square off the top now that nothing clips it.
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
 }
 
 .label {

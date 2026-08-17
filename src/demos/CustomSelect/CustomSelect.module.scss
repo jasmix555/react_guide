@@ -65,6 +65,9 @@
   margin: 0;
   padding: var(--sp-1);
   list-style: none;
+  // A long option list scrolls inside itself rather than running off the page.
+  max-height: 15rem;
+  overflow-y: auto;
   background: var(--c-surface);
   border: 1px solid var(--c-line);
   border-radius: var(--radius-sm);
