@@ -267,28 +267,54 @@ export const navigation: AuthoredTab[] = [
     id: 'recipes',
     title: 'Recipes',
     basePath: '/recipes',
+    // Grouped by the problem you're solving, not by difficulty — you arrive here
+    // knowing what you want to build, so the part titles are the search terms.
     parts: [
       {
-        id: 'recipes',
-        title: 'Recipes',
+        id: 'recipes-overlays',
+        title: 'Overlays',
         items: [
           { route: 'recipes/modal', title: 'Modal' },
+          { route: 'recipes/drawer', title: 'Drawer / hamburger' },
+          { route: 'recipes/tooltip', title: 'Tooltip' },
+        ],
+      },
+      {
+        id: 'recipes-disclosure',
+        title: 'Disclosure & navigation',
+        items: [
           { route: 'recipes/accordion', title: 'Accordion' },
           { route: 'recipes/tabs', title: 'Tabs' },
+          { route: 'recipes/carousel', title: 'Carousel' },
+          { route: 'recipes/back-to-top', title: 'Back to top' },
+        ],
+      },
+      {
+        id: 'recipes-forms',
+        title: 'Forms & input',
+        items: [
+          { route: 'recipes/custom-select', title: 'Custom select' },
+          { route: 'recipes/tag-input', title: 'Tag input (chips)' },
+          { route: 'recipes/range-slider', title: 'Range slider' },
+          { route: 'recipes/star-rating', title: 'Star rating' },
+        ],
+      },
+      {
+        id: 'recipes-lists',
+        title: 'Lists & data',
+        items: [
           { route: 'recipes/pagination', title: 'Pagination' },
           { route: 'recipes/search-filter', title: 'Search filter (debounced)' },
           { route: 'recipes/skeleton', title: 'Skeleton loader' },
-          { route: 'recipes/tag-input', title: 'Tag input (chips)' },
-          { route: 'recipes/range-slider', title: 'Range slider' },
+        ],
+      },
+      {
+        id: 'recipes-feedback',
+        title: 'Feedback & polish',
+        items: [
+          { route: 'recipes/toast', title: 'Toast notification' },
           { route: 'recipes/copy-button', title: 'Copy button' },
           { route: 'recipes/scroll-reveal', title: 'Scroll reveal' },
-          { route: 'recipes/tooltip', title: 'Tooltip' },
-          { route: 'recipes/drawer', title: 'Drawer / hamburger' },
-          { route: 'recipes/custom-select', title: 'Custom select' },
-          { route: 'recipes/carousel', title: 'Carousel' },
-          { route: 'recipes/star-rating', title: 'Star rating' },
-          { route: 'recipes/toast', title: 'Toast notification' },
-          { route: 'recipes/back-to-top', title: 'Back to top' },
         ],
       },
     ],

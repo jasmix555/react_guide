@@ -283,28 +283,54 @@ export const navigation: AuthoredTab[] = [
     id: 'recipes',
     title: 'レシピ',
     basePath: '/recipes',
+    // 難易度ではなく「何を作りたいか」で分類。ここへ来る人は作りたいものが
+    // 決まっているので、パート名がそのまま検索語になるようにしている。
     parts: [
       {
-        id: 'recipes',
-        title: 'レシピ',
+        id: 'recipes-overlays',
+        title: 'オーバーレイ',
         items: [
           { route: 'recipes/modal', title: 'モーダル' },
+          { route: 'recipes/drawer', title: 'ドロワー / ハンバーガー' },
+          { route: 'recipes/tooltip', title: 'ツールチップ' },
+        ],
+      },
+      {
+        id: 'recipes-disclosure',
+        title: '開閉とナビゲーション',
+        items: [
           { route: 'recipes/accordion', title: 'アコーディオン' },
           { route: 'recipes/tabs', title: 'タブ' },
+          { route: 'recipes/carousel', title: 'カルーセル' },
+          { route: 'recipes/back-to-top', title: 'トップへ戻る' },
+        ],
+      },
+      {
+        id: 'recipes-forms',
+        title: 'フォームと入力',
+        items: [
+          { route: 'recipes/custom-select', title: 'カスタムセレクト' },
+          { route: 'recipes/tag-input', title: 'タグ入力（チップ）' },
+          { route: 'recipes/range-slider', title: 'レンジスライダー' },
+          { route: 'recipes/star-rating', title: '星評価' },
+        ],
+      },
+      {
+        id: 'recipes-lists',
+        title: '一覧とデータ',
+        items: [
           { route: 'recipes/pagination', title: 'ページネーション' },
           { route: 'recipes/search-filter', title: '検索フィルタ（デバウンス）' },
           { route: 'recipes/skeleton', title: 'スケルトンローダー' },
-          { route: 'recipes/tag-input', title: 'タグ入力（チップ）' },
-          { route: 'recipes/range-slider', title: 'レンジスライダー' },
+        ],
+      },
+      {
+        id: 'recipes-feedback',
+        title: 'フィードバックと仕上げ',
+        items: [
+          { route: 'recipes/toast', title: 'トースト通知' },
           { route: 'recipes/copy-button', title: 'コピーボタン' },
           { route: 'recipes/scroll-reveal', title: 'スクロールで出現' },
-          { route: 'recipes/tooltip', title: 'ツールチップ' },
-          { route: 'recipes/drawer', title: 'ドロワー / ハンバーガー' },
-          { route: 'recipes/custom-select', title: 'カスタムセレクト' },
-          { route: 'recipes/carousel', title: 'カルーセル' },
-          { route: 'recipes/star-rating', title: '星評価' },
-          { route: 'recipes/toast', title: 'トースト通知' },
-          { route: 'recipes/back-to-top', title: 'トップへ戻る' },
         ],
       },
     ],
