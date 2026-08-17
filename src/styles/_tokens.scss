@@ -1,3 +1,5 @@
+@use 'styles/mixin' as *; // house getVw, for the fluid rail widths below
+
 // Approved Phase 1 design tokens as CSS custom properties.
 // Colour tokens flip between light/dark; type/space/layout tokens are set once.
 //
@@ -83,7 +85,7 @@
   --fs-h3: 1.1875rem;
   --fs-h4: 1rem;
   --fs-body: 1rem;
-  --fs-small: 0.84375rem;
+  --fs-small: 0.875rem;
   --fs-code: 0.9em; // inline code, relative to its surrounding text
   --lh-body: 1.9;
   --lh-tight: 1.4;
@@ -105,9 +107,14 @@
 
   // Layout
   --topbar-h: 56px;
-  --sidebar-w: 268px;
-  --toc-w: 220px;
-  --content-max: 80ch;
+  // Rails are fluid with no ceiling — on an ultrawide they keep their share of
+  // the screen instead of leaving a dead margin. max() is the floor: below the
+  // 1440 reference they hold their design px so they never squeeze the text.
+  --sidebar-w: max(268px, #{getVw(268, 1440)});
+  --toc-w: max(220px, #{getVw(220, 1440)});
+  // Stays a typographic measure, not a vw: ch already grows with the font, and
+  // a 1500px line is unreadable no matter how wide the monitor is.
+  --content-max: 94ch;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -39,22 +39,29 @@ export function Sidebar({ tab, currentRoute, activeHeading, onNavigate }: Sideba
   )
   const [peeked, setPeeked] = useState<Set<string>>(new Set())
   const activeRef = useRef<HTMLAnchorElement>(null)
-  const { countRead, resetRoutes } = useReadProgress()
+  const { countRead, isRead, resetRoutes } = useReadProgress()
 
   const currentPartId = tab.parts.find((p) =>
     p.pages.some((page) => page.route === currentRoute),
   )?.id
+
+  // One part open at a time, everything else shut. By default that's the part
+  // holding the current page; clicking a header overrides it until the reader
+  // navigates, which is why the override remembers the route it was made on.
+  // Not persisted — a saved value would only fight the route on the next visit.
+  const [override, setOverride] = useState<{ route: string; part: string | null } | null>(null)
+  const openPart =
+    override?.route === currentRoute ? override.part : (currentPartId ?? null)
 
   // Keep the active L3 item visible as you scroll the page.
   useEffect(() => {
     activeRef.current?.scrollIntoView({ block: 'nearest' })
   }, [activeHeading])
 
-  const isPartOpen = (part: BuiltPart) =>
-    part.id === currentPartId ? true : openState[part.id] !== false
+  const isPartOpen = (part: BuiltPart) => part.id === openPart
 
   const togglePart = (part: BuiltPart) =>
-    setOpenState((prev) => ({ ...prev, [part.id]: !isPartOpen(part) }))
+    setOverride({ route: currentRoute, part: openPart === part.id ? null : part.id })
 
   const togglePeek = (route: string) =>
     setPeeked((prev) => {
@@ -92,6 +99,7 @@ export function Sidebar({ tab, currentRoute, activeHeading, onNavigate }: Sideba
     const isCurrent = page.route === currentRoute
     const hasHeadings = page.headings.some((h) => !LANDMARK.has(h.id))
     const showHeadings = (isCurrent || peeked.has(page.route)) && hasHeadings
+    const done = isRead(page.route)
 
     return (
       <div className={styles.pageRow} key={page.route}>
@@ -102,6 +110,8 @@ export function Sidebar({ tab, currentRoute, activeHeading, onNavigate }: Sideba
             title={page.minutes != null ? strings.page.readingShort(page.minutes) : undefined}
             onClick={onNavigate}
           >
+            {/* Not aria-hidden: "✓" is how a screen reader hears "already read". */}
+            <span className={styles.check}>{done ? '✓' : ''}</span>
             {page.title}
           </Link>
           {hasHeadings && !isCurrent && (

@@ -1,7 +1,7 @@
 @use 'styles/mixins' as *;
 
 .sidebar {
-  padding: var(--sp-4) var(--sp-3) var(--sp-16);
+  padding: var(--sp-4) var(--sp-4) var(--sp-16);
   font-size: var(--fs-small);
 }
 
@@ -80,7 +80,7 @@
   background: transparent;
   border: none;
   color: var(--c-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1;
   padding: 5px 6px;
   border-radius: var(--radius-sm);
@@ -96,7 +96,7 @@
 .caret {
   flex: 0 0 auto;
   color: var(--c-muted);
-  font-size: 10px;
+  font-size: 0.625rem;
 }
 
 .partRing {
@@ -140,13 +140,13 @@
 
 .groupCaret {
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: 0.5625rem;
 }
 
 .groupLabel {
   font-family: var(--font-head);
   font-weight: 700;
-  font-size: 12px;
+  font-size: 0.75rem;
   letter-spacing: 0.02em;
 }
 
@@ -165,6 +165,14 @@
 .pageLine {
   display: flex;
   align-items: center;
+}
+
+// Always rendered, empty when unread, so titles line up in one column either way.
+.check {
+  display: inline-block;
+  width: 1.2em;
+  color: var(--c-success);
+  font-size: 0.6875rem;
 }
 
 .pageLink {
@@ -195,7 +203,7 @@
   background: transparent;
   border: none;
   color: var(--c-muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   padding: 4px 6px;
   border-radius: var(--radius-sm);
 
@@ -218,7 +226,7 @@
   margin-left: -1px;
   color: var(--c-muted);
   text-decoration: none;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   line-height: 1.5;
 
   &:hover {

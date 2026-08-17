@@ -1,13 +1,8 @@
-@use 'styles/mixins' as *;
-
 .article {
   max-width: var(--content-max);
-
-  // Once the sidebar collapses to a drawer, the content column spans the full
-  // width, so center the reading measure instead of pinning it hard left.
-  @include down($bp-sidebar) {
-    margin-inline: auto;
-  }
+  // Centred in whatever the grid hands us — the shell is edge-to-edge now, so
+  // pinning hard left would leave a lopsided gap on wide screens.
+  margin-inline: auto;
 }
 
 .head {
@@ -39,7 +34,7 @@
 
 .minutes {
   font-family: var(--font-head);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--c-muted);
   white-space: nowrap;
 

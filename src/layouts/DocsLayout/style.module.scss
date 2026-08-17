@@ -9,16 +9,20 @@
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--toc-w);
   gap: var(--sp-8);
-  max-width: 1520px;
-  margin: 0 auto;
+  // Rails flush to the viewport edges, react.dev style: the sidebar owns the
+  // left edge, so only the right side keeps a gutter. Uncapped — the rails are
+  // fluid (see --sidebar-w / --toc-w), so an ultrawide widens them rather than
+  // leaving dead margin.
   // House getVw: gutter stays 24px on desktop, shrinks fluidly below ~600px.
-  padding-inline: min(getVw(48, 1200), var(--sp-6));
+  padding-inline: 0 min(getVw(48, 1200), var(--sp-6));
 
   @include down($bp-toc) {
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   }
   @include down($bp-sidebar) {
+    // Sidebar is an off-canvas drawer here, so the content needs its gutter back.
     grid-template-columns: minmax(0, 1fr);
+    padding-inline: min(getVw(48, 1200), var(--sp-6));
   }
 }
 
@@ -29,6 +33,7 @@
   height: calc(100vh - var(--topbar-h));
   overflow-y: auto;
   overscroll-behavior: contain;
+  border-right: 1px solid var(--c-line);
 
   @include down($bp-sidebar) {
     position: fixed;
@@ -36,7 +41,6 @@
     left: 0;
     width: min(84vw, 320px);
     background: var(--c-bg);
-    border-right: 1px solid var(--c-line);
     transform: translateX(-102%);
     transition: transform 0.2s ease;
     z-index: 60;
@@ -69,7 +73,7 @@
   // Bottom room so the final section can scroll up to the spy line (capped so
   // the gap under the prev/next nav never becomes an awkward void). Pairs with
   // the bottom-of-page fallback in useScrollSpy.
-  padding: var(--sp-8) 0 clamp(var(--sp-16), 22vh, 280px);
+  padding: var(--sp-8) 0 clamp(var(--sp-16), 14vh, 240px);
 }
 
 .tocCol {

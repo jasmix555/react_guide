@@ -19,6 +19,9 @@
 }
 
 html {
+  // 16px felt cramped, so the whole rem scale steps up to 17px. A percentage,
+  // not a px value, so a reader who raised their browser default still gets it.
+  font-size: 106.25%;
   scroll-padding-top: calc(var(--topbar-h) + 16px);
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
@@ -204,7 +207,7 @@ button {
 
 .prose [data-rehype-pretty-code-title] {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--c-code-tab-fg);
   background: var(--c-code-tab);
   padding: var(--sp-2) var(--sp-3);
@@ -221,7 +224,7 @@ button {
 .prose figure[data-rehype-pretty-code-figure] code {
   display: grid; // one row per [data-line] so highlight spans full width
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   line-height: 1.75;
   background: transparent;
   color: var(--c-code-fg);
