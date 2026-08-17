@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
+import { Footer } from '@/components/Footer'
 import { Sidebar } from '@/components/Sidebar'
 import { Toc } from '@/components/Toc'
 import { TopBar } from '@/components/TopBar'
@@ -98,6 +99,10 @@ export function DocsLayout() {
           )}
         </aside>
       </div>
+
+      {/* Outside .body so it spans the full width under all three columns,
+          rather than living inside the sticky-sidebar grid. */}
+      <Footer />
     </div>
   )
 }

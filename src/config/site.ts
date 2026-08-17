@@ -2,6 +2,7 @@ import type { Locale } from '@/lib/i18n'
 
 // repoUrl / feedbackUrl are the same in every language; name / tagline are per-locale.
 const shared = {
+  author: 'Jason Ng',
   repoUrl: 'https://github.com/jasmix555/learning',
   // Where feedback goes. Point this at the team's real channel (issue tracker /
   // form) before launch.
@@ -19,7 +20,10 @@ export const siteByLocale = {
     name: 'React in Practice',
     tagline: 'React + TypeScript for LP coders',
   },
-} satisfies Record<Locale, { name: string; tagline: string; repoUrl: string; feedbackUrl: string }>
+} satisfies Record<
+  Locale,
+  { name: string; tagline: string; author: string; repoUrl: string; feedbackUrl: string }
+>
 
 /** Default-locale site info, for the few non-localized call sites. */
 export const site = siteByLocale.ja
