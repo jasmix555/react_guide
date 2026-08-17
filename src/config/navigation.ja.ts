@@ -210,10 +210,22 @@ export const navigation: AuthoredTab[] = [
           { route: 'libraries/types-packages', title: '型定義が別パッケージ（@types/*）' },
           { route: 'libraries/sass', title: 'sass を入れる' },
           { route: 'libraries/clsx', title: 'clsx でクラス名を組み立てる' },
-          { route: 'libraries/react-router', title: 'react-router を入れる' },
-          { route: 'libraries/motion', title: 'motion を入れる' },
           { route: 'libraries/env', title: '環境変数 .env と VITE_' },
           { route: 'libraries/managing', title: '消す・入れ替える・上げる' },
+        ],
+      },
+      {
+        id: 'everyday',
+        title: 'よく使うライブラリ',
+        items: [
+          { route: 'libraries/react-router', title: 'react-router-dom を入れる' },
+          { route: 'libraries/axios', title: 'axios でサーバーとやり取りする' },
+          { route: 'libraries/react-icons', title: 'react-icons でアイコンを出す' },
+          { route: 'libraries/dayjs', title: 'dayjs で日付を扱う' },
+          { route: 'libraries/react-hook-form', title: 'react-hook-form でフォームを作る' },
+          { route: 'libraries/zod', title: 'zod でデータの形を検証する' },
+          { route: 'libraries/eslint', title: 'ESLint で間違いに気づく' },
+          { route: 'libraries/prettier', title: 'Prettier で整形する' },
         ],
       },
       {
@@ -221,6 +233,7 @@ export const navigation: AuthoredTab[] = [
         title: 'Framer Motion（motion）',
         items: [
           { route: 'libraries/framer-motion/goal', title: 'このパートのゴール' },
+          { route: 'libraries/framer-motion/install', title: 'motion を入れる' },
           { route: 'libraries/framer-motion/motion-basics', title: 'motion の基本' },
           { route: 'libraries/framer-motion/interaction', title: 'ホバーとタップに反応する' },
           { route: 'libraries/framer-motion/reduced-motion', title: '動きを減らす設定に配慮する' },

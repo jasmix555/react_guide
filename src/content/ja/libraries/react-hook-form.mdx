@@ -1,0 +1,431 @@
+---
+title: react-hook-form でフォームを作る
+minutes: 16
+slug: react-hook-form
+section: libraries
+description: 自前のフォームが 3 つ目の入力欄でつらくなる理由と、react-hook-form の register / handleSubmit / バリデーション / 読み上げソフトに届くエラー表示 / 二重送信を防ぐ送信処理まで。
+level: beginner
+prerequisites: ['state/summary', 'libraries/axios']
+---
+
+<LearnBox>
+
+- 入力欄 1 つにつき `useState` 1 つ、が 3 つ目あたりで破綻する理由
+- `react-hook-form` を入れて、`register` と `handleSubmit` が実際に何をしているのかを知る
+- バリデーションのルールと、入力欄の隣にエラーを出す方法
+- ラベルとエラーを、読み上げソフトが追える形でつなぐ
+- サーバーへ送信し、注文が 2 件できてしまうダブルクリックを止める
+
+</LearnBox>
+
+## すでに書けるはずのフォーム {#why}
+
+Part 4 で [state とイベント](/guide/state/use-state/events)をやったので、フォームはもう作れます。コアで教えたやり方どおりの問い合わせフォームです。このコード自体に間違いはありません。
+
+```tsx
+export function ContactForm() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const next: Record<string, string> = {}
+    if (!name) next.name = 'お名前を入力してください'
+    if (!email.includes('@')) next.email = 'メールアドレスの形式が違います'
+    if (message.length < 10) next.message = '10 文字以上で入力してください'
+    setErrors(next)
+    if (Object.keys(next).length > 0) return
+    // ...送信する
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      {errors.name && <p>{errors.name}</p>}
+      {/* email にも、message にも、同じ 2 行がまた必要 */}
+    </form>
+  )
+}
+```
+
+動きます。では、その代償を数えてみましょう。入力欄が増えるたびに悪化する 4 つです。
+
+1. **入力欄 1 つにつき 3 行。** `useState`、`onChange`、エラーの描画。現実的な購入フォームには入力欄が 12 個あります。
+2. **1 文字打つたびにフォーム全体が再描画される。** 1 文字ごとに `setName` が走るので、全部の入力欄も全部のエラーも送信ボタンも、毎回描き直しです。3 欄なら誰も気づきません。日付ピッカー込みで 20 欄になると気づかれます。
+3. **バリデーションが送信時にしか走らない。** 実際のフォームは、欄から離れた時点で検証し、直したらエラーを消し、正しくなるまで送信を無効にします。そのどれもが、手で書き足す state です。
+4. **アクセシビリティの配線が無い。** エラー文の `<p>` は入力欄と何もつながっていません。読み上げソフトの利用者は、その欄にタブで来ても、何が問題なのか一切聞こえません。
+
+`react-hook-form` は、この 4 つをまとめて消すために存在します。UI ライブラリではありません。何も描画せず、スタイルも持ちません。あなたのマークアップの下にある、*state とバリデーション*の層です。
+
+<Callout type="analogy">
+
+自前で書くのは、お客さんが喋るたびに、店主が自分のメモ帳に書き取っていくやり方です。最後にメモを見返して確認します。react-hook-form は、お客さんに紙のフォームを渡して自分で記入してもらい、提出されたときだけ読むやり方。しかも受け取る前に「記入漏れが無いか」を確認します。
+
+店は静かになります。ひと言ごとに何かを書き取らなくてよくなるからです。
+
+</Callout>
+
+## react-hook-form を入れる {#install}
+
+```bash
+npm install react-hook-form
+```
+
+`dependencies`、型は同梱。追加で入れる peer dependency もありません。
+
+## もらえるのは主に 2 つ {#core}
+
+すべては `useForm` フックから始まり、その戻り値のうち 2 つを常に使います。
+
+- **`register('フィールド名')`** — `<input>` にスプレッドすると、その入力欄を react-hook-form に預けます。以後 RHF が値・触られたかどうか・妥当かどうかを管理します。`value` と `onChange` を書くのをやめられます。
+- **`handleSubmit(onValid)`** — 送信処理を包みます。`preventDefault()` を呼び、全ルールを走らせ、**すべて通ったときだけあなたの関数を呼びます**。しかも値は 1 つのオブジェクトにまとまった状態で渡されます。
+
+同じフォームを書き直すとこうなります。
+
+```tsx title="src/components/ContactForm/ContactForm.tsx"
+import { useForm } from 'react-hook-form'
+
+interface ContactValues {
+  name: string
+  email: string
+  message: string
+}
+
+export function ContactForm() {
+  const { register, handleSubmit } = useForm<ContactValues>()
+
+  function onSubmit(values: ContactValues) {
+    console.log(values) // { name: '...', email: '...', message: '...' }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input {...register('name')} />
+      <input {...register('email')} />
+      <textarea {...register('message')} />
+      <button type="submit">送信</button>
+    </form>
+  )
+}
+```
+
+`useState` なし。`onChange` なし。`e.preventDefault()` なし。そして `onSubmit` の `values` には型が付いています（`values.nmae` はコンパイルエラー）。`useForm` に `<ContactValues>` を渡したからです。
+
+<JsNote feature="{...register('name')} は実際に何を展開しているのか" to="/guide/javascript/spread-rest">
+
+`register('name')` は **props のオブジェクトを返します**。中身はだいたい `name`・`onChange`・`onBlur`・`ref`。`...` は[スプレッド](/guide/javascript/spread-rest)で、それらを 1 つずつ `<input>` にコピーしています。つまり `{...register('name')}` は、4 つの props を手で書くのと同じことです。
+
+面白いのは `ref` です。RHF は値を React の state に持たず、DOM の入力欄への参照を握っておいて、必要なときに `.value` を読みます。入力しても再描画されないのは、まさにこれが理由です。**1 文字ごとの処理に React が一切関与していません。** 素の HTML フォームと同じことをブラウザがやっていて、RHF は肝心な瞬間にだけ出てきます。
+
+</JsNote>
+
+## バリデーションのルール {#validation}
+
+`register` は第 2 引数にルールを取ります。ルールに書いたメッセージが、そのまま表示される文言になります。
+
+```tsx
+<input
+  {...register('email', {
+    required: 'メールアドレスは必須です',
+    pattern: {
+      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: 'メールアドレスの形式で入力してください',
+    },
+  })}
+/>
+```
+
+実際によく使うルールはこのあたりです。
+
+```ts
+register('name', {
+  required: 'お名前を入力してください',
+  minLength: { value: 2, message: '2 文字以上で入力してください' },
+  maxLength: { value: 50, message: '50 文字以内で入力してください' },
+})
+
+register('age', {
+  required: '必須です',
+  min: { value: 0, message: 'マイナスは入力できません' },
+  max: { value: 120, message: '本当に？' },
+  valueAsNumber: true, // ← input は必ず文字列を返す。これで数値に変換する
+})
+
+register('password', {
+  validate: (value) => value !== '1234' || 'もう少し推測しにくいものにしてください',
+})
+```
+
+<Callout type="warn">
+
+`valueAsNumber` は引っかかる人が多いところです。**`<input>` は必ず文字列を返します**。`type="number"` でも同じ。だからこれを付けないと `values.age` は `"30"` で、`values.age + 1` は `"301"` になります。TypeScript は助けてくれません。あなたが `number` と*宣言した*以上、DOM がそれに従わなかったことを知る手段が無いからです。数値の入力欄には毎回 `valueAsNumber: true` を付けてください。
+
+</Callout>
+
+## エラーを表示する {#errors}
+
+通らなかったルールは `formState.errors` に、フィールド名をキーとして入ります。
+
+```tsx
+const {
+  register,
+  handleSubmit,
+  formState: { errors },
+} = useForm<ContactValues>()
+
+// ...
+
+<input {...register('email', { required: 'メールアドレスは必須です' })} />
+{errors.email && <p className={styles.error}>{errors.email.message}</p>}
+```
+
+問題が無ければ `errors.email` は `undefined` なので、[短絡評価](/guide/javascript/ternary-short-circuit)で何も描画されません。失敗したときの `errors.email.message` は、ルールに書いた文言そのものです。
+
+既定ではバリデーションは送信時に走り、一度失敗したあとはその欄が入力のたびに再検証されます（直した瞬間にエラーが消えます）。欄から離れた時点で検証したい場合はこうします。
+
+```ts
+useForm<ContactValues>({ mode: 'onBlur' })
+```
+
+## アクセシビリティを付ける {#a11y}
+
+自前のフォームがほぼ確実に落とすところで、属性 4 つで済みます。
+
+```tsx
+<div className={styles.field}>
+  <label htmlFor="email">メールアドレス</label>
+  <input
+    id="email"
+    type="email"
+    aria-invalid={errors.email ? true : false}
+    aria-describedby={errors.email ? 'email-error' : undefined}
+    {...register('email', { required: 'メールアドレスは必須です' })}
+  />
+  {errors.email && (
+    <p id="email-error" role="alert" className={styles.error}>
+      {errors.email.message}
+    </p>
+  )}
+</div>
+```
+
+それぞれの効果です。
+
+- **`htmlFor` / `id`** — ラベルと入力欄をつなぎます。ラベルをクリックすると欄にフォーカスが入り、読み上げソフトは「編集テキスト」ではなく「メールアドレス、編集テキスト」と読みます。
+- **`aria-invalid`** — その欄に来たときに「無効」と伝わります。CSS のフックにもなり、`input[aria-invalid='true']` だけで枠を赤くできます（クラスを足す必要がありません）。
+- **`aria-describedby`** — エラー要素の `id` を指すので、エラーが*その欄の一部として*読み上げられます。これが無いと、視覚的には隣にあるのに、読み上げソフトから見れば無関係な文です。
+- **`role="alert"`** — 表示された瞬間に読み上げられます。利用者が探しに行かなくて済みます。
+
+<Callout type="mistake">
+
+`{...register('email')}` は `id` や `aria-*` より**後ろ**に置きます。JSX ではスプレッドの順序が勝敗を決めます。スプレッドには `name` が含まれるので、前に書いたものは上書きされうる。`id` と `aria-*` は register が設定しないのでどちらの順でも動きますが、スプレッドを最後に置く癖にしておくと、驚かされることがありません。
+
+</Callout>
+
+## サーバーへ送信する {#submit}
+
+[axios](/libraries/axios) につなぎます。大事なのは 2 つ、`isSubmitting` と、失敗したときの扱いです。
+
+```tsx title="src/components/ContactForm/ContactForm.tsx"
+import axios from 'axios'
+import { useForm } from 'react-hook-form'
+
+import { api } from '@/lib/api'
+
+interface ContactValues {
+  name: string
+  email: string
+  message: string
+}
+
+export function ContactForm() {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<ContactValues>()
+
+  async function onSubmit(values: ContactValues) {
+    try {
+      await api.post('/contact', values)
+      reset() // 成功したときだけ空にする
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? (err.response?.data?.message ?? '送信できませんでした。もう一度お試しください。')
+        : '問題が発生しました。'
+      setError('root', { message }) // 特定の欄ではなく、フォーム全体のエラー
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      {/* 入力欄はここ */}
+
+      {errors.root && <p role="alert">{errors.root.message}</p>}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? '送信中…' : '送信'}
+      </button>
+    </form>
+  )
+}
+```
+
+名前を付けておきたい点が 4 つあります。
+
+- **`isSubmitting`** は、`async` の処理が走っている間 `true` になります。これでボタンを無効にするのが**二重送信バグ**の対策です。押しても 800 ミリ秒ほど何も起きないので、利用者はもう一度押し、サーバーには問い合わせが 2 件できます。RHF はあなたの関数を `await` するので、この state を無料でくれます。
+- **`reset()`** は入力欄を空にしますが、成功時だけ。送信に失敗したのにフォームを空にして、打った内容を捨てるのは、本当に残酷なバグです。
+- **`setError('root', ...)`** は、特定の欄ではなく*フォーム*に属するエラー用です。「サーバーが落ちている」はメール欄のせいではありません。
+- **`noValidate`** はブラウザ自前のバリデーション吹き出しを止めます。付けないと、同じ欄に 2 種類のエラー表示が出ることがあります。
+
+<Together
+  task="ReviewForm を作ってください。1〜5 の評価（数値）と、10 文字以上のコメント。/products/:id/reviews に POST し、送信中はボタンを無効にし、各欄の隣にちゃんとしたエラー文を出します。評価は文字列ではなく数値としてサーバーに届くようにしてください。"
+  hint="評価には valueAsNumber。min と max はメッセージ付きのルールで。ボタンは isSubmitting、reset() は POST が成功したあとだけ。"
+>
+
+```tsx title="src/components/ReviewForm/ReviewForm.tsx"
+import { useForm } from 'react-hook-form'
+
+import { api } from '@/lib/api'
+
+interface ReviewValues {
+  rating: number
+  comment: string
+}
+
+export function ReviewForm({ productId }: { productId: string }) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ReviewValues>({ defaultValues: { rating: 5, comment: '' } })
+
+  async function onSubmit(values: ReviewValues) {
+    await api.post(`/products/${productId}/reviews`, values)
+    reset()
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <label htmlFor="rating">評価</label>
+      <input
+        id="rating"
+        type="number"
+        aria-invalid={errors.rating ? true : false}
+        aria-describedby={errors.rating ? 'rating-error' : undefined}
+        {...register('rating', {
+          required: '評価を選んでください',
+          valueAsNumber: true,
+          min: { value: 1, message: '1〜5 で入力してください' },
+          max: { value: 5, message: '1〜5 で入力してください' },
+        })}
+      />
+      {errors.rating && (
+        <p id="rating-error" role="alert">
+          {errors.rating.message}
+        </p>
+      )}
+
+      <label htmlFor="comment">コメント</label>
+      <textarea
+        id="comment"
+        aria-invalid={errors.comment ? true : false}
+        aria-describedby={errors.comment ? 'comment-error' : undefined}
+        {...register('comment', {
+          required: 'コメントを入力してください',
+          minLength: { value: 10, message: '10 文字以上で入力してください' },
+        })}
+      />
+      {errors.comment && (
+        <p id="comment-error" role="alert">
+          {errors.comment.message}
+        </p>
+      )}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? '送信中…' : 'レビューを投稿'}
+      </button>
+    </form>
+  )
+}
+```
+
+`valueAsNumber: true` が、サーバーが `"5"` を受け取って数値であるべき場所に文字列を保存する事故を止めています。`defaultValues` はフォームの初期状態で、`reset()` が空欄ではなく星 5 に戻るという意味でもあります（こちらのほうが親切です）。どちらの欄もラベル＋`aria-invalid`＋`aria-describedby`の一式を持っていて、正直これは冗長なので、実際のプロジェクトではこのパターンを包む小さな `<Field>` コンポーネントに切り出すことになります。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad={`<input value={name} onChange={...} {...register('name')} />`}
+  good={`<input {...register('name')} />`}
+  note="value / onChange を足すと制御コンポーネントに戻り、RHF と喧嘩する。register が持ってくるので消す。"
+/>
+
+<Diff
+  bad={`<form onSubmit={onSubmit}>`}
+  good={`<form onSubmit={handleSubmit(onSubmit)}>`}
+  note="包まないと検証が走らず、送信でページが再読み込みされ、関数には値ではなくイベントが渡る。"
+/>
+
+<Diff
+  bad={`register('age', { required: true })`}
+  good={`register('age', { required: '年齢を入力してください' })`}
+  note="true でも検証はされるがメッセージが無い。errors.age.message が空になり、利用者には空のエラーが見える。"
+/>
+
+<Diff
+  bad="reset() を try の外に置き、POST が失敗してもフォームが空になる"
+  good="await が成功したあとだけ reset()"
+  note="通信が一瞬こけただけで入力内容を消すのは、小さいバグの中でも最悪の部類。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="入力欄が 3 つ以上、またはバリデーションがあるフォームは react-hook-form。useForm には必ず interface で型を付け、label + aria-invalid + aria-describedby も必ず配線する"
+  alt="検索ボックス 1 つ、メルマガ登録の 1 欄——なら素の useState で十分で、1 欄のためにフォームライブラリは大げさです。目安は「2 欄でルール無しなら自前、3 欄またはバリデーションありなら RHF」。"
+>
+
+理由は自前のフォームが動かないからではありません（動きます）。RHF がくれる 4 つ——1 文字ごとに再描画しないこと、宣言的なルール、`isSubmitting`、自分で管理せずに済む `formState`——は、いずれ自分で作ることになるものだからです。しかも、同じアプリの中のフォームごとに、出来の違うものを別々に。
+
+フォームの値は interface として型を書き、`useForm<T>()` に渡します。フィールド名のタイプミスが「静かに登録されない欄」ではなくビルドエラーになります。数値の入力欄には必ず `valueAsNumber`。送信ボタンは `isSubmitting` で無効化——この 1 行が、本番で注文の重複を防ぎます。
+
+そしてアクセシビリティの一式は任意ではありません。`htmlFor` / `id`、`aria-invalid`、`aria-describedby`、`role="alert"`。フォームは、使えない UI が最も大きな損害を出す場所です。記入できないフォームは、その人にとって「その作業ができない」と同義だからです。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **送信するとページが再読み込みされる** … `onSubmit={handleSubmit(onSubmit)}` ではなく `onSubmit={onSubmit}` になっています。`preventDefault()` を呼ぶのは包んだほうです。
+- **`onSubmit` が走らず、見た目には何も起きない** … バリデーションで止まっています。`console.log(errors)` で中身を見てください。たいてい、表示し忘れている欄の `required` です。
+- **数値のはずが文字列** … `valueAsNumber: true` が抜けています。
+- **入力がもたつく** … `register` と一緒に `value` / `onChange` を書いていて、制御コンポーネントに戻っています。消してください。
+- **自作コンポーネント（日付ピッカーや select ライブラリ）が登録されない** … `register` は本物の DOM 入力要素を必要とします。`ref` を転送しないコンポーネントには RHF の `Controller` を使います。
+- **エラー文が空で出る** … ルールが `required: 'メッセージ'` ではなく `required: true` になっています。
+- **既存データの編集なのにフォームが空で始まる** … `defaultValues` を渡します。データが後から（fetch で）届くなら、届いた時点で `reset(data)` を 1 回呼びます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="register が値を React の state ではなく ref 経由で DOM に預けているからです。入力中に setState が走らないので React は再描画しません。値はブラウザが保持していて（素の HTML フォームと同じ）、RHF は検証時と送信時にだけ読みます。value / onChange を書き戻すと制御コンポーネントに戻り、1 文字ごとの再描画が復活します。">
+
+`useState` だと 1 文字打つたびにフォーム全体が再描画されるのに、`{...register('name')}` だとされません。react-hook-form は何を違うことをしているのでしょう。そして、うっかり何を書くとその利点を打ち消してしまうでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- 入力欄ごとの `useState` は 1 欄 3 行かかり、1 文字ごとに再描画し、アクセシビリティの配線は何もしてくれない
+- `register('field')` は `name` / `onChange` / `onBlur` / `ref` を入力欄に展開する。値は DOM にあるので入力しても再描画されない
+- `handleSubmit(onValid)` が `preventDefault` とルール実行をやり、**通ったときだけ**型付きの値であなたの関数を呼ぶ
+- ルールは `register` の第 2 引数、メッセージは `formState.errors.field.message` に入る
+- 数値の入力欄には必ず `valueAsNumber: true`。input は必ず文字列を返す
+- `disabled={isSubmitting}` が、レコードを 2 件作る二重送信を防ぐ
+- 必須の一式：`htmlFor` / `id`、`aria-invalid`、`aria-describedby`、`role="alert"`
+
+</SummaryBox>

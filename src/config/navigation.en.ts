@@ -196,10 +196,22 @@ export const navigation: AuthoredTab[] = [
           { route: 'libraries/types-packages', title: 'Types in separate packages (@types/*)' },
           { route: 'libraries/sass', title: 'Adding sass' },
           { route: 'libraries/clsx', title: 'Building class names with clsx' },
-          { route: 'libraries/react-router', title: 'Adding react-router' },
-          { route: 'libraries/motion', title: 'Adding motion' },
           { route: 'libraries/env', title: 'Environment variables: .env and VITE_' },
           { route: 'libraries/managing', title: 'Removing, swapping, upgrading' },
+        ],
+      },
+      {
+        id: 'everyday',
+        title: 'Everyday libraries',
+        items: [
+          { route: 'libraries/react-router', title: 'Adding react-router-dom' },
+          { route: 'libraries/axios', title: 'Talking to a server with axios' },
+          { route: 'libraries/react-icons', title: 'Icons with react-icons' },
+          { route: 'libraries/dayjs', title: 'Handling dates with dayjs' },
+          { route: 'libraries/react-hook-form', title: 'Forms with react-hook-form' },
+          { route: 'libraries/zod', title: 'Validating shapes with zod' },
+          { route: 'libraries/eslint', title: 'Catching mistakes with ESLint' },
+          { route: 'libraries/prettier', title: 'Formatting with Prettier' },
         ],
       },
       {
@@ -207,6 +219,7 @@ export const navigation: AuthoredTab[] = [
         title: 'Framer Motion (motion)',
         items: [
           { route: 'libraries/framer-motion/goal', title: 'Goal of this part' },
+          { route: 'libraries/framer-motion/install', title: 'Adding motion' },
           { route: 'libraries/framer-motion/motion-basics', title: 'motion basics' },
           { route: 'libraries/framer-motion/interaction', title: 'Responding to hover and tap' },
           { route: 'libraries/framer-motion/reduced-motion', title: 'Respecting reduced-motion settings' },

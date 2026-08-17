@@ -1,0 +1,378 @@
+---
+title: Catching mistakes with ESLint
+minutes: 15
+slug: eslint
+section: libraries
+description: "What a linter actually does and how it differs from TypeScript and from Prettier. Replace create-vite's oxlint with ESLint, read the flat config line by line, and learn the React rules that catch real bugs."
+level: beginner
+prerequisites: ['setup/generated-files', 'state/summary']
+---
+
+<LearnBox>
+
+- What a linter is, and how it differs from TypeScript and from Prettier
+- Why we replace create-vite's `oxlint` with ESLint
+- Reading `eslint.config.js` line by line — it's just an array
+- The React rules that catch genuine bugs, not style opinions
+- Turning a rule off properly, when you really mean it
+
+</LearnBox>
+
+## Three different tools that all say "no" {#what}
+
+Back in [Part 1](/guide/setup/generated-files) we said the code-quality toolkit would come later. This is later.
+
+There are three tools that will underline your code in red, and beginners reasonably confuse them. They check completely different things:
+
+- **TypeScript** checks that the *types* line up. `product.nmae` doesn't exist; you can't pass a `string` where a `number` goes. It answers *"does this even make sense?"*
+- **ESLint** checks *patterns* — code that is valid TypeScript and will run fine, but is very likely a mistake. A variable you assigned and never used. A `useEffect` missing a dependency. It answers *"is this probably a bug?"*
+- **Prettier** checks *nothing*. It reformats — quotes, semicolons, line breaks. It answers *"how should this look?"* That's the [next page](/libraries/prettier).
+
+<Callout type="analogy">
+
+Writing an essay. **TypeScript** is the grammar check: "this sentence has no verb" — it's simply not valid. **ESLint** is the editor reading it: the grammar is fine, but you've used the same word four times in a paragraph, and you introduced a character who never appears again. **Prettier** is the typesetter: it doesn't read the meaning at all, it just makes every paragraph indent the same way.
+
+You want all three, and they don't overlap.
+
+</Callout>
+
+The key thing about ESLint's category: **these are bugs a compiler can't see.** An unused variable compiles perfectly. A `useEffect` with a missing dependency compiles perfectly and then shows stale data at 3pm on a Friday. ESLint is a collection of "we've all been burned by this" rules, written down.
+
+## What create-vite gave you, and why we're changing it {#oxlint}
+
+Your project has an `.oxlintrc.json` and a `"lint": "oxlint"` script. **oxlint** is a newer, Rust-based linter — genuinely very fast, and it's what create-vite 9 installs by default.
+
+We replace it with ESLint anyway, for one reason: **the plugin ecosystem**. The rules that catch *React-specific* bugs — the hooks rules especially — live in ESLint plugins that the whole React world maintains. `eslint-plugin-react-hooks` is written by the React team. That matters more than lint speed on a project this size, where either tool finishes in under two seconds.
+
+<Callout type="note">
+
+This isn't a permanent verdict. oxlint is improving quickly and its React support is growing. The reason to know *why* we chose ESLint is so you can re-evaluate later, rather than following a rule you can't defend. Today, on our projects, the hooks plugin is the deciding factor.
+
+</Callout>
+
+## Installing ESLint {#install}
+
+Five packages, all `-D` — they run on your machine while developing and are never shipped to the browser. That's the `devDependencies` half of [what npm install changes](/libraries/npm-install-writes).
+
+```bash
+npm install -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh
+```
+
+What each one is:
+
+- **`eslint`** — the engine itself. Knows nothing about any language until you configure it.
+- **`@eslint/js`** — the baseline recommended rules for plain JavaScript.
+- **`typescript-eslint`** — teaches ESLint to read TypeScript, plus TS-specific rules.
+- **`eslint-plugin-react-hooks`** — the React team's hooks rules. **This is the one you're really here for.**
+- **`eslint-plugin-react-refresh`** — warns about patterns that break hot reload during development.
+
+Then remove oxlint and point the script at ESLint:
+
+```bash
+npm uninstall oxlint
+```
+
+```json title="package.json"
+{
+  "scripts": {
+    "lint": "eslint ."
+  }
+}
+```
+
+Delete `.oxlintrc.json`. Nothing else refers to it.
+
+## Reading eslint.config.js {#config}
+
+Create `eslint.config.js` in the project root. Modern ESLint uses **flat config**, which is a plain JavaScript file exporting an **array of config objects**. Each object says "for these files, apply these rules," and later objects layer on top of earlier ones.
+
+```js title="eslint.config.js"
+import js from '@eslint/js'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import globals from 'globals'
+import tseslint from 'typescript-eslint'
+
+export default defineConfig([
+  globalIgnores(['dist', 'node_modules']),
+
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: { globals: globals.browser },
+    rules: {
+      // house rules go here
+    },
+  },
+])
+```
+
+Line by line:
+
+- **`globalIgnores([...])`** — never look at these. `dist` is generated output and `node_modules` is other people's code; linting either is thousands of pointless errors.
+- **`files: ['src/**/*.{ts,tsx}']`** — this block applies only to your app source.
+- **`extends: [...]`** — pull in ready-made rule sets rather than listing hundreds of rules yourself. Order matters: later entries win.
+- **`languageOptions: { globals: globals.browser }`** — tells ESLint that `window`, `document` and `localStorage` exist. Without this, every `document.getElementById` is flagged as an undefined variable.
+- **`rules: { ... }`** — your own overrides, applied last.
+
+<Callout type="warn">
+
+`globals.browser` is why a **second block** is usually needed for Node-side files — `vite.config.ts`, anything in `scripts/`. Those run in Node, where `process` and `__dirname` exist but `window` doesn't. Lint them with browser globals and you'll get "`process` is not defined" on perfectly correct code.
+
+</Callout>
+
+Adding a rule of your own looks like this:
+
+```js
+rules: {
+  '@typescript-eslint/no-explicit-any': 'error',
+}
+```
+
+Every rule takes one of three settings: **`'off'`** (ignore), **`'warn'`** (report, exit code stays 0), **`'error'`** (report and fail the command). Use `'error'` for anything you actually want enforced — a `'warn'` that everyone scrolls past is the same as `'off'`, just noisier.
+
+## Running it {#run}
+
+```bash
+npm run lint
+```
+
+Silence means clean. Otherwise you get file, line, message, and — most usefully — **the rule name**:
+
+```text
+src/hooks/useProducts.ts
+  14:6  warning  React Hook useEffect has a missing dependency: 'productId'  react-hooks/exhaustive-deps
+  22:9  error    'response' is assigned a value but never used              @typescript-eslint/no-unused-vars
+
+✖ 2 problems (1 error, 1 warning)
+```
+
+That last column is the important part. Search the rule name and you get the official page explaining what it catches and why — the fastest way to learn what your linter actually knows.
+
+Many problems fix themselves:
+
+```bash
+npx eslint . --fix
+```
+
+`--fix` only touches changes ESLint is certain are safe (removing an unneeded `else`, sorting imports). It will never guess at your `useEffect` dependencies.
+
+## The rules that catch real bugs {#react-rules}
+
+Four rules earn their keep more than all the others combined.
+
+**`react-hooks/rules-of-hooks`** — hooks must be called at the top level of a component, never inside a condition or a loop:
+
+```tsx
+if (isLoggedIn) {
+  const [name, setName] = useState('') // ← error
+}
+```
+
+React tracks hooks by *call order*. Put one behind an `if` and the order changes between renders, so React hands you the wrong piece of state. The bug this produces is bewildering; the rule catches it in a second.
+
+**`react-hooks/exhaustive-deps`** — the dependency array must list everything the effect uses:
+
+```tsx
+useEffect(() => {
+  fetchProduct(productId) // uses productId
+}, []) // ← warning: missing dependency 'productId'
+```
+
+With `[]`, the effect runs once and never again — so navigating from product A to product B keeps showing A's data. This is the single most common React bug there is, and the rule finds it before a user does.
+
+**`@typescript-eslint/no-unused-vars`** — an unused variable is nearly always a leftover, a typo, or a line someone forgot to finish. Cheap to obey, and it keeps dead code from accumulating.
+
+**`@typescript-eslint/no-explicit-any`** — `any` switches TypeScript off for that value. One `any` in a data layer quietly disables type checking for everything downstream of it.
+
+<Deeper title="Two rules worth adding on top">
+
+**Import sorting**, so imports don't drift into a random order and cause merge conflicts:
+
+```bash
+npm install -D eslint-plugin-simple-import-sort
+```
+
+```js
+plugins: { 'simple-import-sort': importSort },
+rules: {
+  'simple-import-sort/imports': 'error',
+  'simple-import-sort/exports': 'error',
+},
+```
+
+`--fix` handles it entirely, so it's a rule you never think about after adding it.
+
+**Running lint before every commit**, so broken code can't reach the repository, using `husky` and `lint-staged`. That's a workflow topic rather than a linting one, but it's what makes the rules actually stick on a team.
+
+</Deeper>
+
+## Fixing a real one {#fixing}
+
+Take that `exhaustive-deps` warning seriously — it's the one people are most tempted to silence.
+
+```tsx
+useEffect(() => {
+  async function load() {
+    const { data } = await api.get(`/products/${productId}`)
+    setProduct(data)
+  }
+  load()
+}, []) // ← warning
+```
+
+The fix is to say what it depends on:
+
+```tsx
+}, [productId])
+```
+
+Now changing `productId` re-runs the effect and refetches. That's not appeasing the linter — that's the behaviour you wanted, and the warning was telling you it wasn't happening.
+
+<Callout type="mistake">
+
+The tempting "fix" is `// eslint-disable-next-line react-hooks/exhaustive-deps`. Resist it. Roughly nine times out of ten, an exhaustive-deps warning is a **real** staleness bug — the screen shows old data after something changes.
+
+If an effect genuinely should run only once (a one-time subscription, say), the honest fix is usually to restructure it, not to silence it. Silencing hides the next bug in that effect too, forever.
+
+</Callout>
+
+## Turning a rule off, properly {#disable}
+
+Sometimes a rule really is wrong for one line. There are three levels, and picking the narrowest is the whole skill:
+
+```ts
+// One line, with the rule named and a reason:
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- third-party SDK types are wrong here
+const config: any = sdk.getConfig()
+```
+
+```js
+// A whole file pattern, in eslint.config.js:
+{
+  files: ['src/legacy/**'],
+  rules: { '@typescript-eslint/no-explicit-any': 'off' },
+}
+```
+
+```js
+// The whole project — only if the rule genuinely doesn't fit your codebase:
+rules: { 'some-rule': 'off' }
+```
+
+Two habits make the difference. **Always name the specific rule** — a bare `// eslint-disable-next-line` disables *every* rule on that line, including ones that would have caught tomorrow's typo. And **always write the reason** after `--`; six months later, "why is this disabled?" is otherwise unanswerable.
+
+## In your editor {#editor}
+
+The command line is the backstop; the editor is where linting is actually useful. Install the **ESLint** extension for VS Code and errors appear as you type, with a lightbulb offering the fix.
+
+Add auto-fix on save to the settings you started in [Part 1](/guide/setup/vscode-settings):
+
+```json title=".vscode/settings.json"
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}
+```
+
+Now imports sort themselves and trivially fixable problems disappear every time you hit save.
+
+<Together
+  task="Add a house rule to eslint.config.js that makes console.log an error but leaves console.warn and console.error allowed — a stray debug log shouldn't reach production, but deliberate warnings should. Then write the correct one-line disable for a script that legitimately prints to the console."
+  hint="The rule is 'no-console', and it takes an options object with an `allow` array. For the disable, name the rule and give a reason after --."
+>
+
+```js title="eslint.config.js"
+rules: {
+  'no-console': ['error', { allow: ['warn', 'error'] }],
+}
+```
+
+```ts
+// eslint-disable-next-line no-console -- this CLI script's whole job is printing
+console.log(`Generated ${count} files`)
+```
+
+The rule's value is an **array** when it takes options: the severity first, then the configuration. `allow: ['warn', 'error']` keeps `console.warn` and `console.error` usable, because those are how you deliberately report problems — while `console.log`, which is almost always a leftover from debugging, fails the build.
+
+The disable comment names the rule (so nothing else on that line is silenced) and states the reason after `--` (so the next person doesn't have to guess whether it's still needed).
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="// eslint-disable-next-line"
+  good="// eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on mount by design"
+  note="A bare disable silences every rule on that line, including ones you'd want. Name the rule and the reason."
+/>
+
+<Diff
+  bad="Adding a dependency array of [] to make the exhaustive-deps warning go away"
+  good="Listing the real dependencies, so the effect re-runs when they change"
+  note="Nine times out of ten the warning is a staleness bug: the screen keeps showing data from the previous id."
+/>
+
+<Diff
+  bad="Setting rules to 'warn' so the build stays green"
+  good="'error' for anything that should actually be fixed"
+  note="Warnings nobody acts on are noise, and they train people to ignore the output entirely."
+/>
+
+<Diff
+  bad="Linting dist and node_modules"
+  good="globalIgnores(['dist', 'node_modules'])"
+  note="Generated and third-party code produces thousands of irrelevant errors and buries yours."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="ESLint with flat config, replacing oxlint. js + typescript-eslint + react-hooks + react-refresh, everything as 'error', run on commit and in the editor"
+  alt="For a throwaway prototype that will never be maintained, create-vite's default oxlint is completely fine and needs no setup. The moment more than one person touches the code, or it has to keep working next month, the hooks rules alone justify the switch."
+>
+
+ESLint earns its place on one category of rule: the React hooks ones. `rules-of-hooks` and `exhaustive-deps` catch bugs that are otherwise found by a user noticing stale data, and no amount of care replaces them.
+
+Set severities to `'error'`, not `'warn'`. A warning is a rule you've decided not to enforce, which is the same as not having it. Ignore `dist` and `node_modules`. Keep the editor extension on with fix-on-save, so most problems are fixed before you ever run the command.
+
+When you disable a rule, name it and justify it inline. And treat `exhaustive-deps` as a bug report rather than a nag — the times it's genuinely wrong are rare enough that "it must be wrong this time" is usually the wrong conclusion.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`'window' is not defined` in your components** … `languageOptions: { globals: globals.browser }` is missing from that block.
+- **`'process' is not defined` in `vite.config.ts`** … That file needs its own block with `globals.node`.
+- **ESLint reports nothing at all** … The `files` pattern doesn't match. Confirm with `npx eslint src --debug`, and check the config file is `eslint.config.js` in the project root.
+- **Thousands of errors from `dist`** … `globalIgnores` is missing or misspelled.
+- **The editor and the terminal disagree** … The extension is using a different working directory, or you edited the config without reloading. Restart the ESLint server from the command palette.
+- **ESLint fights Prettier over formatting** … You need `eslint-config-prettier` — that's on the [next page](/libraries/prettier).
+- **A rule name isn't recognised** … The plugin providing it isn't installed or isn't in `extends`/`plugins`. Rule names are prefixed by their plugin (`react-hooks/…`, `@typescript-eslint/…`).
+
+## Summary and practice {#summary}
+
+<Exercise answer="TypeScript checks that types line up — it answers 'does this make sense at all'. ESLint checks patterns that are valid code but probably wrong, like an unused variable or a missing effect dependency — 'is this probably a bug'. Prettier checks nothing; it only reformats how the code looks. The unused variable is ESLint's: it compiles fine and runs fine, so TypeScript has no complaint, and it isn't a formatting question.">
+
+You leave a variable assigned but never used. Which of the three tools complains, and why not the other two?
+
+</Exercise>
+
+<SummaryBox>
+
+- **TypeScript** = do the types make sense. **ESLint** = is this probably a bug. **Prettier** = how should it look
+- We replace create-vite's `oxlint` with ESLint for one reason: the React hooks plugin
+- Flat config is an **array of config objects**; later entries override earlier ones
+- `globalIgnores(['dist', 'node_modules'])`, and set `globals.browser` or `globals.node` per block
+- The rules that matter: `rules-of-hooks`, `exhaustive-deps`, `no-unused-vars`, `no-explicit-any`
+- `exhaustive-deps` is usually a **real staleness bug** — fix the array, don't silence it
+- Disabling a rule: name the rule, give a reason after `--`, and use the narrowest scope
+
+</SummaryBox>

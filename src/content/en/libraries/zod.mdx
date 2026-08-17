@@ -1,0 +1,393 @@
+---
+title: Validating shapes with zod
+minutes: 16
+slug: zod
+section: libraries
+description: "TypeScript types vanish at runtime, so data from a server is never actually checked. zod validates the real value and infers the type from the same definition — for API responses and for form input, via the react-hook-form resolver."
+level: beginner
+prerequisites: ['libraries/axios', 'libraries/react-hook-form']
+---
+
+<LearnBox>
+
+- Why `axios.get<Product[]>()` doesn't check anything, and what that costs you
+- Adding `zod` and writing your first schema
+- `parse` vs `safeParse` — throw, or return a result you can branch on
+- Getting the TypeScript type *out of* the schema with `z.infer`, so there's one source of truth
+- Validating a form with `zodResolver` instead of `register` rules
+
+</LearnBox>
+
+## The lie you've been living with {#why}
+
+Back on the [axios page](/libraries/axios) you wrote this, and I told you it was a promise rather than a check:
+
+```ts
+const { data } = await api.get<Product[]>('/products')
+```
+
+Here's what that actually means. **TypeScript types do not exist when your code runs.** They're erased during the build. Every `interface`, every `type`, every `<Product[]>` is deleted before a single line reaches the browser. What ships is plain JavaScript that has no idea what a `Product` is.
+
+So `api.get<Product[]>` is you *asserting* to the compiler "the thing coming back will be an array of Product." Nothing verifies it. If the API sends something else, TypeScript is perfectly happy — it already did its job at build time and went home.
+
+<Callout type="analogy">
+
+A TypeScript type is a label you write on a box before you ship it. It tells everyone in the warehouse what's supposed to be inside, and everyone plans around that label.
+
+But nobody opens the box. If the factory put the wrong thing in, the label still says "mugs," and the mistake surfaces three stops down the line, when someone reaches in and finds a brick.
+
+zod is opening the box.
+
+</Callout>
+
+## What going wrong actually looks like {#what-breaks}
+
+Say the backend team renames `imageUrl` to `image_url`. Nothing in your build fails — the change is on their side. Then:
+
+```tsx
+<img src={product.imageUrl} alt={product.name} />
+// imageUrl is undefined → <img src="undefined"> → a broken image icon, no error
+```
+
+Or a price arrives as the string `"1800"` instead of the number `1800`:
+
+```tsx
+<p>{(product.price * 1.1).toFixed(0)}</p>
+// "1800" * 1.1 is 1980.0000000000002 — JavaScript coerced it and moved on
+```
+
+Or the API returns `null` for a product with no tags:
+
+```tsx
+{product.tags.map(...)}  // TypeError: Cannot read properties of null (reading 'map')
+```
+
+Notice the pattern. The failure happens **far from the cause**, inside a component, at render time, in front of a user. The data was wrong the moment it arrived — but nothing looked at it then. Every minute between "bad data arrived" and "something crashed" is a minute of debugging you didn't need to do.
+
+zod's proposal: **check at the door.** Validate the moment data enters your app, and from that point on the types are true.
+
+## Adding zod {#install}
+
+```bash
+npm install zod
+```
+
+`dependencies`, types included — zod *is* types, so that's unavoidable.
+
+## Your first schema {#schema}
+
+A **schema** is a runtime description of a shape. It looks a lot like an `interface`, but it's a real value that exists when the code runs:
+
+```ts title="src/types/product.ts"
+import { z } from 'zod'
+
+export const productSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  price: z.number(),
+  category: z.enum(['kitchen', 'living', 'outdoor']),
+  imageUrl: z.url(),
+  tags: z.array(z.string()),
+  inStock: z.boolean(),
+})
+```
+
+Compare that to the [`Product` interface](/guide/typescript/product-type) from Part 6 — near enough line for line. The differences are the point: `z.url()` doesn't just say "a string," it says "a string that is actually a URL." `z.enum([...])` is the runtime twin of the literal union, and it will *reject* `'kitchin'` rather than merely failing to autocomplete it.
+
+<Callout type="note">
+
+In zod 4 the string formats are top-level functions: `z.email()`, `z.url()`, `z.uuid()`. Older code and older tutorials write them as methods — `z.string().email()`, `z.string().url()` — which still works. If you copy a snippet and your editor complains, that's usually the version difference, not a mistake on your part.
+
+</Callout>
+
+The common building blocks:
+
+```ts
+z.string()
+z.number()
+z.boolean()
+z.array(z.string())          // string[]
+z.object({ a: z.string() })  // { a: string }
+z.enum(['a', 'b'])           // 'a' | 'b'
+z.string().optional()        // string | undefined — the key may be missing
+z.string().nullable()        // string | null — the key exists but may be null
+z.string().min(1, 'Required')
+z.number().int().positive()
+z.iso.datetime()             // an ISO 8601 string, like the dates from your API
+```
+
+The `optional()` / `nullable()` distinction is worth ten minutes of your future life: **`optional` means the key might not be there; `nullable` means it's there and holds `null`.** APIs mean very different things by those two, and picking the wrong one produces validation failures on perfectly good data.
+
+## One definition, two jobs {#infer}
+
+Here's the part that makes zod worth it. You do **not** write the type as well:
+
+```ts title="src/types/product.ts"
+export type Product = z.infer<typeof productSchema>
+```
+
+`z.infer` reads the schema and produces the exact TypeScript type it describes. `Product` is now `{ id: string; name: string; price: number; ... }` — identical to the interface you'd have hand-written, and derived from the runtime check rather than sitting beside it.
+
+That's the whole trick: **one source of truth.** Change `price` to `z.string()` in the schema and every place using `Product` as a number becomes a type error immediately. With a hand-written interface plus a separate validation function, the two drift apart, and the drift is silent.
+
+<JsNote feature="What typeof does in z.infer<typeof productSchema>">
+
+This is TypeScript's `typeof`, not JavaScript's. JavaScript's `typeof x` returns a string at runtime (`'string'`, `'object'`). TypeScript's `typeof` is used in *type positions* and means "the type of this value."
+
+`productSchema` is a value. `typeof productSchema` is its type. `z.infer<...>` then unwraps that into the shape it validates. You'll see this exact pattern — `z.infer<typeof someSchema>` — everywhere zod is used; it's worth recognising on sight rather than deriving each time.
+
+</JsNote>
+
+## parse vs safeParse {#parse}
+
+Two ways to run the check.
+
+**`parse`** returns the validated data, or **throws** if it doesn't match:
+
+```ts
+const product = productSchema.parse(unknownData)
+// from here, `product` is a real Product — checked, not asserted
+```
+
+**`safeParse`** never throws. It returns a result object you branch on:
+
+```ts
+const result = productSchema.safeParse(unknownData)
+
+if (!result.success) {
+  console.error(result.error.issues)
+  // [{ path: ['price'], message: 'Invalid input: expected number, received string' }, ...]
+  return null
+}
+
+const product = result.data // typed as Product
+```
+
+Which to use is a genuine decision, not a style preference:
+
+- **`parse`** inside a `try` / `catch` you already have — an API layer, for instance, where a throw slots into the same error path as a network failure.
+- **`safeParse`** where a failure is expected and shouldn't be exceptional — user input, a URL parameter, something out of `localStorage`.
+
+`result.error.issues` is an array with one entry per problem, each carrying a `path` (which field) and a `message` (what's wrong). That array is what turns "the API is broken" into "the API is sending `price` as a string," which is the difference between an afternoon and a minute.
+
+## Validating an API response {#api}
+
+Put the check at the boundary — in the API layer, not in components:
+
+```ts title="src/lib/products.ts"
+import { z } from 'zod'
+
+import { api } from '@/lib/api'
+import { productSchema } from '@/types/product'
+
+const productListSchema = z.array(productSchema)
+
+export async function fetchProducts() {
+  const { data } = await api.get('/products') // note: no <Product[]> assertion now
+  return productListSchema.parse(data) // ← the real check
+}
+```
+
+The `<Product[]>` on `api.get` is gone, and that's deliberate: the return type of `fetchProducts` is now inferred *from the parse*, which is a fact rather than a claim. Every caller downstream gets a type they can actually trust.
+
+If the backend renames `imageUrl`, this line throws immediately, with a message naming the field — instead of a broken image appearing three components away.
+
+<Deeper title="Should you validate every single response?">
+
+Honest answer: no, not always. Validation costs a little CPU, and a schema is code to maintain. A useful rule:
+
+- **Validate** anything that crosses a boundary you don't control — a third-party API, a partner's webhook, user input, `localStorage` (someone edited it), URL params (someone typed them).
+- **Validate** anything whose shape has bitten you before. Schemas are cheap insurance on the endpoints that actually change.
+- **Consider skipping** a small internal API where the same team owns both sides and types are shared — though even there, the error messages alone often justify it.
+
+What you should *not* do is validate in a component. The check belongs at the door, once, not scattered through the UI.
+
+</Deeper>
+
+## Validating a form {#form}
+
+The other half of zod's job. On the [react-hook-form page](/libraries/react-hook-form) the rules lived inside each `register()` call. That works, but it scatters your validation across the JSX and gives you nothing reusable.
+
+zod holds the whole form's rules in one object, and `zodResolver` hands them to RHF:
+
+```bash
+npm install @hookform/resolvers
+```
+
+```tsx title="src/components/ContactForm/ContactForm.tsx"
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+
+const contactSchema = z.object({
+  name: z.string().min(1, 'Please enter your name'),
+  email: z.email('That doesn’t look like an email address'),
+  message: z.string().min(10, 'At least 10 characters'),
+  age: z.coerce.number().int().min(0, 'Cannot be negative'),
+})
+
+type ContactValues = z.infer<typeof contactSchema>
+
+export function ContactForm() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ContactValues>({
+    resolver: zodResolver(contactSchema),
+  })
+
+  // ...unchanged from here: register('name'), errors.name?.message, etc.
+}
+```
+
+Everything else about the form stays exactly the same — `register`, `handleSubmit`, `errors.name.message`. Only *where the rules live* has changed.
+
+Three wins from the move:
+
+- **The rules are one readable object**, not spread across a dozen JSX attributes. You can see the whole contract at a glance.
+- **The type comes from the schema.** No separate `interface ContactValues` to keep in sync.
+- **`z.coerce.number()`** replaces `valueAsNumber`. Inputs always hand you strings; `coerce` converts before validating, so `"30"` becomes `30` and `"abc"` becomes a proper error instead of `NaN`.
+
+<Together
+  task="A settings form has a username (3–20 characters, letters/numbers/underscore only), a notification email, and a 'daily digest hour' from 0 to 23. Write the schema, derive the type, and wire it to react-hook-form."
+  hint="regex() with a message for the username, z.email() for the email, and z.coerce.number().int().min(0).max(23) for the hour. Then z.infer for the type and zodResolver in useForm."
+>
+
+```tsx title="src/components/SettingsForm/SettingsForm.tsx"
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+
+const settingsSchema = z.object({
+  username: z
+    .string()
+    .min(3, 'At least 3 characters')
+    .max(20, 'At most 20 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers and underscore only'),
+  email: z.email('That doesn’t look like an email address'),
+  digestHour: z.coerce
+    .number()
+    .int('Whole hours only')
+    .min(0, 'Between 0 and 23')
+    .max(23, 'Between 0 and 23'),
+})
+
+type SettingsValues = z.infer<typeof settingsSchema>
+
+export function SettingsForm() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<SettingsValues>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: { username: '', email: '', digestHour: 9 },
+  })
+
+  async function onSubmit(values: SettingsValues) {
+    await api.put('/settings', values)
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <label htmlFor="username">Username</label>
+      <input
+        id="username"
+        aria-invalid={errors.username ? true : false}
+        aria-describedby={errors.username ? 'username-error' : undefined}
+        {...register('username')}
+      />
+      {errors.username && (
+        <p id="username-error" role="alert">
+          {errors.username.message}
+        </p>
+      )}
+
+      {/* email and digestHour follow the same three-part pattern */}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving…' : 'Save'}
+      </button>
+    </form>
+  )
+}
+```
+
+Each rule carries its own message, so `errors.username.message` is a sentence a person can act on — "At least 3 characters" rather than a generic "invalid." The rules chain in order and zod reports the first failure, which is what you want: showing three complaints about one field at once is noise.
+
+`z.coerce.number()` on `digestHour` is doing the `valueAsNumber` job. Without it, the `"9"` the input hands over fails `z.number()` immediately and the user gets an error on a value they typed correctly.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="interface Product { ... } written by hand, next to a separate productSchema"
+  good="const productSchema = z.object({...}); type Product = z.infer<typeof productSchema>"
+  note="Two definitions drift apart silently. Derive the type from the schema so there's one source of truth."
+/>
+
+<Diff
+  bad="productSchema.parse(data) called inside a component's render"
+  good="Parsing once in the API layer, components receiving already-valid data"
+  note="Validation belongs at the boundary. In render it re-runs constantly and mixes data concerns into the UI."
+/>
+
+<Diff
+  bad={`z.number() on a form field bound to an <input>`}
+  good="z.coerce.number() on a form field"
+  note="Inputs always give strings. Without coerce, a correctly typed 30 fails validation as the string '30'."
+/>
+
+<Diff
+  bad="safeParse(...) and then using result.data without checking result.success"
+  good="if (!result.success) return ...; then use result.data"
+  note="Before the check, result.data is possibly undefined. TypeScript enforces this — don't silence it with !"
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="One zod schema per external shape, with the TypeScript type derived via z.infer. Parse at the boundary — API layer and form resolver — never inside components"
+  alt="For a small internal API where the same team owns both ends and the types are shared, a plain interface is often enough. Add a schema the first time that endpoint's shape surprises you — which, in practice, is when it starts mattering."
+>
+
+The rule to internalise: **an `interface` is a claim, a schema is a check.** Anything that crosses into your app from outside — HTTP responses, form input, URL params, `localStorage` — should meet a schema at the door. Anything internal, that TypeScript can see both ends of, doesn't need one.
+
+Define the schema, then `z.infer` the type from it, and never hand-write both. In the API layer use `parse` inside the `try` you already have, so a shape failure joins the same error path as a network failure. In forms use `zodResolver`, so validation rules and types come from one object rather than a dozen `register` calls.
+
+The payoff isn't only correctness. It's that failures move from *deep inside a component, in front of a user, with a confusing message* to *at the fetch, naming the exact field*.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`Invalid input: expected number, received string`** … Real API data, or a form field without `z.coerce`. Log the raw value before assuming the schema is wrong.
+- **A field the API genuinely doesn't always send fails** … You want `.optional()` (key may be missing) or `.nullable()` (key present, value `null`). Check which one the API actually does.
+- **Extra fields cause failures** … They shouldn't: by default `z.object` **ignores** keys you didn't declare. If you're seeing this, something has `.strict()` on it.
+- **`result.data is possibly undefined`** … You're using it before the `if (!result.success)` guard. Add the guard; don't reach for `!`.
+- **`zodResolver` is not exported** … The import is `@hookform/resolvers/zod`, not `@hookform/resolvers`, and the package is separate from `zod` itself.
+- **`z.string().email()` is deprecated in your editor** … zod 4 moved it to `z.email()`. Both work; use the top-level form in new code.
+- **Validation passes but the data is still wrong** … A schema checks *shape*, not *truth*. `z.number()` accepts `-5` for a price. Add `.positive()`, `.min()`, `.max()` where the real-world rules live.
+
+## Summary and practice {#summary}
+
+<Exercise answer="Nothing fails at build time — TypeScript already ran and the assertion was believed. The app crashes at runtime deep inside a component, on a line like product.tags.map, far from the fetch that actually caused it. With a zod schema parsed in the API layer, the failure happens at the fetch, immediately, with an issue naming the field — turning a confusing render-time crash into a precise message at the boundary.">
+
+An API you consume changes `tags` from an array to `null` for some products. Your code has `interface Product` and `api.get<Product[]>`. What fails, when, and where — and how does adding a zod schema change the answer?
+
+</Exercise>
+
+<SummaryBox>
+
+- TypeScript types are **erased at build time**. `api.get<Product[]>()` asserts a shape, it never checks one
+- A zod schema is a **runtime** description: `z.object({ ... })`, built from `z.string()`, `z.number()`, `z.array()`, `z.enum()`
+- `type Product = z.infer<typeof productSchema>` — one definition produces both the check and the type
+- `parse` throws (good inside an existing `try`), `safeParse` returns `{ success, data | error }` (good for user input)
+- `result.error.issues` names the exact field and problem
+- Parse **at the boundary**: the API layer, and forms via `zodResolver`. Never in a component
+- `optional()` = key may be missing. `nullable()` = key exists, value is `null`. They are not the same
+- `z.coerce.number()` for form fields, because inputs always give strings
+
+</SummaryBox>

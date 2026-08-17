@@ -1,0 +1,378 @@
+---
+title: ESLint で間違いに気づく
+minutes: 15
+slug: eslint
+section: libraries
+description: リンターが実際にやっていることと、TypeScript や Prettier との違い。create-vite の oxlint を ESLint に置き換え、フラットコンフィグを 1 行ずつ読み、本物のバグを捕まえる React のルールまで。
+level: beginner
+prerequisites: ['setup/generated-files', 'state/summary']
+---
+
+<LearnBox>
+
+- リンターとは何か、TypeScript とも Prettier とも何が違うのか
+- create-vite の `oxlint` を ESLint に置き換える理由
+- `eslint.config.js` を 1 行ずつ読む（ただの配列です）
+- 好みではなく本物のバグを捕まえる、React のルール
+- 本当に必要なときの、ルールの正しい切り方
+
+</LearnBox>
+
+## 「ダメ」と言ってくる 3 つの道具 {#what}
+
+[Part 1](/guide/setup/generated-files) で「コード品質の道具立ては後のパートで」と言いました。ここがその後のパートです。
+
+コードに赤い波線を引いてくる道具は 3 つあり、初学者が混同するのは無理もありません。見ているものが完全に違います。
+
+- **TypeScript** は*型*が噛み合っているかを見ます。`product.nmae` は存在しない、`number` の場所に `string` は渡せない。答えているのは「*そもそも意味が通るか*」です。
+- **ESLint** は*パターン*を見ます。TypeScript としては妥当で実際に動くけれど、たぶん間違いであろうコード。代入したのに使っていない変数。依存配列が足りない `useEffect`。答えているのは「*これはたぶんバグでは？*」です。
+- **Prettier** は何も*見ません*。整形するだけです。クォート、セミコロン、改行。答えているのは「*どう見えるべきか*」。[次のページ](/libraries/prettier)の話です。
+
+<Callout type="analogy">
+
+作文で言うと。**TypeScript** は文法チェック。「この文には動詞が無い」——単純に成立していない。**ESLint** は編集者が読んでいる状態。文法は正しいが、同じ語を 1 段落で 4 回使っているし、二度と出てこない登場人物を出している。**Prettier** は組版係。意味は一切読まず、全部の段落の字下げを揃えるだけ。
+
+3 つとも欲しいし、役割は重なりません。
+
+</Callout>
+
+ESLint の担当領域で肝心なのは、**コンパイラに見えないバグ**だということです。使っていない変数は完璧にコンパイルされます。依存が足りない `useEffect` も完璧にコンパイルされ、金曜の午後 3 時に古いデータを表示します。ESLint は「みんな一度はやられた」を書き留めたルール集です。
+
+## create-vite が入れたもの、それを変える理由 {#oxlint}
+
+プロジェクトには `.oxlintrc.json` と `"lint": "oxlint"` があります。**oxlint** は Rust 製の新しいリンターで、実際とても速く、create-vite 9 の既定です。
+
+それでも ESLint に置き換えます。理由は 1 つ、**プラグインのエコシステム**です。*React 固有*のバグを捕まえるルール——とくにフックのルール——は、React 界隈全体が育てている ESLint のプラグインにあります。`eslint-plugin-react-hooks` は React チーム自身が書いています。この規模のプロジェクトではどちらも 2 秒とかからずに終わるので、速度よりこちらが効きます。
+
+<Callout type="note">
+
+これは永久の結論ではありません。oxlint は急速に良くなっていて、React 対応も広がっています。*なぜ* ESLint を選んだのかを知っておくべき理由は、あとで自分で見直せるようにするためです。理由を説明できないルールに従うためではありません。今日の、うちのプロジェクトでは、フックのプラグインが決め手になります。
+
+</Callout>
+
+## ESLint を入れる {#install}
+
+5 つ、すべて `-D` です。開発中に自分のマシンで動くだけで、ブラウザには一切送られません。[npm install が書き換えるもの](/libraries/npm-install-writes)でやった `devDependencies` の側です。
+
+```bash
+npm install -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh
+```
+
+それぞれの正体です。
+
+- **`eslint`** … エンジン本体。設定するまで、どの言語も知りません。
+- **`@eslint/js`** … 素の JavaScript 向けの推奨ルール一式。
+- **`typescript-eslint`** … ESLint に TypeScript を読ませ、TS 固有のルールも足します。
+- **`eslint-plugin-react-hooks`** … React チームによるフックのルール。**本命はこれです。**
+- **`eslint-plugin-react-refresh`** … 開発中のホットリロードを壊す書き方を警告します。
+
+そのうえで oxlint を外し、スクリプトを ESLint に向けます。
+
+```bash
+npm uninstall oxlint
+```
+
+```json title="package.json"
+{
+  "scripts": {
+    "lint": "eslint ."
+  }
+}
+```
+
+`.oxlintrc.json` は削除します。他から参照しているものはありません。
+
+## eslint.config.js を読む {#config}
+
+プロジェクトのルートに `eslint.config.js` を作ります。今の ESLint は**フラットコンフィグ**で、**設定オブジェクトの配列**を export する、ただの JavaScript ファイルです。各オブジェクトが「このファイル群には、このルール」と言い、後ろのものが前のものに重なります。
+
+```js title="eslint.config.js"
+import js from '@eslint/js'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import globals from 'globals'
+import tseslint from 'typescript-eslint'
+
+export default defineConfig([
+  globalIgnores(['dist', 'node_modules']),
+
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: { globals: globals.browser },
+    rules: {
+      // うちのルールはここ
+    },
+  },
+])
+```
+
+1 行ずつ読みます。
+
+- **`globalIgnores([...])`** … ここは絶対に見ない。`dist` は生成物、`node_modules` は他人のコード。どちらもリントすれば無意味なエラーが数千件出ます。
+- **`files: ['src/**/*.{ts,tsx}']`** … このブロックはアプリのソースだけに効きます。
+- **`extends: [...]`** … 何百ものルールを自分で並べる代わりに、出来合いのセットを取り込みます。順序に意味があり、後ろが勝ちます。
+- **`languageOptions: { globals: globals.browser }`** … `window`・`document`・`localStorage` が存在すると ESLint に教えます。これが無いと `document.getElementById` が全部「未定義の変数」として指摘されます。
+- **`rules: { ... }`** … 自分の上書き。最後に適用されます。
+
+<Callout type="warn">
+
+`globals.browser` があるせいで、Node 側のファイル（`vite.config.ts` や `scripts/` の中身）には**2 つ目のブロック**がたいてい必要になります。あちらは Node で動き、`process` や `__dirname` はあるが `window` はありません。ブラウザのグローバルでリントすると、完全に正しいコードに「`process` is not defined」が出ます。
+
+</Callout>
+
+自分のルールを足すとこうなります。
+
+```js
+rules: {
+  '@typescript-eslint/no-explicit-any': 'error',
+}
+```
+
+どのルールも設定は 3 択です。**`'off'`**（無視）、**`'warn'`**（報告するが終了コードは 0 のまま）、**`'error'`**（報告してコマンドを失敗させる）。本当に守らせたいものは `'error'` にします。全員が読み飛ばす `'warn'` は、うるさいだけの `'off'` と同じです。
+
+## 実行する {#run}
+
+```bash
+npm run lint
+```
+
+何も出なければきれいです。出た場合は、ファイル・行・メッセージ、そして一番役に立つ**ルール名**が並びます。
+
+```text
+src/hooks/useProducts.ts
+  14:6  warning  React Hook useEffect has a missing dependency: 'productId'  react-hooks/exhaustive-deps
+  22:9  error    'response' is assigned a value but never used              @typescript-eslint/no-unused-vars
+
+✖ 2 problems (1 error, 1 warning)
+```
+
+最後の列が肝心です。ルール名で検索すれば、「何を捕まえるルールで、なぜあるのか」を説明した公式ページが出ます。自分のリンターが何を知っているかを学ぶ、いちばん速い方法です。
+
+多くは自動で直ります。
+
+```bash
+npx eslint . --fix
+```
+
+`--fix` が触るのは、ESLint が安全だと確信している変更だけです（不要な `else` の除去、import の並べ替えなど）。`useEffect` の依存配列を推測することは決してありません。
+
+## 本物のバグを捕まえるルール {#react-rules}
+
+他の全部を合わせたより効くルールが 4 つあります。
+
+**`react-hooks/rules-of-hooks`** … フックはコンポーネントのトップレベルで呼ぶこと。条件やループの中では呼べません。
+
+```tsx
+if (isLoggedIn) {
+  const [name, setName] = useState('') // ← エラー
+}
+```
+
+React はフックを*呼ばれた順番*で管理しています。`if` の中に入れると描画ごとに順番が変わり、React は別の state を渡してきます。これで起きるバグは本当に訳が分からないのに、ルールなら一瞬で見つかります。
+
+**`react-hooks/exhaustive-deps`** … 依存配列には、その effect が使うものを全部書くこと。
+
+```tsx
+useEffect(() => {
+  fetchProduct(productId) // productId を使っている
+}, []) // ← warning: missing dependency 'productId'
+```
+
+`[]` だと effect は最初の 1 回しか走りません。商品 A から商品 B へ移動しても、A のデータが出たままになります。React でいちばん多いバグで、このルールは利用者より先に見つけてくれます。
+
+**`@typescript-eslint/no-unused-vars`** … 使っていない変数は、ほぼ確実に消し忘れ・タイプミス・書きかけです。守るのは簡単で、死んだコードが溜まるのを防げます。
+
+**`@typescript-eslint/no-explicit-any`** … `any` はその値について TypeScript を止めるスイッチです。データ層に `any` が 1 つあると、その下流全部で型検査が静かに無効になります。
+
+<Deeper title="上乗せする価値のあるルール 2 つ">
+
+**import の並べ替え**。順序が散らかってマージ衝突の種になるのを防ぎます。
+
+```bash
+npm install -D eslint-plugin-simple-import-sort
+```
+
+```js
+plugins: { 'simple-import-sort': importSort },
+rules: {
+  'simple-import-sort/imports': 'error',
+  'simple-import-sort/exports': 'error',
+},
+```
+
+`--fix` が全部やってくれるので、入れたあとは二度と考えなくて済むルールです。
+
+**コミット前に lint を走らせる**。壊れたコードがリポジトリに入らないようにする仕組みで、`husky` と `lint-staged` を使います。リントというよりワークフローの話ですが、チームでルールが実際に守られるかどうかはここで決まります。
+
+</Deeper>
+
+## 実際に 1 つ直してみる {#fixing}
+
+さっきの `exhaustive-deps` の警告は真面目に扱ってください。いちばん黙らせたくなるやつです。
+
+```tsx
+useEffect(() => {
+  async function load() {
+    const { data } = await api.get(`/products/${productId}`)
+    setProduct(data)
+  }
+  load()
+}, []) // ← warning
+```
+
+直し方は、依存を書くことです。
+
+```tsx
+}, [productId])
+```
+
+これで `productId` が変われば effect が再実行され、取り直します。リンターのご機嫌取りではありません。もともと欲しかった挙動で、警告は「それが起きていませんよ」と教えていたのです。
+
+<Callout type="mistake">
+
+つい書きたくなる「解決策」が `// eslint-disable-next-line react-hooks/exhaustive-deps` です。こらえてください。exhaustive-deps の警告は、10 回のうち 9 回は**本物の**「古いまま」バグです。何かが変わったのに画面が古いデータを出し続けます。
+
+本当に 1 回だけ走らせたい effect（一度きりの購読など）なら、正直な直し方はたいてい構造の見直しで、黙らせることではありません。黙らせると、その effect の*次の*バグも永久に隠れます。
+
+</Callout>
+
+## ルールの正しい切り方 {#disable}
+
+1 行だけルールが本当に的外れ、ということはあります。段階は 3 つで、いちばん狭いものを選べるかが腕の見せどころです。
+
+```ts
+// 1 行だけ。ルール名と理由を書く:
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 外部 SDK の型定義が間違っているため
+const config: any = sdk.getConfig()
+```
+
+```js
+// ファイル群単位。eslint.config.js に書く:
+{
+  files: ['src/legacy/**'],
+  rules: { '@typescript-eslint/no-explicit-any': 'off' },
+}
+```
+
+```js
+// プロジェクト全体。そのルールが本当にこのコードベースに合わないときだけ:
+rules: { 'some-rule': 'off' }
+```
+
+差が出るのは 2 つの習慣です。**必ずルール名を書くこと**。裸の `// eslint-disable-next-line` はその行の*全ルール*を切るので、明日のタイプミスを捕まえるはずだったものまで消えます。そして **`--` のあとに必ず理由を書くこと**。半年後、「なぜこれは切ってあるのか」に答えられなくなります。
+
+## エディタで {#editor}
+
+コマンドラインは最後の砦で、リントが本当に効くのはエディタです。VS Code の **ESLint** 拡張を入れると、打っている最中にエラーが出て、電球から修正を選べます。
+
+[Part 1](/guide/setup/vscode-settings) で書き始めた設定に、保存時の自動修正を足します。
+
+```json title=".vscode/settings.json"
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}
+```
+
+これで保存のたびに import が並び替わり、直せる問題は消えていきます。
+
+<Together
+  task="eslint.config.js に、console.log はエラーにしつつ console.warn と console.error は許す、というルールを足してください（デバッグの消し忘れは本番に出したくないが、意図した警告は残したい）。そのうえで、コンソール出力が本来の仕事であるスクリプト向けに、正しい 1 行の無効化コメントを書いてください。"
+  hint="ルール名は 'no-console'。オプションのオブジェクトに allow の配列を渡します。無効化のほうは、ルール名を書き、-- のあとに理由を書きます。"
+>
+
+```js title="eslint.config.js"
+rules: {
+  'no-console': ['error', { allow: ['warn', 'error'] }],
+}
+```
+
+```ts
+// eslint-disable-next-line no-console -- この CLI スクリプトは出力そのものが仕事
+console.log(`${count} 件のファイルを生成しました`)
+```
+
+オプションを取るルールでは、値が**配列**になります。先頭が深刻度、続いて設定です。`allow: ['warn', 'error']` は `console.warn` と `console.error` を使えるまま残します。問題をわざと報告する手段だからです。一方 `console.log` は、ほぼ必ずデバッグの残骸なので、ビルドを失敗させます。
+
+無効化コメントはルール名を書いているので（その行の他のルールは生きたまま）、理由も `--` のあとに書いてあるので、次の人が「まだ必要なのか」を推測せずに済みます。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="// eslint-disable-next-line"
+  good="// eslint-disable-next-line react-hooks/exhaustive-deps -- 初回マウント時だけ走らせる設計のため"
+  note="裸の無効化はその行の全ルールを切る。残したいものまで消える。ルール名と理由を書く。"
+/>
+
+<Diff
+  bad="exhaustive-deps の警告を消すために依存配列を [] にする"
+  good="本当の依存を書き、変わったら effect が再実行されるようにする"
+  note="10 回に 9 回は本物の「古いまま」バグ。前の id のデータを表示し続ける。"
+/>
+
+<Diff
+  bad="ビルドを緑に保つためにルールを 'warn' にする"
+  good="本当に直すべきものは 'error'"
+  note="誰も対応しない警告はノイズで、出力そのものを読み飛ばす習慣を育てる。"
+/>
+
+<Diff
+  bad="dist と node_modules もリントする"
+  good="globalIgnores(['dist', 'node_modules'])"
+  note="生成物と他人のコードから無関係なエラーが数千件出て、自分のエラーが埋もれる。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="oxlint を置き換えて、フラットコンフィグの ESLint。js + typescript-eslint + react-hooks + react-refresh をすべて 'error' にし、コミット時とエディタで走らせる"
+  alt="二度と手を入れない使い捨ての試作なら、create-vite 既定の oxlint で全く問題なく、設定も不要です。関わる人が 2 人以上になった時点、あるいは来月も動いている必要が出た時点で、フックのルールだけでも乗り換える価値が出ます。"
+>
+
+ESLint が場所を得ているのは、ルールのある 1 カテゴリのおかげです。React のフックのルール。`rules-of-hooks` と `exhaustive-deps` は、そうでなければ「利用者が古いデータに気づいて発覚する」バグを捕まえます。注意深さでは代替できません。
+
+深刻度は `'warn'` ではなく `'error'`。警告は「守らせないと決めたルール」であり、無いのと同じです。`dist` と `node_modules` は無視。エディタ拡張と保存時修正は常にオンにして、コマンドを叩く前にほとんど片付いている状態にします。
+
+ルールを切るときは、名前を書き、理由を添える。そして `exhaustive-deps` は小言ではなくバグ報告として扱ってください。本当に的外れなことは十分に稀なので、「今回は違う」はたいてい間違った結論です。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **コンポーネントで `'window' is not defined`** … そのブロックに `languageOptions: { globals: globals.browser }` がありません。
+- **`vite.config.ts` で `'process' is not defined`** … あのファイルには `globals.node` の別ブロックが要ります。
+- **何も報告されない** … `files` のパターンが一致していません。`npx eslint src --debug` で確認し、設定ファイルがルートの `eslint.config.js` になっているかも見ます。
+- **`dist` から数千件のエラー** … `globalIgnores` が無いか、綴りが違います。
+- **エディタとターミナルで結果が違う** … 拡張が別の作業ディレクトリを見ているか、設定を変えたあと再読み込みしていません。コマンドパレットから ESLint サーバーを再起動します。
+- **ESLint と Prettier が整形で喧嘩する** … `eslint-config-prettier` が必要です。[次のページ](/libraries/prettier)で扱います。
+- **ルール名が認識されない** … そのルールを提供するプラグインが未インストールか、`extends` / `plugins` に入っていません。ルール名はプラグイン名が接頭辞になります（`react-hooks/…`、`@typescript-eslint/…`）。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="TypeScript は型が噛み合うかを見ます（「そもそも意味が通るか」）。ESLint はコードとしては妥当だがたぶん間違い、というパターンを見ます（使っていない変数、足りない依存）。Prettier は何も見ず、見た目を整えるだけです。未使用変数は ESLint の担当で、コンパイルも実行も通るので TypeScript は文句を言わず、整形の問題でもないからです。">
+
+変数に代入したのに一度も使わないまま残しました。3 つの道具のうちどれが文句を言い、なぜ他の 2 つは言わないのでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- **TypeScript** ＝型が噛み合うか。**ESLint** ＝たぶんバグでは。**Prettier** ＝どう見えるべきか
+- create-vite の `oxlint` を ESLint に置き換える理由は 1 つ、React のフックのプラグイン
+- フラットコンフィグは**設定オブジェクトの配列**。後ろのものが前のものを上書きする
+- `globalIgnores(['dist', 'node_modules'])`、ブロックごとに `globals.browser` か `globals.node`
+- 効くルール：`rules-of-hooks`、`exhaustive-deps`、`no-unused-vars`、`no-explicit-any`
+- `exhaustive-deps` はたいてい**本物の「古いまま」バグ**。黙らせず、配列を直す
+- ルールを切るときは、ルール名を書き、`--` のあとに理由を書き、いちばん狭い範囲で
+
+</SummaryBox>

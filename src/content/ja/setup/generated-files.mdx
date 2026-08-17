@@ -170,7 +170,7 @@ TypeScript の設定が 3 ファイルに分かれています。役割はこう
 ## .gitignore と .oxlintrc.json {#others}
 
 - **`.gitignore`** … git に含めないもののリスト。`node_modules` と `dist`（build の出力）が最初から書いてあります。
-- **`.oxlintrc.json`** … `npm run lint` が使う自動チェックの設定です。create-vite 9 はこの **oxlint** という新しいチェッカーを既定で入れます。ただし**うちの標準は ESLint + Prettier**なので、Part 4「コード品質の仕組み」で oxlint を ESLint に置き換えます（理由もそこで説明します）。今はこのまま触りません。
+- **`.oxlintrc.json`** … `npm run lint` が使う自動チェックの設定です。create-vite 9 はこの **oxlint** という新しいチェッカーを既定で入れます。ただし**うちの標準は ESLint + Prettier**なので、ライブラリ編で [oxlint を ESLint に置き換え](/libraries/eslint)、[Prettier を足します](/libraries/prettier)（理由もそこで説明します）。今はこのまま触りません。
 
 <SummaryBox>
 

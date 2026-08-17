@@ -1,0 +1,431 @@
+---
+title: Forms with react-hook-form
+minutes: 16
+slug: react-hook-form
+section: libraries
+description: "Why a hand-rolled form gets painful at the third field, then react-hook-form: register, handleSubmit, validation rules, error messages that screen readers can find, and submitting to a server without double-posting."
+level: beginner
+prerequisites: ['state/summary', 'libraries/axios']
+---
+
+<LearnBox>
+
+- Why one `useState` per field stops scaling at about three fields
+- Adding `react-hook-form`, and what `register` and `handleSubmit` actually do
+- Validation rules, and showing the error next to the field
+- Wiring labels and errors so a screen reader can follow the form
+- Submitting to a server, and blocking the double-click that creates two orders
+
+</LearnBox>
+
+## The form you already know how to write {#why}
+
+You learned [state and events](/guide/state/use-state/events) in Part 4, so you can already build a form. Here's a contact form, done the way the core taught it, and there is nothing wrong with this code:
+
+```tsx
+export function ContactForm() {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const next: Record<string, string> = {}
+    if (!name) next.name = 'Please enter your name'
+    if (!email.includes('@')) next.email = 'Please enter a valid email'
+    if (message.length < 10) next.message = 'At least 10 characters'
+    setErrors(next)
+    if (Object.keys(next).length > 0) return
+    // ...send it
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input value={name} onChange={(e) => setName(e.target.value)} />
+      {errors.name && <p>{errors.name}</p>}
+      {/* and the same two lines again for email, and again for message */}
+    </form>
+  )
+}
+```
+
+It works. Now count what it costs, because these are the four things that get worse with every field you add:
+
+1. **Three lines per field.** A `useState`, an `onChange`, and an error render. A realistic checkout form has twelve fields.
+2. **Every keystroke re-renders the whole form.** `setName` on each character means the entire component — every field, every error, the submit button — re-renders on every letter typed. At three fields nobody notices. At twenty, with a date picker in there, people notice.
+3. **Validation only happens on submit.** Real forms validate when you leave a field, clear the error as you fix it, and disable submit until it's valid. Every one of those behaviours is more state you write by hand.
+4. **Nothing is wired for accessibility.** That `<p>` with the error text has no connection to the input. A screen-reader user tabs to the field and hears nothing about what's wrong.
+
+`react-hook-form` exists to make all four go away. It is not a UI library — it renders nothing and has no styles. It's the *state and validation* layer under your own markup.
+
+<Callout type="analogy">
+
+Hand-rolled, you're a shopkeeper writing every customer's answers onto your own notepad as they speak, then checking the notepad at the end. react-hook-form hands the customer a paper form, lets them fill it in themselves, and only reads it when they hand it back — and it checks the boxes are filled before accepting it.
+
+The shop is quieter, because you're not writing something down after every single word.
+
+</Callout>
+
+## Adding react-hook-form {#install}
+
+```bash
+npm install react-hook-form
+```
+
+`dependencies`, types bundled. No peer dependencies to chase.
+
+## The two things it gives you {#core}
+
+Everything starts with the `useForm` hook, and you'll use two of its returns constantly:
+
+- **`register('fieldName')`** — spread onto an `<input>`, it hands the input over to react-hook-form. From then on RHF tracks that field's value, whether it's been touched, and whether it's valid. You stop writing `value` and `onChange`.
+- **`handleSubmit(onValid)`** — wrap your submit handler in it. It calls `preventDefault()`, runs every validation rule, and **only calls your function if everything passed** — with the values already collected into one object.
+
+The same form again:
+
+```tsx title="src/components/ContactForm/ContactForm.tsx"
+import { useForm } from 'react-hook-form'
+
+interface ContactValues {
+  name: string
+  email: string
+  message: string
+}
+
+export function ContactForm() {
+  const { register, handleSubmit } = useForm<ContactValues>()
+
+  function onSubmit(values: ContactValues) {
+    console.log(values) // { name: '...', email: '...', message: '...' }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input {...register('name')} />
+      <input {...register('email')} />
+      <textarea {...register('message')} />
+      <button type="submit">Send</button>
+    </form>
+  )
+}
+```
+
+No `useState`. No `onChange`. No `e.preventDefault()`. And `values` in `onSubmit` is fully typed — `values.nmae` is a compile error — because you passed `<ContactValues>` to `useForm`.
+
+<JsNote feature="What does {...register('name')} actually spread?" to="/guide/javascript/spread-rest">
+
+`register('name')` **returns an object** of props: roughly `name`, `onChange`, `onBlur`, and `ref`. The `...` is [spread](/guide/javascript/spread-rest), copying each of those onto the `<input>` — so writing `{...register('name')}` is the same as typing all four props by hand.
+
+The interesting one is `ref`. Instead of storing the value in React state, RHF keeps a direct reference to the DOM input and reads `.value` off it when needed. That is exactly why typing doesn't re-render your component: **React isn't involved in each keystroke at all.** The browser is doing what it always did with a plain HTML form, and RHF only steps in at the moments that matter.
+
+</JsNote>
+
+## Validation rules {#validation}
+
+`register` takes a second argument: the rules. Each rule's message is what gets shown.
+
+```tsx
+<input
+  {...register('email', {
+    required: 'Email is required',
+    pattern: {
+      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+      message: 'That doesn’t look like an email address',
+    },
+  })}
+/>
+```
+
+The rules you'll actually use:
+
+```ts
+register('name', {
+  required: 'Please enter your name',
+  minLength: { value: 2, message: 'At least 2 characters' },
+  maxLength: { value: 50, message: 'At most 50 characters' },
+})
+
+register('age', {
+  required: 'Required',
+  min: { value: 0, message: 'Cannot be negative' },
+  max: { value: 120, message: 'Really?' },
+  valueAsNumber: true, // ← inputs always give strings; this converts
+})
+
+register('password', {
+  validate: (value) => value !== '1234' || 'Pick something less guessable',
+})
+```
+
+<Callout type="warn">
+
+`valueAsNumber` is the one that catches people. **Every `<input>` gives you a string**, even `type="number"` — so without it, `values.age` is `"30"`, and `values.age + 1` is `"301"`. TypeScript won't save you here, because you *declared* it as `number` and RHF has no way to know the DOM disagreed. Set `valueAsNumber: true` on every numeric field.
+
+</Callout>
+
+## Showing the errors {#errors}
+
+Failed rules land in `formState.errors`, keyed by field name:
+
+```tsx
+const {
+  register,
+  handleSubmit,
+  formState: { errors },
+} = useForm<ContactValues>()
+
+// ...
+
+<input {...register('email', { required: 'Email is required' })} />
+{errors.email && <p className={styles.error}>{errors.email.message}</p>}
+```
+
+`errors.email` is `undefined` when the field is fine, so the [short-circuit](/guide/javascript/ternary-short-circuit) renders nothing. When it fails, `errors.email.message` is the exact string you wrote in the rule.
+
+By default validation runs on submit, and after the first failed submit a field re-validates as you type — so the error disappears the moment you fix it. To validate when the user leaves a field instead:
+
+```ts
+useForm<ContactValues>({ mode: 'onBlur' })
+```
+
+## Making it accessible {#a11y}
+
+This is the part hand-rolled forms almost always miss, and it's four attributes.
+
+```tsx
+<div className={styles.field}>
+  <label htmlFor="email">Email</label>
+  <input
+    id="email"
+    type="email"
+    aria-invalid={errors.email ? true : false}
+    aria-describedby={errors.email ? 'email-error' : undefined}
+    {...register('email', { required: 'Email is required' })}
+  />
+  {errors.email && (
+    <p id="email-error" role="alert" className={styles.error}>
+      {errors.email.message}
+    </p>
+  )}
+</div>
+```
+
+What each one buys:
+
+- **`htmlFor` / `id`** — connects label to input. Clicking the label focuses the field, and a screen reader announces "Email, edit text" instead of just "edit text".
+- **`aria-invalid`** — announces "invalid" when the user reaches the field, and gives CSS a hook: `input[aria-invalid='true']` can paint the border red with no extra class.
+- **`aria-describedby`** — points at the error element's `id`, so the error is *read out as part of the field*. Without it the message is visually adjacent but, to a screen reader, unrelated.
+- **`role="alert"`** — announces the message the moment it appears, without the user having to go looking.
+
+<Callout type="mistake">
+
+`{...register('email')}` must come **after** `id` and the `aria-*` props, not before. Spread order wins in JSX: the spread includes a `name` prop, and anything you write before the spread can be overwritten by it. Put your own props first only when you *want* register to win — for `id` and `aria-*`, register doesn't set them, so either order works, but keeping the spread last is the habit that never surprises you.
+
+</Callout>
+
+## Submitting to a server {#submit}
+
+Now connect it to [axios](/libraries/axios). Two things matter: `isSubmitting`, and what happens when it fails.
+
+```tsx title="src/components/ContactForm/ContactForm.tsx"
+import axios from 'axios'
+import { useForm } from 'react-hook-form'
+
+import { api } from '@/lib/api'
+
+interface ContactValues {
+  name: string
+  email: string
+  message: string
+}
+
+export function ContactForm() {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<ContactValues>()
+
+  async function onSubmit(values: ContactValues) {
+    try {
+      await api.post('/contact', values)
+      reset() // clear the form on success
+    } catch (err) {
+      const message = axios.isAxiosError(err)
+        ? (err.response?.data?.message ?? 'Could not send. Please try again.')
+        : 'Something went wrong.'
+      setError('root', { message }) // a form-level error, not a field one
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      {/* fields here */}
+
+      {errors.root && <p role="alert">{errors.root.message}</p>}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Sending…' : 'Send'}
+      </button>
+    </form>
+  )
+}
+```
+
+Four details worth naming:
+
+- **`isSubmitting`** is `true` while your `async` handler is running. Disabling the button with it is the fix for the **double-submit bug** — the user clicks, nothing visibly happens for 800ms, they click again, and your server creates two enquiries. RHF gives you this state for free because it awaits your handler.
+- **`reset()`** empties the fields, but only on success. Clearing a form after a failed send, throwing away everything the user typed, is a genuinely cruel bug.
+- **`setError('root', ...)`** is for errors that belong to the *form*, not a field — "the server is down" isn't the email field's fault.
+- **`noValidate`** turns off the browser's own validation bubbles, so your messages are the only ones shown. Without it users can get two different error styles for the same field.
+
+<Together
+  task="Build a ReviewForm: a rating from 1 to 5 (number) and a comment of at least 10 characters. POST it to /products/:id/reviews, disable the button while sending, and put a real error message next to each field. Make sure the rating arrives at the server as a number, not a string."
+  hint="valueAsNumber on the rating. min and max as rules with messages. isSubmitting for the button, and reset() only after a successful post."
+>
+
+```tsx title="src/components/ReviewForm/ReviewForm.tsx"
+import { useForm } from 'react-hook-form'
+
+import { api } from '@/lib/api'
+
+interface ReviewValues {
+  rating: number
+  comment: string
+}
+
+export function ReviewForm({ productId }: { productId: string }) {
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ReviewValues>({ defaultValues: { rating: 5, comment: '' } })
+
+  async function onSubmit(values: ReviewValues) {
+    await api.post(`/products/${productId}/reviews`, values)
+    reset()
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <label htmlFor="rating">Rating</label>
+      <input
+        id="rating"
+        type="number"
+        aria-invalid={errors.rating ? true : false}
+        aria-describedby={errors.rating ? 'rating-error' : undefined}
+        {...register('rating', {
+          required: 'Please choose a rating',
+          valueAsNumber: true,
+          min: { value: 1, message: 'Between 1 and 5' },
+          max: { value: 5, message: 'Between 1 and 5' },
+        })}
+      />
+      {errors.rating && (
+        <p id="rating-error" role="alert">
+          {errors.rating.message}
+        </p>
+      )}
+
+      <label htmlFor="comment">Comment</label>
+      <textarea
+        id="comment"
+        aria-invalid={errors.comment ? true : false}
+        aria-describedby={errors.comment ? 'comment-error' : undefined}
+        {...register('comment', {
+          required: 'Please write a comment',
+          minLength: { value: 10, message: 'At least 10 characters' },
+        })}
+      />
+      {errors.comment && (
+        <p id="comment-error" role="alert">
+          {errors.comment.message}
+        </p>
+      )}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Sending…' : 'Post review'}
+      </button>
+    </form>
+  )
+}
+```
+
+`valueAsNumber: true` is the line that stops the server receiving `"5"` and storing a string where a number belongs. `defaultValues` gives the form a starting state — it also means `reset()` returns to 5 stars rather than blank, which is the nicer behaviour. Both fields carry the full label + `aria-invalid` + `aria-describedby` set, which is verbose enough that in a real project you'd extract a small `<Field>` component wrapping the pattern once.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad={`<input value={name} onChange={...} {...register('name')} />`}
+  good={`<input {...register('name')} />`}
+  note="Adding value/onChange makes it controlled again and fights RHF. Remove them — register brings its own."
+/>
+
+<Diff
+  bad={`<form onSubmit={onSubmit}>`}
+  good={`<form onSubmit={handleSubmit(onSubmit)}>`}
+  note="Without the wrapper nothing is validated, the page reloads on submit, and your handler gets an event instead of values."
+/>
+
+<Diff
+  bad={`register('age', { required: true })`}
+  good={`register('age', { required: 'Please enter your age' })`}
+  note="true validates but has no message, so errors.age.message is empty and the user sees a blank error."
+/>
+
+<Diff
+  bad="reset() called outside the try, so the form clears even when the POST failed"
+  good="reset() only after the await succeeds"
+  note="Wiping what someone typed because the network hiccuped is the worst kind of small bug."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Use react-hook-form for any form with more than two fields or any validation. Always type useForm with an interface, and always wire label + aria-invalid + aria-describedby"
+  alt="A single search box, or a one-field newsletter input, is fine with plain useState — a whole form library for one field is overkill. The line is roughly: two fields and no rules, hand-roll it; three fields or any validation, reach for RHF."
+>
+
+The reason isn't that hand-rolled forms don't work — they do. It's that the four things RHF gives you (no re-render per keystroke, declarative rules, `isSubmitting`, and `formState` you'd otherwise track yourself) are all things you *will* build by hand eventually, worse and inconsistently, across different forms in the same app.
+
+Type the form values as an interface and pass it to `useForm<T>()`, so a typo in a field name is a build error rather than a field that silently never registers. Put `valueAsNumber` on every numeric input. Disable the submit button with `isSubmitting` — that one line prevents duplicate orders in production.
+
+And the accessibility set is not optional: `htmlFor`/`id`, `aria-invalid`, `aria-describedby`, `role="alert"`. Forms are where inaccessible UI does the most damage, because a form the user can't complete is a task they can't do at all.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **The page reloads when you submit** … `onSubmit={onSubmit}` instead of `onSubmit={handleSubmit(onSubmit)}`. The wrapper is what calls `preventDefault()`.
+- **`onSubmit` never runs and nothing appears to happen** … Validation is failing. Render `errors` (`console.log(errors)`) — usually a `required` on a field you forgot to display.
+- **The value is a string when you expected a number** … Missing `valueAsNumber: true`.
+- **Typing feels laggy** … You've added `value`/`onChange` alongside `register`, making it controlled and re-rendering per keystroke. Remove them.
+- **A custom component (a date picker, a select library) doesn't register** … `register` needs a real DOM input. For components that don't forward a `ref`, use RHF's `Controller` instead.
+- **Error messages show as empty** … Rules written as `required: true` rather than `required: 'message'`.
+- **The form starts blank when editing existing data** … Pass `defaultValues`, and if the data arrives later (from a fetch), call `reset(data)` once it lands.
+
+## Summary and practice {#summary}
+
+<Exercise answer="Because register hands the input to the DOM via a ref instead of putting the value in React state. No setState runs while typing, so React never re-renders — the browser holds the value, exactly as it does in a plain HTML form, and RHF only reads it at validation or submit time. Adding value/onChange back makes the input controlled again and reintroduces the per-keystroke re-render.">
+
+With `useState`, every keystroke re-renders the whole form. With `{...register('name')}` it doesn't. What is react-hook-form doing differently — and what would you accidentally undo it with?
+
+</Exercise>
+
+<SummaryBox>
+
+- One `useState` per field costs three lines each, re-renders on every keystroke, and wires nothing for accessibility
+- `register('field')` spreads `name`/`onChange`/`onBlur`/`ref` onto the input — the value lives in the DOM, so typing doesn't re-render
+- `handleSubmit(onValid)` does `preventDefault`, runs the rules, and calls your function **only if valid**, with typed values
+- Rules go in `register`'s second argument; messages land in `formState.errors.field.message`
+- `valueAsNumber: true` on every numeric input — inputs always give strings
+- `disabled={isSubmitting}` prevents the double-submit that creates duplicate records
+- Always: `htmlFor`/`id`, `aria-invalid`, `aria-describedby`, `role="alert"`
+
+</SummaryBox>

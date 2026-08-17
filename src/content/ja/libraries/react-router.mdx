@@ -1,9 +1,9 @@
 ---
-title: react-router を入れる（設定は後で）
+title: react-router-dom を入れる
 minutes: 5
 slug: react-router
 section: libraries
-description: 画面を切り替える「ルーティング」の部品 react-router-dom を入れる。何のためのものかと入れ方まで。実際の設定は Part 10 で扱う。
+description: 画面を切り替える「ルーティング」の部品 react-router-dom を入れる。何のためのものかと入れ方まで。実際の設定は Part 7 で扱う。
 level: beginner
 prerequisites: ['libraries/npm-install-writes']
 ---
@@ -12,7 +12,7 @@ prerequisites: ['libraries/npm-install-writes']
 
 - 「ルーティング（画面の切り替え）」とは何か
 - `react-router-dom` を入れる
-- 使い方（設定）は Part 10 でやる、という見通し
+- 設定そのものはどこで扱うか（Part 7・ルーティング）
 
 </LearnBox>
 
@@ -44,9 +44,9 @@ npm install react-router-dom
 
 </Callout>
 
-## 使い方は Part 10 で {#later}
+## 設定そのものは Part 7 {#later}
 
-ルーティングは「入れれば動く」ものではなく、「どの URL でどの画面を出すか」を**設定するコード**を書いて初めて機能します。その設定は React の構造（コンポーネント）を先に理解してからのほうが分かりやすいので、**このパートでは入れるところまで**にします。あとで Part 10 で詳しくやります。
+ルーティングは「入れれば動く」ものではなく、「どの URL でどの画面を出すか」を**設定するコード**を書いて初めて機能します。その設定は React の構造（コンポーネント）を理解してからのほうが分かりやすいので、**このページは入れるところまで**。書き方は [Part 7・ルーティング](/guide/routing/setup-router)でまるごと扱っています。
 
 ここでは「画面を切り替えたくなったら `react-router` を使う」「パッケージ名は `react-router-dom`」の 2 つを覚えておけば十分です。
 
@@ -57,7 +57,7 @@ npm install react-router-dom
   alt="1 画面で完結する小さなものなら、ルーティングは要りません。画面が増えて URL で出し分けたくなったら入れます。"
 >
 
-ルーティングの定番として `react-router-dom` を使います。入れ方はこのページのとおり 1 コマンド。実際の設定（どの URL で何を出すか）は、コンポーネントを学んだ後の Part 10 でまとめてやります。
+ルーティングの定番として `react-router-dom` を使います。入れ方はこのページのとおり 1 コマンド。実際の設定（どの URL で何を出すか）は、コンポーネントを学んだ後の [Part 7](/guide/routing/goal) でまとめて扱います。
 
 </Std>
 
@@ -67,6 +67,6 @@ npm install react-router-dom
 
 - ルーティング＝URL に応じて表示する画面を切り替える仕組み
 - 部品は `react-router-dom`。`npm install react-router-dom`（dependencies）で入れる
-- 設定（どの URL で何を出すか）は Part 10 で。ここでは入れ方と役割まで
+- 設定（どの URL で何を出すか）は Part 7 で。ここでは入れ方と役割まで
 
 </SummaryBox>

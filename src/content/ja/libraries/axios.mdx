@@ -1,0 +1,399 @@
+---
+title: axios でサーバーとやり取りする
+minutes: 16
+slug: axios
+section: libraries
+description: サーバーと API とは何かをゼロから説明したうえで、axios を入れて最初のリクエストを送り、レスポンスを読み、失敗の 3 パターンを扱い、設定済みインスタンスをアプリ全体で共有するところまで。
+level: beginner
+prerequisites: ['data/custom-hook', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- 「サーバー」「API」とは何なのかを、ゼロから
+- プロジェクトが本格化すると `fetch` がしんどくなる理由
+- `axios` を入れて、最初のリクエストを送る
+- レスポンスの読み方と、失敗の 3 パターン
+- POST でデータを送る
+- 設定済みの `api` インスタンスを 1 つ作って全体で共有する
+
+</LearnBox>
+
+## まず、サーバーとは何か {#server}
+
+これまで作ってきたものが「`dist` フォルダを誰かがアップロードして終わり」だったなら、意識したことがないかもしれません。具体的に見ていきます。
+
+React アプリは**訪問者のブラウザの中**、つまり相手のパソコンやスマホで動いています。だから、あなたが同梱したものしか知りません。今日の注文も、誰がログインしているかも、在庫が残り何個かも知りません。それらは毎分変わるもので、**別の場所**にあるからです。24 時間動き続けて、聞かれたら答える係のコンピュータ。それが**サーバー**です。
+
+<Callout type="analogy">
+
+レストランで考えてみてください。**ブラウザ**はホール。出てきたものを見せる場所で、お客さんに見えるのはここだけです。**サーバー**は厨房。食材（データベース）を持っていて、それに触れるのは厨房だけ。厨房が表に出てくることはありません。
+
+フロント側は厨房に入って勝手に取ってきたりしません。**伝票に書いて渡し**、皿が戻ってくるのを待ちます。この伝票が「リクエスト」、皿が「レスポンス」。このページは、伝票の書き方と皿の読み方の話です。
+
+</Callout>
+
+この「分かれている」ことから 2 つの結果が出てきます。以降の話はだいたいこの 2 つで説明できます。
+
+1. **時間がかかる。** 厨房は一瞬ではありません。ネットワークを通り、サーバーが仕事をし、返事が戻る。50 ミリ秒のこともあれば数秒のこともあります。コードは止まって待つわけにいかないので、ここは `async` / `await` の世界です（[Promise の章](/guide/javascript/promise-async-await)でやったとおり）。
+2. **失敗する。** Wi-Fi が切れる。厨房が火事になる。メニューに無いものを頼む。「自分の環境では動いた」は対策ではありません。リクエストには必ず、失敗したときの段取りが要ります。
+
+## API とは何か、リクエスト 1 回の中身 {#api}
+
+**API** はメニュー表です。「このサーバーが答えると約束している質問の一覧」と「その頼み方」。「商品の API を叩く」と言うとき、意味は「そのサーバーが公開している形でリクエストを送る」です。
+
+リクエスト 1 回は 4 つの部品でできています。名前を知らないだけで、全部すでに使っています。
+
+- **URL** — *どれ*が欲しいか。`https://api.myshop.com/products`
+- **メソッド** — それを*どうしたい*か。`GET` = ちょうだい。`POST` = これを新しく登録して。`PUT` / `PATCH` = これを書き換えて。`DELETE` = 消して。ブラウザのアドレス欄に URL を打つのは、いつでも `GET` です。
+- **ヘッダー** — 余白に書く注記。「JSON を送ります」「これがアクセストークンです」。リクエスト*について*の、小さなラベル付きの事実。
+- **ボディ** — 送るときの荷物そのもの。`GET` にボディはありません（もらう側なので）。`POST` はたいてい JSON を積みます。
+
+返ってくるほうで気にするのは 2 つです。
+
+- **ステータスコード** — どうだったかを表す 3 桁の数字。`200` OK。`201` 作成した。`400` あなたのリクエストが変。`401` ログインしていない。`403` ログイン済みだが権限が無い。`404` そんなものは無い。`500` サーバー側が壊れた。目安は **2xx は成功、4xx はこちらのミス、5xx は向こうのミス**。
+- **ボディ** — 答えの中身。ほぼ必ず [JSON](/guide/javascript/json) です。
+
+<Deeper title="なぜだいたい JSON なのか">
+
+両方が読めて、しかもどちらも JavaScript である必要がないからです。サーバーは Go かもしれないし PHP や Python かもしれない。そちら側でデータを JSON の**文字列**に変え、その文字列を送り、こちらの JavaScript が文字列をオブジェクトや配列に戻す。JSON は間に挟まる、地味で万国共通の形式です。[JSON の章](/guide/javascript/json)があるのは、まさにこのためです。
+
+</Deeper>
+
+## すでにやったこと、そしてどこがつらくなるか {#recap-fetch}
+
+[Part 8](/guide/data/fetch-basics) では、ブラウザに最初から入っている `fetch` を使いました。あれは間違いではありません。もう一度、正直に並べてみます。
+
+```ts
+const res = await fetch('/products.json')
+if (!res.ok) throw new Error()
+const data: Product[] = await res.json()
+```
+
+3 行ですが、それぞれが小さな税金です。
+
+1. **1 回のリクエストに await が 2 回。** 最初の `await` で返るのは `Response`、つまり封筒です。中身を取り出すには `await res.json()` がもう一度要ります。2 回目を忘れるのは `fetch` で最も多いバグです。
+2. **失敗が失敗にならない。** ここが全員おどろくところ。`404` や `500` は**例外になりません**。`fetch` が拒否するのはネットワーク自体が死んだときだけ。`fetch` から見れば、サーバーは答えたのです——「ダメです」と答えただけで。だから `if (!res.ok) throw` を、毎回、手で書く必要があります。書き忘れると、エラーページに対して平然と `res.json()` を呼びにいきます。
+3. **共有できない。** ベース URL も、認証ヘッダーも、タイムアウトも、呼び出すたびに書き直すか、自前のラッパーを書くことになります。
+
+`axios` は、この 3 つの税金をまとめて無くす小さなライブラリです。魔法でも速くもありません。**定型文を書き終えた状態の `fetch`** です。
+
+## axios を入れる {#install}
+
+実行時に必要なので `dependencies`（`-D` なし）で入れます。[npm install が書き換えるもの](/libraries/npm-install-writes)でやった区別のとおりです。
+
+```bash
+npm install axios
+```
+
+`package.json` の `dependencies` に `axios` が増えます。**型は本体に同梱**されているので `@types/axios` は要りません。[型定義が別パッケージ](/libraries/types-packages)で言うところの、良いほうのケースです。
+
+<Callout type="warn">
+
+何かを入れたら、開発サーバーは一度止めて起動し直してください。Vite は起動時に `node_modules` を読みます。動かしたまま追加すると、`Failed to resolve import "axios"` を 10 分ほど眺めるはめになります。
+
+</Callout>
+
+## 最初のリクエスト {#first-request}
+
+すでに `fetch` したのと同じファイルを、axios で書き直します。
+
+```ts
+import axios from 'axios'
+
+const res = await axios.get('/products.json')
+console.log(res.data) // ← 商品の配列。すでにパース済み
+```
+
+`fetch` 版と見比べてください。**`await` は 2 回ではなく 1 回**。`res.data` はもう出来上がった JavaScript の配列で、`res.json()` は要りません（axios が済ませています）。そしてサーバーが `404` を返していたら、この行で**例外が飛ぶ**ので、`console.log` には到達しません。
+
+型を付ければ、その先ずっと補完が効きます。
+
+```ts
+import axios from 'axios'
+
+import type { Product } from '@/types/product'
+
+const res = await axios.get<Product[]>('/products.json')
+const products = res.data // Product[] 型が付く
+```
+
+<JsNote feature="axios.get<Product[]>(...) の山かっこは何か" to="/guide/typescript/basic-types">
+
+`axios.get` は*何でも*返しうる関数です。サーバーが何を送ってくるか axios は知らないからです。`<Product[]>` は「このリクエストの `data` は `Product` の配列だと思ってくれ」と TypeScript に伝える指定です。以後 `res.data[0].name` は補完され、`res.data[0].nmae` は赤線になります。
+
+ただしこれは**約束であって検査ではありません**。実行時に「本当にその形か」を確かめる仕組みはどこにも無いので、API の形が変われば TypeScript は満足したままアプリだけ壊れます。その約束を本当に守らせるのが、2 ページ先の [zod](/libraries/zod) です。
+
+</JsNote>
+
+ほとんどの場合ほしいのは `res.data` だけなので、その場で分割代入してしまいます。
+
+```ts
+const { data: products } = await axios.get<Product[]>('/products.json')
+```
+
+これは[名前を変えながらの分割代入](/guide/javascript/destructuring)です。レスポンスから `data` を取り出して、手元では `products` と呼ぶ、という書き方。
+
+## レスポンスに実際に入っているもの {#response}
+
+`res` はオブジェクトで、`data` 以外もデバッグでは効きます。一度まるごとログに出しておくと、正体不明でなくなります。
+
+```ts
+const res = await axios.get<Product[]>('/products.json')
+
+res.data    // パース済みのボディ。目的のもの
+res.status  // 200
+res.headers // サーバーが付けたラベル
+res.config  // axios が実際に送ったリクエスト（「なぜその URL を叩いた？」に効く）
+```
+
+挙動が怪しいとき、`res.config.url` と `res.status` を見るだけで、Network タブを開く前にだいたい片付きます。
+
+## 失敗するとき：3 つのパターン {#errors}
+
+飛ばされがちで、あとで後悔するところです。リクエストの失敗には本質的に違う 3 種類があり、直し方もそれぞれ違います。
+
+1. **サーバーは答えた。ただしステータスが悪い。** `404`、`401`、`500`。レスポンスは*存在します*——中身が良くないだけ。`{"message": "Product not found"}` のように、役立つボディが付いていることも多いです。
+2. **そもそも返事が無い。** Wi-Fi が切れた、サーバーが落ちている、タイムアウト、CORS で止められた。伝票は出したのに何も戻ってこない。
+3. **送る前にこちらが壊した。** 設定のタイプミス、URL が不正。そもそも送られていない。
+
+axios は 3 つとも例外にするので、`try` / `catch` 1 つで全部拾えます。そのうえで、`catch` の中で区別できます。
+
+```ts
+import axios from 'axios'
+
+try {
+  const { data } = await axios.get<Product[]>('/products.json')
+  return data
+} catch (err) {
+  if (axios.isAxiosError(err)) {
+    if (err.response) {
+      // ① サーバーは答えたが 4xx / 5xx
+      console.error('サーバーが拒否:', err.response.status, err.response.data)
+    } else if (err.request) {
+      // ② 返事が無い（オフライン・タイムアウト・サーバー停止）
+      console.error('サーバーから返事がありません')
+    } else {
+      // ③ 送る前に壊れている
+      console.error('リクエストの組み立てが不正:', err.message)
+    }
+  }
+  throw err // 画面をどうするかは呼び出し側に決めさせる
+}
+```
+
+<Callout type="mistake">
+
+TypeScript では `catch (err)` の `err` は `unknown` であって、エラーオブジェクトではありません。JavaScript は文字列でも何でも `throw` できてしまうからです。だから絞り込む前は `err.response` はコンパイルすら通りません。`axios.isAxiosError(err)` がその絞り込みで、「これは axios のエラーだ」と判定してくれると、TypeScript が中身へのアクセスを許します。ここで `err as any` に逃げてはいけません。落ちないようにするための検査を、自分で捨てることになります。
+
+</Callout>
+
+`err.response` と `err.request` の切り分けは覚える価値があります。ユーザーに出す文言が「その商品は存在しません」なのか「通信環境を確認して、もう一度お試しください」なのか、という違いそのものだからです。
+
+## データを送る：POST {#post}
+
+ここまでは全部 `GET`、つまり「もらう」側でした。送るときは `post` で、形は `axios.post(url, ボディ)` です。
+
+```ts
+const newProduct = {
+  name: 'セラミックマグ',
+  price: 1800,
+  category: 'kitchen',
+}
+
+const { data } = await axios.post<Product>('/api/products', newProduct)
+console.log(data.id) // id はサーバーが採番し、保存済みのものが返ってくる
+```
+
+ここで axios が黙ってやったことが 2 つあります。オブジェクトを **JSON 文字列に変換**し、サーバーが読み方を判断できるよう **`Content-Type: application/json` ヘッダーを付けた**ことです。素の `fetch` なら `JSON.stringify(body)` とヘッダー指定を毎回自分で書くことになり、ヘッダーの付け忘れは「なぜサーバー側でボディが空なのか」で午後がつぶれる定番です。
+
+型が 2 種類出てくるのにも注目してください。`<Product>` は*返ってくる*もの、`newProduct` は*送る*もの。この 2 つは形が違うのがふつうです。まだ存在しないものに `id` は付けられません。
+
+## インスタンスを 1 つ作って共有する {#instance}
+
+今のままだと、呼び出すたびに URL 全体を書く必要があります。実際のプロジェクトでは、ベース URL は開発と本番で違いますし、リクエストには共通のヘッダーが要ることも多い。毎回書き写していると、アプリはすぐバラバラになります。
+
+`axios.create()` は、**設定済みの axios のコピー**を作ります。1 か所で設定して、あちこちから import します。
+
+```ts title="src/lib/api.ts"
+import axios from 'axios'
+
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL, // 例: https://api.myshop.com
+  timeout: 10000, // 永遠に待たず 10 秒であきらめる
+  headers: { 'Content-Type': 'application/json' },
+})
+```
+
+`import.meta.env.VITE_API_URL` は `.env` から来ます（[環境変数のページ](/libraries/env)）。同じコードのまま、開発中はローカルのサーバー、デプロイ後は本番を向かせる仕組みです。コードは書き換えません。
+
+呼び出し側は、違う部分だけを書けば済みます。
+
+```ts
+import { api } from '@/lib/api'
+
+const { data } = await api.get<Product[]>('/products') // → https://api.myshop.com/products
+```
+
+<Callout type="note">
+
+地味に効くのが `timeout` です。これが無いと、接続は受け付けたのに返事をよこさないサーバーに当たったとき、スピナーが**永遠に**回り続けます。エラーも出ず、タイムアウトもせず、ただ「読み込み中」のまま。10 秒くらいが無難な既定値です。
+
+</Callout>
+
+<Deeper title="インターセプター — 存在だけ知っておく価値のある機能">
+
+インスタンスには、「全リクエスト」「全レスポンス」に対して自動で走る関数を仕込めます。
+
+```ts
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+```
+
+これで `api` を通る全リクエストがログイントークンを持つようになり、呼び出し側は何も覚えなくてよくなります。レスポンス側は「`401` を一括で捕まえてログイン画面へ飛ばす」によく使われます。今日必要になるものではありませんが、この仕組みがあることを知っていれば、あとで 40 か所に認証ヘッダーを手書きせずに済みます。
+
+</Deeper>
+
+## useProducts に組み込む {#hook}
+
+コンポーネント側は何も変わりません。Part 8 の [`useProducts` フック](/guide/data/custom-hook)を axios にしたものです。元と比べてみてください。
+
+```ts title="src/hooks/useProducts.ts（ファイル全体）"
+import axios from 'axios'
+import { useEffect, useState } from 'react'
+
+import { api } from '@/lib/api'
+import type { Product } from '@/types/product'
+
+type Status = 'loading' | 'error' | 'success'
+
+export function useProducts() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [status, setStatus] = useState<Status>('loading')
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function load() {
+      try {
+        const { data } = await api.get<Product[]>('/products', {
+          signal: controller.signal,
+        })
+        setProducts(data)
+        setStatus('success')
+      } catch (err) {
+        if (axios.isCancel(err)) return // こちらが意図的に中断した。エラーではない
+        setStatus('error')
+      }
+    }
+
+    load()
+    return () => controller.abort()
+  }, [])
+
+  return { products, status }
+}
+```
+
+変わった点は 2 つです。
+
+- `if (!res.ok) throw` の行が**消えました**。ステータスが悪ければ axios が例外にしてくれるからです。忘れる余地が 1 つ減ります。
+- Part 8 の `ignore` フラグが `AbortController` になりました。役割は同じ（「コンポーネントが消えたので、この返事はもう気にしない」）ですが、こちらのほうが良い。`ignore` はリクエストを最後まで走らせて結果を捨てるだけでしたが、`abort()` は本当に中断します。`axios.isCancel(err)` の判定が要るのは、中断も `catch` に落ちてくるからで、中断のときに画面へエラーを出しては**いけない**からです。
+
+<Together
+  task="共有の api インスタンスを使って /products/:id から商品 1 件を取る getProduct(id) を書いてください。Product を返し、サーバーが 404 を返したときは例外にせず null を返します。"
+  hint="まず axios.isAxiosError(err)、次に err.response?.status === 404。それ以外はそのまま throw します。500 は「そんな商品は無い」ではありません。"
+>
+
+```ts title="src/lib/products.ts"
+import axios from 'axios'
+
+import { api } from '@/lib/api'
+import type { Product } from '@/types/product'
+
+export async function getProduct(id: string): Promise<Product | null> {
+  try {
+    const { data } = await api.get<Product>(`/products/${id}`)
+    return data
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      return null // 本当に無い。呼び出し側は「見つかりません」を出せばよい
+    }
+    throw err // それ以外は本物の異常。にぎりつぶさない
+  }
+}
+```
+
+`404` だけが「質問は正しいが、答えは “無い”」を意味するステータスなので、`null` に変換しておくと呼び出し側の分岐が簡単になります。`500`・タイムアウト・接続不可はすべて再 throw します。これらは「空」ではなく「壊れている」であり、画面の出し分けも変えるべきだからです。`err.response?.status` が[オプショナルチェーン](/guide/javascript/optional-chaining)なのは、「返事が無い」ケースでは `err.response` ごと存在しないためです。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="const data = await axios.get(url) と書いて、data.map is not a function に悩む"
+  good="const { data } = await axios.get(url)"
+  note="axios.get が返すのはレスポンスの封筒全体。中身は .data。分割代入するか res.data を読む。"
+/>
+
+<Diff
+  bad="const data = await axios.get(url).json()"
+  good="const { data } = await axios.get(url)"
+  note="fetch の癖。axios がすでにパース済みなので .json() は存在しない。"
+/>
+
+<Diff
+  bad="catch (err) { setError(err.response.data.message) }"
+  good="catch (err) { if (axios.isAxiosError(err) && err.response) setError(err.response.data.message) }"
+  note="オフライン時は err.response が無い。チェック無しだと、ネットが不調なときに限って落ちる。"
+/>
+
+<Diff
+  bad="axios.get('https://api.myshop.com/products') を 40 か所に書く"
+  good="src/lib/api.ts で baseURL を 1 回設定し、api.get('/products')"
+  note="URL が変わったときに直すのは 1 か所。認証ヘッダーもタイムアウトも一緒に付いてくる。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="axios は src/lib/api.ts の共有インスタンス経由で使い、baseURL と timeout を設定する。単発なら素の fetch でよい"
+  alt="固定の公開 URL に 1 回だけ投げる、認証も共通設定も無い——なら fetch で十分で、依存も 1 つ減ります。呼び出しが 2 か所になった時点、あるいはトークンや環境ごとのベース URL が出てきた時点で axios インスタンスに切り替えます。"
+>
+
+理由は axios が速いからではありません（速くはない）。`fetch` で人が忘れる 3 つ——2 回目の `await`、`res.ok` の確認、タイムアウト——が、そのまま axios が肩代わりする 3 つだからです。インスタンスを 1 回作り、どこからも `api` を import し、`baseURL` は `.env` から取る。そうすれば本番投入は設定変更であって、コード変更ではなくなります。
+
+呼び出しには必ず型を付けて（`api.get<Product[]>`）レスポンスを `any` にしないこと。そしてその型は「あとで [zod](/libraries/zod) に守らせたい約束」だと思っておいてください。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Failed to resolve import "axios"`** … 開発サーバーを再起動します。axios が存在する前に Vite が `node_modules` を読み終えています。
+- **`data.map is not a function`** … ボディではなくレスポンス全体を掴んでいます。`const { data } = ...` にします。
+- **コンソールに CORS エラー** … `Access-Control-Allow-Origin` がありません。これは**サーバー側**の設定で、フロントのコードでは直せません（ブラウザが意図的に止めています）。API の管理者に自分のオリジンを許可してもらいます。開発中は [Vite のプロキシ](https://vite.dev/config/server-options)が定番の回避策です。
+- **`401 Unauthorized`** … トークンが無いか期限切れ。ヘッダーが実際に出ているかを確認します（catch の中で `err.config.headers`、または Network タブ）。
+- **スピナーが止まらない** … インスタンスに `timeout` が無いか、`catch` でエラー状態にしていないか。だいたい両方です。
+- **アドレス欄では見えるのにアプリからは失敗する** … アドレス欄は Cookie 付きの `GET` を送っています。アプリ側は別のヘッダーを送っているか、何も送っていない可能性があります。Network タブで見比べます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="fetch が拒否するのはネットワーク自体が死んだときだけで、404 や 500 は「悪いステータスを運んできた成功した往復」だからです。だから res.ok を自分で確認して throw する必要があります。axios はこれを逆にしていて、2xx 以外は自動で例外になるため、素の try/catch で「悪いステータス」も「死んだ回線」も同時に拾えます。">
+
+`fetch` では `if (!res.ok) throw new Error()` を自分で書く必要があるのに、axios では要りません。`fetch` は何を違うことをしているのでしょう。そして、この行を忘れるとなぜバグになるのでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- **サーバー**はアプリが持てないデータを持つ。**リクエスト**（URL・メソッド・ヘッダー・ボディ）を送ると、**ステータスコード**と JSON の**ボディ**が返る
+- **2xx は成功、4xx はこちらのミス、5xx は向こうのミス**
+- `axios.get()` はパース済みのボディを `res.data` にくれる。`await` は 1 回、`res.json()` は不要
+- `fetch` と違い axios は **4xx / 5xx で例外を投げる**ので `try` / `catch` だけで足りる
+- `catch` の中では `err.response` = サーバーが拒否、`err.request` = 返事が無い、どちらも無い = 送る前に壊れている
+- `src/lib/api.ts` にインスタンスを 1 つ作り、`baseURL` と `timeout` を設定して、どこからも `api` を import する
+
+</SummaryBox>

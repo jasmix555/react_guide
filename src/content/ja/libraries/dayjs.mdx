@@ -1,0 +1,330 @@
+---
+title: dayjs で日付を扱う
+minutes: 14
+slug: dayjs
+section: libraries
+description: JavaScript の日付が実際に持っているもの、API の日付の末尾に Z が付く理由、そして dayjs での整形・パース・比較・相対時間まで。組み込みの toLocaleDateString で足りる場面も含めて。
+level: beginner
+prerequisites: ['data/custom-hook', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- JavaScript の `Date` が本当に持っているものと、それが「見えている日付」ではない理由
+- API の日付が `2026-08-17T09:30:00Z` の形をしている理由と、`Z` の意味
+- `dayjs` を入れて、整形・パース・比較・計算をする
+- `relativeTime` プラグインで「3時間前」を日本語で出す
+- そもそも dayjs が要らない場面
+
+</LearnBox>
+
+## 日付は、できる人でも足をすくわれる {#why}
+
+[サーバーから JSON を受け取る](/libraries/axios)ところまで来ました。その JSON には日付の項目が入っていて、しかも日付に見えません。
+
+```json
+{
+  "id": "p_012",
+  "name": "セラミックマグ",
+  "createdAt": "2026-08-17T09:30:00Z"
+}
+```
+
+画面に出したいのは `2026/08/17 18:30` や `3時間前` です。この 1 つ目から 2 つ目へ行くのが、JavaScript では本当に面倒なところ。何かを入れる前に理由を理解しておく価値があります。理解しないまま入れると、ライブラリが魔法になり、魔法は分かりにくく壊れます。
+
+## JavaScript の Date は何を持っているのか {#what-is-a-date}
+
+`Date` オブジェクトは「8月17日」を持っていません。持っているのは**数字 1 つ**です。1970 年 1 月 1 日 0 時（UTC）からの経過ミリ秒。この数字を*タイムスタンプ*、1970 年のことを*エポック*と呼びます。
+
+```ts
+const d = new Date('2026-08-17T09:30:00Z')
+console.log(d.getTime()) // 1786613400000 — 持っている情報はこれだけ
+```
+
+たった 1 つの数字で、地球上の誰にとっても同じ値です。あなたが*見ている*日付や時刻は、その数字を**どこかのタイムゾーンで**描画した結果にすぎません。そしてそのタイムゾーンは、データではなく閲覧者のパソコンが決めています。
+
+<Callout type="analogy">
+
+タイムスタンプは「ある瞬間の空の写真」です。地球上の全員が同じ瞬間を見たのに、ある人は「18時半だった」と言い、別の人は「9時半だった」と言う。瞬間について意見が割れているのではなく、同じ瞬間を違う時計で読んでいるだけです。
+
+だからサーバーは「瞬間」を送り、ブラウザが「時計」を決めます。利用者が複数の場所にいるサイトで成立する唯一のやり方です。
+
+</Callout>
+
+`"2026-08-17T09:30:00Z"` は、日付・`T`・時刻・そして **`Z` = Zulu = UTC**（世界が合意している基準の時計）と読みます。この形式には **ISO 8601** という名前があり、行儀の良い API がこれを送るのは、まさに曖昧さが無いからです。`"17/08/2026"` を送ってくるサーバーは問題を作っています。世界の半分はこれを「17 月 8 日」と読むからです。
+
+<Deeper title="最初から '2026/08/17 18:30' を送ればいいのでは？">
+
+サーバーは読む人がどこにいるか知らないからです。整形済みのローカル時刻を送った時点で、1 つのタイムゾーンがデータに焼き付きます。ロサンゼルスの客は、東京時間の締切を、それと知らずに見ることになります。瞬間を送れば、どのブラウザも自分の時計で描画してくれます。
+
+書き留めておく価値のある原則です。**保存と送信は UTC。整形は最後の最後、閲覧者のタイムゾーンで。** これから追いかける日付のバグは、ほぼこの一文への違反です。
+
+</Deeper>
+
+## 組み込みだけでは足りない理由 {#native-pain}
+
+JavaScript の `Date` も整形はできます。ただし不格好です。
+
+```ts
+const d = new Date('2026-08-17T09:30:00Z')
+
+d.toString()       // 'Mon Aug 17 2026 18:30:00 GMT+0900 (Japan Standard Time)' — そのままは使えない
+d.toISOString()    // '2026-08-17T09:30:00.000Z' — 機械向けの形式で、UTC に戻る
+d.getMonth()       // 7  ← 8 ではない。月は 0 始まり。これで実際に障害が起きています
+```
+
+`2026/08/17` を手で組み立てると、毎回こうなります。
+
+```ts
+const yyyy = d.getFullYear()
+const mm = String(d.getMonth() + 1).padStart(2, '0') // 0 始まりぶんの +1
+const dd = String(d.getDate()).padStart(2, '0')
+const formatted = `${yyyy}/${mm}/${dd}`
+```
+
+5 行、1 つのオフバイワンの罠、そして「3時間前」も「こっちが先か」も「7 日後」も何も解決していません。
+
+<Callout type="warn">
+
+`Date` は**ミュータブル**でもあり、React ではこれが痛い。`d.setDate(d.getDate() + 7)` は `d` を*その場で*書き換えます。state に入れたのと同じオブジェクトを、です。React は参照で比較するので「同じオブジェクトだ」と判断して再描画をスキップします。データは変わったのに画面は変わらない。[参照とコピー](/guide/javascript/reference-vs-copy)の、刃の立っている側です。
+
+</Callout>
+
+## dayjs を入れる {#install}
+
+```bash
+npm install dayjs
+```
+
+`dependencies`、型は同梱。約 2KB で、これは意図的です。省略可能な機能はすべてプラグインとして切り出され、必要なものだけを有効にする作りになっています。
+
+## 整形する {#format}
+
+`dayjs(...)` で包み、`.format(...)` で描画します。
+
+```ts
+import dayjs from 'dayjs'
+
+const created = dayjs('2026-08-17T09:30:00Z')
+
+created.format('YYYY/MM/DD')        // '2026/08/17'
+created.format('YYYY年M月D日')       // '2026年8月17日'
+created.format('YYYY/MM/DD HH:mm')  // '2026/08/17 18:30'  ← あなたのタイムゾーンで描画される
+```
+
+トークンはそのまま読めます。`YYYY` は 4 桁の年、`MM` は 0 埋めの月、`M` は 0 埋めなし、`DD` / `D` は日、`HH` は 24 時間表記、`mm` は分、`ddd` は曜日の短縮形。
+
+最後の行に注目してください。入力は `09:30`（UTC）なのに出力は `18:30`。dayjs がブラウザのタイムゾーン（JST、UTC+9）で整形したからです。バグではなく、前の節の話そのものです。
+
+引数なしの `dayjs()` は「今」です。
+
+```ts
+dayjs().format('YYYY/MM/DD') // 今日
+```
+
+## パース：文字列から日付へ {#parse}
+
+`dayjs()` は ISO 文字列も `Date` もタイムスタンプも受け取ります。
+
+```ts
+dayjs('2026-08-17T09:30:00Z') // API から来る ISO ✓
+dayjs('2026-08-17')           // 日付だけの ISO ✓
+dayjs(new Date())             // Date オブジェクト ✓
+dayjs(1786613400000)          // 生のタイムスタンプ ✓
+```
+
+ISO でない形式——古い API や CSV の取り込みでは実際にあります——は、プラグインを使って「どういう形か」を教える必要があります。
+
+```ts
+import dayjs from 'dayjs'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
+
+dayjs.extend(customParseFormat)
+
+dayjs('17/08/2026', 'DD/MM/YYYY').format('YYYY/MM/DD') // '2026/08/17'
+```
+
+結果を信じる前に、パースが成功したかを必ず確認します。
+
+```ts
+const d = dayjs(input)
+if (!d.isValid()) {
+  // 'Invalid Date' をユーザーに見せない
+}
+```
+
+<Callout type="mistake">
+
+`dayjs('not a date')` は例外を**投げません**。静かに `'Invalid Date'` と整形されるオブジェクトを返し、それがコンポーネントを素通りして画面に届きます。コードの外から来た日付（API、フォームの入力欄、URL のパラメータ）には `isValid()` の確認を付けてください。日付版の「`res.ok` を確認しない」です。
+
+</Callout>
+
+## 比較と計算 {#compare}
+
+dayjs が整形係をやめて、本当に時間を節約し始めるのがここです。
+
+```ts
+const created = dayjs('2026-08-17T09:30:00Z')
+
+created.add(7, 'day')          // 1 週間後
+created.subtract(1, 'month')   // 1 か月前
+created.startOf('day')         // その日の 00:00 — 「同じ日か？」の判定に最適
+created.endOf('month')
+
+created.isBefore(dayjs())      // もう過ぎた？
+created.isAfter('2026-01-01')  // true
+created.diff(dayjs(), 'day')   // 日数の差（マイナスなら過去）
+```
+
+**どれも新しいオブジェクトを返します。** `created` は決して書き換わりません。素の `Date` とは逆です。このイミュータブルさは React が求めているものそのもの。新しいオブジェクト＝新しい参照なので、state の更新がちゃんと再描画になります。
+
+```ts
+const deadline = created.add(7, 'day')
+// `created` は元のまま。あとで驚かされることがない
+```
+
+## 「3時間前」 {#relative}
+
+相対時間はプラグインで、dayjs を入れる動機として一番多い機能です。
+
+```ts title="src/lib/date.ts"
+import dayjs from 'dayjs'
+import 'dayjs/locale/ja'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
+dayjs.locale('ja') // ← アプリ全体。1 回だけ
+
+export function fromNow(iso: string) {
+  return dayjs(iso).fromNow()
+}
+```
+
+```ts
+fromNow('2026-08-17T06:30:00Z') // '3時間前'
+```
+
+プラグインとロケールの設定は、アプリ起動時に走るモジュールで**1 回だけ**。dayjs にとってこれらはグローバルな設定なので、`dayjs.extend()` をコンポーネントに散らすのは無駄なうえ、「あのページでは効くのにこのページでは効かない」の温床になります。
+
+<Deeper title="ロケールファイルと、ツリーシェイキングの落とし穴">
+
+`import 'dayjs/locale/ja'` は**副作用 import** です。波かっこも代入もありません。日本語を dayjs に登録するファイルを、ただ実行しています。だから他の import と見た目が違いますし、「使っていない import を消す」系の整理で消されて整形が壊れることがあります。
+
+もう 1 つ。使うロケールだけを import してください。`import 'dayjs/locale'`（索引）を書くと、地球上の全言語が入ってきます。
+
+</Deeper>
+
+## コンポーネントで使う {#component}
+
+```tsx title="src/components/ProductMeta/ProductMeta.tsx"
+import dayjs from 'dayjs'
+
+import type { Product } from '@/types/product'
+
+export function ProductMeta({ product }: { product: Product }) {
+  const created = dayjs(product.createdAt)
+
+  return (
+    <p className={styles.meta}>
+      <time dateTime={created.toISOString()}>{created.format('YYYY/MM/DD')}</time>
+      {created.isAfter(dayjs().subtract(7, 'day')) && <span className={styles.new}>NEW</span>}
+    </p>
+  )
+}
+```
+
+`<time dateTime={...}>` の組み合わせは、癖として真似する価値があります。見える文字は人間向けのローカル表記、`dateTime` 属性は機械可読の ISO 文字列。検索エンジンと支援技術は属性を読み、人は文字を読む。props 1 つで両方が手に入ります。
+
+<Together
+  task="formatPostedAt(iso) を書いてください。直近 24 時間以内なら '3時間前'、それより古ければ '2026/08/17' の日付を返します。壊れた文字列が来ても安全に扱ってください。"
+  hint="まず isValid()。次に dayjs().subtract(24, 'hour') と isAfter で比べ、fromNow() と format() に分岐します。"
+>
+
+```ts title="src/lib/date.ts"
+import dayjs from 'dayjs'
+import 'dayjs/locale/ja'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
+dayjs.locale('ja')
+
+export function formatPostedAt(iso: string): string {
+  const d = dayjs(iso)
+  if (!d.isValid()) return '' // 'Invalid Date' は絶対にユーザーへ出さない
+
+  const isRecent = d.isAfter(dayjs().subtract(24, 'hour'))
+  return isRecent ? d.fromNow() : d.format('YYYY/MM/DD')
+}
+```
+
+`isValid()` の確認を先頭に置くのは、それ以降が「本物の日付である」前提で書かれているからです。`''` を返しておけば、「何も出さない」か「ダッシュを出す」かをコンポーネント側で決められます。`'Invalid Date'` を画面へ押し出すよりずっといい。`dayjs().subtract(24, 'hour')` は「境界」を値として作る書き方で、`diff()` の比較より読みやすく、符号の向きを覚えておく必要もありません。どちらの分岐も純粋な整形なので、この関数はテストも簡単です。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="fromNow() を呼ぶコンポーネントの中で dayjs.extend(relativeTime) している"
+  good="src/lib/date.ts で dayjs.extend(relativeTime) を 1 回だけ"
+  note="プラグインの登録はグローバル。コンポーネントごとにやると毎描画で走るうえ、他のファイルでは静かに機能が無い状態になる。"
+/>
+
+<Diff
+  bad="d.getMonth() + 1 の計算がコンポーネントのあちこちに散らばる"
+  good="dayjs(d).format('YYYY/MM/DD')"
+  note="0 始まりの月は実際のバグ源で、0 埋めも手作業。整形は 1 か所に寄せる。"
+/>
+
+<Diff
+  bad="API 由来のデータを isValid() で確認せず dayjs(product.createdAt).format(...) する"
+  good="const d = dayjs(iso); if (!d.isValid()) return null"
+  note="不正な日付は例外にならない。'Invalid Date' という文字列として整形され、テストでは正常に見えたまま本番に出る。"
+/>
+
+<Diff
+  bad="ユーザーが入力したローカル時刻を '2026-08-17 18:30' としてサーバーへ送る"
+  good="d.toISOString() を送る — '2026-08-17T09:30:00.000Z'"
+  note="タイムゾーンの目印が無いとサーバーは推測するしかなく、自分のタイムゾーンだと推測する。送信は UTC、整形はローカル。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="dayjs を src/lib/date.ts で 1 回設定して、パース・比較・相対時間に使う。保存と送信は ISO / UTC、整形は描画時だけ"
+  alt="アプリ全体で日付を 1 か所整形するだけ、計算も無い——なら組み込みの Intl で依存ゼロで済みます。new Date(iso).toLocaleDateString('ja-JP') で '2026/8/17' が出ます。パース・比較・計算・「〜前」が要るなら dayjs。だいたい 2 画面目には要るようになります。"
+>
+
+ここははしごを正直に上りましょう。整形だけならプラットフォーム側で解決済みです。`toLocaleDateString` と `Intl.DateTimeFormat` は組み込みで、利用者のロケールを尊重し、コストはゼロ。dayjs が 2KB ぶんの価値を出すのは*それ以外*の仕事です。ISO でない入力のパース、比較と加算、相対時間、そしてイミュータブルであること（React が正しく再描画するため）。
+
+`extend` と `locale` は 1 つのモジュールにまとめ、そこを全員が import する形にします。設定がファイル間でずれなくなります。日付は表示の瞬間まで ISO 文字列のまま持ちます。整形済みの文字列を state に入れた瞬間、並べ替えも比較も再整形もできなくなります。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **画面に `Invalid Date`** … dayjs が認識できない形式です。生の文字列をログに出し、ISO でなければ `customParseFormat` を足します。
+- **`d.fromNow is not a function`** … `relativeTime` プラグインを `extend` していないか、`extend` しているモジュールがその経路で読み込まれていません。
+- **ちょうど UTC の時差ぶんズレる** … UTC の瞬間をローカルで整形している（正しい動作）のに UTC を期待しているか、サーバーが `Z` の無い文字列を送っていてブラウザがローカルと解釈しています。生の文字列の末尾に `Z` があるか確認します。
+- **相対時間が英語のまま** … `dayjs.locale('ja')` が走っていないか、`import 'dayjs/locale/ja'` が「未使用の import」として消されています。
+- **state を変えたのに表示が更新されない** … dayjs のイミュータブルなメソッドではなく、素の `Date` を書き換えています。`.add()` は新しいオブジェクトを返すので、その戻り値を使います。
+- **自分の環境と同僚の環境で結果が違う** … システムのタイムゾーンが違うだけで、dayjs は正しく動いています。閲覧者によらず 1 つのタイムゾーンで見せる必要があるなら、`utc` と `timezone` プラグインを足します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="どちらも間違っていません。同じ瞬間を 2 つの時計で読んだだけです。保存されているのは 1970 年 UTC からのミリ秒という数字 1 つで、09:30Z と 18:30 JST はその同じ瞬間を UTC の時計と東京の時計で読んだ表示です。全員に同じタイムゾーンで見せる必要があるなら、それは整形の判断（utc / timezone プラグイン）であって、保存するものを変える理由にはなりません。">
+
+API が `"2026-08-17T09:30:00Z"` を返しています。東京の同僚が画面の `18:30` を見て「データが間違っている」と言いました。実際には何が起きていて、あなたは何を変えるでしょう（変えないかもしれません）。
+
+</Exercise>
+
+<SummaryBox>
+
+- `Date` が持つのは**数字 1 つ**（1970 年 UTC からのミリ秒）。見えているのは、それを*誰かの*タイムゾーンで描画したもの
+- ISO 文字列末尾の `Z` は UTC。**保存と送信は UTC、整形は描画時**
+- `dayjs(iso).format('YYYY/MM/DD')` が、手作業の `getMonth() + 1` と `padStart` を置き換える
+- dayjs は**イミュータブル**。`.add()` は新しいオブジェクトを返すので、React の再描画が効く
+- `relativeTime` で `.fromNow()`。プラグインの `extend` とロケール設定はアプリ全体で**1 回**
+- 外から来た日付には必ず `isValid()`。不正な日付は例外にならず、文字列として描画される
+- 日付 1 つの整形にライブラリは不要。`toLocaleDateString` が組み込みで使える
+
+</SummaryBox>

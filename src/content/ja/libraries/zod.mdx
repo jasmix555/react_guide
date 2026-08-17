@@ -1,0 +1,393 @@
+---
+title: zod でデータの形を検証する
+minutes: 16
+slug: zod
+section: libraries
+description: TypeScript の型は実行時に消えるので、サーバーから来たデータは実際には検査されていない。zod は本物の値を検証し、同じ定義から型も導く。API レスポンスにも、react-hook-form のリゾルバ経由でフォームにも。
+level: beginner
+prerequisites: ['libraries/axios', 'libraries/react-hook-form']
+---
+
+<LearnBox>
+
+- `axios.get<Product[]>()` が何も検査していない理由と、その代償
+- `zod` を入れて、最初のスキーマを書く
+- `parse` と `safeParse` — 例外にするか、分岐できる結果を返すか
+- `z.infer` でスキーマ*から*型を取り出し、真実を 1 か所にする
+- `register` のルールの代わりに `zodResolver` でフォームを検証する
+
+</LearnBox>
+
+## ずっと付き合ってきた嘘 {#why}
+
+[axios のページ](/libraries/axios)でこう書き、「これは検査ではなく約束だ」と言いました。
+
+```ts
+const { data } = await api.get<Product[]>('/products')
+```
+
+その意味を正確に言います。**TypeScript の型は、コードが動くときには存在しません。** ビルド時に消されます。`interface` も `type` も `<Product[]>` も、1 行たりともブラウザに届く前に削除されます。実際に配信されるのは、`Product` が何なのか知る由もない素の JavaScript です。
+
+つまり `api.get<Product[]>` は、「返ってくるのは Product の配列だ」とコンパイラに*言い張っている*だけ。それを確かめる仕組みはどこにもありません。API が別のものを送ってきても TypeScript は平然としています。ビルド時に仕事を終えて、もう帰っているからです。
+
+<Callout type="analogy">
+
+TypeScript の型は、箱を送る前に外側に書くラベルです。倉庫の全員に「中身は何のはず」を伝え、全員がそのラベル前提で段取りを組みます。
+
+でも、誰も箱を開けません。工場が中身を間違えていても、ラベルは「マグカップ」のまま。間違いが表に出るのは 3 工程先、誰かが手を入れてレンガを掴んだときです。
+
+zod は、その箱を開けることです。
+
+</Callout>
+
+## 実際に壊れるときの見え方 {#what-breaks}
+
+バックエンドの担当者が `imageUrl` を `image_url` に改名したとします。ビルドは何も失敗しません（変更は向こう側なので）。そして。
+
+```tsx
+<img src={product.imageUrl} alt={product.name} />
+// imageUrl は undefined → <img src="undefined"> → 画像が壊れたアイコン。エラーは出ない
+```
+
+あるいは価格が数値 `1800` ではなく文字列 `"1800"` で届いたら。
+
+```tsx
+<p>{(product.price * 1.1).toFixed(0)}</p>
+// "1800" * 1.1 は 1980.0000000000002。JavaScript が勝手に変換して先へ進む
+```
+
+タグが無い商品で `null` が返ってきたら。
+
+```tsx
+{product.tags.map(...)}  // TypeError: Cannot read properties of null (reading 'map')
+```
+
+共通点に注目してください。失敗は**原因から遠く離れた場所**で起きます。コンポーネントの中、描画のとき、利用者の目の前で。データは届いた瞬間に間違っていたのに、その瞬間には誰も見ていなかった。「変なデータが届いた」から「何かが落ちた」までの時間は、まるごと不要だったデバッグ時間です。
+
+zod の提案は、**入口で確認する**こと。データがアプリに入る瞬間に検証すれば、そこから先の型は本当になります。
+
+## zod を入れる {#install}
+
+```bash
+npm install zod
+```
+
+`dependencies`、型は同梱です（zod は型そのものなので当然ですが）。
+
+## 最初のスキーマ {#schema}
+
+**スキーマ**は、形の実行時の記述です。`interface` によく似ていますが、コードが動くときに存在する本物の値です。
+
+```ts title="src/types/product.ts"
+import { z } from 'zod'
+
+export const productSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  price: z.number(),
+  category: z.enum(['kitchen', 'living', 'outdoor']),
+  imageUrl: z.url(),
+  tags: z.array(z.string()),
+  inStock: z.boolean(),
+})
+```
+
+Part 6 の [`Product` インターフェース](/guide/typescript/product-type)と見比べてください。ほぼ 1 行ずつ対応しています。違うところが肝心で、`z.url()` は「文字列」ではなく「実際に URL である文字列」と言っています。`z.enum([...])` はリテラルユニオンの実行時版で、`'kitchin'` を「補完されない」ではなく*拒否*します。
+
+<Callout type="note">
+
+zod 4 では文字列のフォーマットがトップレベルの関数になりました（`z.email()`、`z.url()`、`z.uuid()`）。古いコードや古い記事はメソッド形式で書いています（`z.string().email()`、`z.string().url()`）。こちらも動きます。スニペットを写してエディタが文句を言ったら、たいていあなたのミスではなくバージョン差です。
+
+</Callout>
+
+よく使う部品はこのあたりです。
+
+```ts
+z.string()
+z.number()
+z.boolean()
+z.array(z.string())          // string[]
+z.object({ a: z.string() })  // { a: string }
+z.enum(['a', 'b'])           // 'a' | 'b'
+z.string().optional()        // string | undefined — キー自体が無いかもしれない
+z.string().nullable()        // string | null — キーはあるが null かもしれない
+z.string().min(1, '必須です')
+z.number().int().positive()
+z.iso.datetime()             // ISO 8601 の文字列。API から来るあの日付
+```
+
+`optional()` と `nullable()` の違いは、将来の 10 分を節約します。**`optional` は「キーが無いかもしれない」、`nullable` は「キーはあって中身が `null`」。** API によってこの 2 つの意味は全く違い、選び間違えると、何も問題の無いデータで検証が落ちます。
+
+## 定義 1 つで、仕事 2 つ {#infer}
+
+zod を入れる価値が出るのがここです。型を**別途書きません**。
+
+```ts title="src/types/product.ts"
+export type Product = z.infer<typeof productSchema>
+```
+
+`z.infer` はスキーマを読んで、それが表している TypeScript の型そのものを作ります。`Product` はこれで `{ id: string; name: string; price: number; ... }` になります。手書きしたはずのインターフェースと同一で、しかも実行時の検査から導かれています。並べて置いてあるのではなく。
+
+これが仕掛けのすべて、**真実が 1 か所**ということです。スキーマの `price` を `z.string()` に変えれば、`Product` を数値として使っている場所が即座に型エラーになります。手書きのインターフェースと別の検証関数を並べていると、2 つは静かにズレていきます。
+
+<JsNote feature="z.infer<typeof productSchema> の typeof は何をしているのか">
+
+これは TypeScript の `typeof` で、JavaScript のものではありません。JavaScript の `typeof x` は実行時に文字列（`'string'`、`'object'`）を返します。TypeScript の `typeof` は*型を書く場所*で使い、「この値の型」を意味します。
+
+`productSchema` は値です。`typeof productSchema` はその型。`z.infer<...>` がそれを「検証している形」へとほどきます。zod を使う場所ではこの `z.infer<typeof なんとかSchema>` という並びが必ず出てくるので、毎回考えるより、見た瞬間に分かる形として覚えてしまうのが得です。
+
+</JsNote>
+
+## parse と safeParse {#parse}
+
+検査の走らせ方は 2 通りです。
+
+**`parse`** は検証済みのデータを返し、合わなければ**例外を投げます**。
+
+```ts
+const product = productSchema.parse(unknownData)
+// ここから先の `product` は本物の Product。言い張りではなく検査済み
+```
+
+**`safeParse`** は決して投げません。分岐できる結果オブジェクトを返します。
+
+```ts
+const result = productSchema.safeParse(unknownData)
+
+if (!result.success) {
+  console.error(result.error.issues)
+  // [{ path: ['price'], message: 'Invalid input: expected number, received string' }, ...]
+  return null
+}
+
+const product = result.data // Product 型が付いている
+```
+
+どちらを使うかは好みではなく、本当の判断です。
+
+- **`parse`** — すでに `try` / `catch` がある場所。たとえば API 層なら、例外がネットワーク障害と同じエラー経路に乗ります。
+- **`safeParse`** — 失敗が想定内で、例外にすべきでない場所。ユーザー入力、URL のパラメータ、`localStorage` から読んだもの。
+
+`result.error.issues` は問題ごとに 1 件ずつ入った配列で、それぞれ `path`（どの項目か）と `message`（何が変か）を持ちます。この配列があるおかげで、「API が壊れている」が「API が `price` を文字列で送っている」に変わります。半日と 1 分の差です。
+
+## API レスポンスを検証する {#api}
+
+検査は境界に置きます。コンポーネントではなく API 層です。
+
+```ts title="src/lib/products.ts"
+import { z } from 'zod'
+
+import { api } from '@/lib/api'
+import { productSchema } from '@/types/product'
+
+const productListSchema = z.array(productSchema)
+
+export async function fetchProducts() {
+  const { data } = await api.get('/products') // ← <Product[]> の言い張りはもう無い
+  return productListSchema.parse(data) // ← 本物の検査
+}
+```
+
+`api.get` の `<Product[]>` を消したのは意図的です。`fetchProducts` の戻り値の型は*parse から*推論されるようになりました。主張ではなく事実です。これで、下流の呼び出し側は本当に信じられる型を受け取ります。
+
+バックエンドが `imageUrl` を改名したら、この行が即座に例外になります。しかも項目名入りのメッセージ付きで。3 つ先のコンポーネントで画像が壊れる、ではなく。
+
+<Deeper title="全部のレスポンスを検証すべき？">
+
+正直に言えば、いいえ。検証は少し CPU を使いますし、スキーマは維持するコードでもあります。実用的な線引きはこうです。
+
+- **検証する** — 自分が制御していない境界を越えるもの。外部 API、他社の webhook、ユーザー入力、`localStorage`（誰かが書き換えている）、URL のパラメータ（誰かが手打ちしている）。
+- **検証する** — 過去に形で痛い目に遭ったもの。実際に変化するエンドポイントに対しては、スキーマは安い保険です。
+- **省略も検討** — 同じチームが両側を持っていて型も共有している小さな内部 API。とはいえ、エラーメッセージの質だけでも入れる価値があることは多いです。
+
+やってはいけないのは、コンポーネントの中で検証することです。検査は入口で 1 回。UI の中に散らすものではありません。
+
+</Deeper>
+
+## フォームを検証する {#form}
+
+zod のもう半分の仕事です。[react-hook-form のページ](/libraries/react-hook-form)では、ルールは各 `register()` の中にありました。動きますが、検証が JSX に散らばり、再利用できるものが何も残りません。
+
+zod ならフォーム全体のルールが 1 つのオブジェクトに収まり、`zodResolver` がそれを RHF に渡します。
+
+```bash
+npm install @hookform/resolvers
+```
+
+```tsx title="src/components/ContactForm/ContactForm.tsx"
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+
+const contactSchema = z.object({
+  name: z.string().min(1, 'お名前を入力してください'),
+  email: z.email('メールアドレスの形式で入力してください'),
+  message: z.string().min(10, '10 文字以上で入力してください'),
+  age: z.coerce.number().int().min(0, 'マイナスは入力できません'),
+})
+
+type ContactValues = z.infer<typeof contactSchema>
+
+export function ContactForm() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ContactValues>({
+    resolver: zodResolver(contactSchema),
+  })
+
+  // ...ここから先は変わらない: register('name')、errors.name?.message など
+}
+```
+
+フォームの他の部分は完全に同じままです。`register`、`handleSubmit`、`errors.name.message`。変わったのは*ルールがどこにあるか*だけ。
+
+移すことで得られるものが 3 つあります。
+
+- **ルールが 1 つの読めるオブジェクトになる。** 十数個の JSX の属性に散らばりません。契約の全体が一目で見えます。
+- **型がスキーマから来る。** 別に `interface ContactValues` を書いて同期を保つ必要がありません。
+- **`z.coerce.number()`** が `valueAsNumber` の代わりになります。input は必ず文字列を渡してくるので、`coerce` が検証の前に変換します。`"30"` は `30` になり、`"abc"` は `NaN` ではなくちゃんとしたエラーになります。
+
+<Together
+  task="設定フォームに、ユーザー名（3〜20 文字、英数字とアンダースコアのみ）、通知用メールアドレス、0〜23 の「ダイジェスト配信時刻」があります。スキーマを書き、型を導き、react-hook-form につないでください。"
+  hint="ユーザー名はメッセージ付きの regex()、メールは z.email()、時刻は z.coerce.number().int().min(0).max(23)。型は z.infer、useForm には zodResolver。"
+>
+
+```tsx title="src/components/SettingsForm/SettingsForm.tsx"
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+
+const settingsSchema = z.object({
+  username: z
+    .string()
+    .min(3, '3 文字以上で入力してください')
+    .max(20, '20 文字以内で入力してください')
+    .regex(/^[a-zA-Z0-9_]+$/, '英数字とアンダースコアのみ使えます'),
+  email: z.email('メールアドレスの形式で入力してください'),
+  digestHour: z.coerce
+    .number()
+    .int('時（整数）で入力してください')
+    .min(0, '0〜23 で入力してください')
+    .max(23, '0〜23 で入力してください'),
+})
+
+type SettingsValues = z.infer<typeof settingsSchema>
+
+export function SettingsForm() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<SettingsValues>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: { username: '', email: '', digestHour: 9 },
+  })
+
+  async function onSubmit(values: SettingsValues) {
+    await api.put('/settings', values)
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <label htmlFor="username">ユーザー名</label>
+      <input
+        id="username"
+        aria-invalid={errors.username ? true : false}
+        aria-describedby={errors.username ? 'username-error' : undefined}
+        {...register('username')}
+      />
+      {errors.username && (
+        <p id="username-error" role="alert">
+          {errors.username.message}
+        </p>
+      )}
+
+      {/* email と digestHour も同じ 3 点セットで書く */}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? '保存中…' : '保存'}
+      </button>
+    </form>
+  )
+}
+```
+
+ルールごとにメッセージを持たせているので、`errors.username.message` は「無効です」ではなく、人が対処できる文になります。ルールは書いた順に評価され、zod は最初の失敗を報告します。これが望ましい挙動で、1 つの欄について 3 つの苦情を同時に出すのはノイズです。
+
+`digestHour` の `z.coerce.number()` が `valueAsNumber` の役をしています。これが無いと、input が渡す `"9"` は `z.number()` に即座に弾かれ、正しく入力した利用者にエラーが出ます。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="手書きの interface Product { ... } と、別に productSchema を用意する"
+  good="const productSchema = z.object({...}); type Product = z.infer<typeof productSchema>"
+  note="定義が 2 つあると静かにズレる。型はスキーマから導いて、真実を 1 か所にする。"
+/>
+
+<Diff
+  bad="コンポーネントの描画の中で productSchema.parse(data) を呼ぶ"
+  good="API 層で 1 回パースし、コンポーネントは検証済みのデータを受け取る"
+  note="検証は境界の仕事。描画中だと何度も走るし、データの都合が UI に混ざる。"
+/>
+
+<Diff
+  bad={`<input> に紐づくフォーム項目に z.number() を使う`}
+  good="フォーム項目には z.coerce.number()"
+  note="input は必ず文字列を渡す。coerce が無いと、正しく入力した 30 が文字列 '30' として検証に落ちる。"
+/>
+
+<Diff
+  bad="safeParse(...) のあと result.success を確認せずに result.data を使う"
+  good="if (!result.success) return ...; を挟んでから result.data"
+  note="確認前の result.data は undefined の可能性がある。TypeScript が止めてくれるので、! で黙らせない。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="外部から来る形ごとに zod スキーマを 1 つ書き、TypeScript の型は z.infer で導く。パースは境界（API 層とフォームのリゾルバ）で行い、コンポーネントの中ではやらない"
+  alt="同じチームが両端を持っていて型も共有している小さな内部 API なら、素の interface で十分なことも多いです。そのエンドポイントの形で一度でも驚かされたら、そこでスキーマを足します。実務上、それが「効き始める」タイミングです。"
+>
+
+体に入れておく原則。**`interface` は主張、スキーマは検査。** 外からアプリに入ってくるもの（HTTP のレスポンス、フォーム入力、URL のパラメータ、`localStorage`）は、入口でスキーマに出会わせます。TypeScript が両端を見られる内部のものには要りません。
+
+スキーマを定義し、そこから `z.infer` で型を導く。両方を手書きしないこと。API 層ではすでにある `try` の中で `parse` を使えば、形の不一致がネットワーク障害と同じ経路に乗ります。フォームでは `zodResolver` を使えば、ルールも型も 1 つのオブジェクトから来ます。十数個の `register` 呼び出しからではなく。
+
+見返りは正しさだけではありません。失敗の起きる場所が、*コンポーネントの奥・利用者の目の前・分かりにくいメッセージ*から、*取得のその場・項目名つき*に移ります。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`Invalid input: expected number, received string`** … 本当に API のデータがそうなっているか、`z.coerce` の無いフォーム項目です。スキーマを疑う前に生の値をログに出します。
+- **API が本当に送ってこないことがある項目で落ちる** … `.optional()`（キーが無いかもしれない）か `.nullable()`（キーはあって `null`）が要ります。API が実際にどちらなのかを確認します。
+- **余計な項目があると落ちる** … 本来は落ちません。`z.object` は既定で、宣言していないキーを**無視**します。落ちているなら、どこかに `.strict()` が付いています。
+- **`result.data is possibly undefined`** … `if (!result.success)` の確認より前に使っています。確認を足してください。`!` に逃げないこと。
+- **`zodResolver` が export されていない** … import 元は `@hookform/resolvers` ではなく `@hookform/resolvers/zod` で、パッケージも `zod` 本体とは別です。
+- **エディタで `z.string().email()` が非推奨と出る** … zod 4 で `z.email()` に移りました。どちらも動きますが、新しいコードではトップレベルの形を使います。
+- **検証は通るのにデータがおかしい** … スキーマが見ているのは*形*であって*内容の正しさ*ではありません。`z.number()` は価格に `-5` を通します。現実のルールがあるところには `.positive()`、`.min()`、`.max()` を足します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="ビルド時には何も失敗しません。TypeScript はすでに実行済みで、その主張を信じたからです。落ちるのは実行時、コンポーネントの奥、product.tags.map のような行で、原因である取得処理からは遠く離れた場所です。API 層で zod スキーマをパースしていれば、失敗は取得のその瞬間に起き、項目名の入った issue が出ます。分かりにくい描画時のクラッシュが、境界での正確なメッセージに変わります。">
+
+利用している API が、一部の商品で `tags` を配列から `null` に変えました。あなたのコードには `interface Product` と `api.get<Product[]>` があります。何が、いつ、どこで失敗するでしょう。そして zod のスキーマを足すと、その答えはどう変わるでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- TypeScript の型は**ビルド時に消える**。`api.get<Product[]>()` は形を主張するだけで、検査は一切しない
+- zod のスキーマは**実行時**の記述。`z.object({ ... })` を `z.string()` / `z.number()` / `z.array()` / `z.enum()` で組み立てる
+- `type Product = z.infer<typeof productSchema>` — 定義 1 つから、検査と型の両方が出る
+- `parse` は例外（すでに `try` がある場所向き）、`safeParse` は `{ success, data | error }` を返す（ユーザー入力向き）
+- `result.error.issues` が、どの項目の何が変かを名指しする
+- パースは**境界で**。API 層と、フォームは `zodResolver`。コンポーネントの中ではやらない
+- `optional()` はキーが無いかもしれない、`nullable()` はキーはあって `null`。同じではない
+- フォーム項目は `z.coerce.number()`。input は必ず文字列を渡してくる
+
+</SummaryBox>

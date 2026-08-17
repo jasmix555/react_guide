@@ -1,0 +1,310 @@
+---
+title: Formatting with Prettier
+minutes: 12
+slug: prettier
+section: libraries
+description: "Why formatting should stop being a decision at all. Install Prettier, write the config, stop it fighting ESLint with eslint-config-prettier, and make format-on-save the only way it ever runs."
+level: beginner
+prerequisites: ['libraries/eslint', 'setup/vscode-settings']
+---
+
+<LearnBox>
+
+- Why a formatter is worth it even when you work alone
+- Adding Prettier and writing `.prettierrc.json`
+- Stopping ESLint and Prettier fighting, with `eslint-config-prettier`
+- Format on save, so you never run the command by hand
+- Why you shouldn't spend long on the settings
+
+</LearnBox>
+
+## The argument nobody should be having {#why}
+
+Single quotes or double? Semicolons or not? Where does a long JSX line break? Trailing comma on the last item?
+
+None of these change what the code does. All of them generate opinions, and those opinions cost real time in three ways:
+
+1. **While writing.** Every long line is a small decision about where to break it. Tiny, but constant.
+2. **In review.** A pull request full of "could you put this on one line?" buries the comment that actually matters.
+3. **In git.** Someone's editor uses tabs, yours uses spaces, and a one-line change shows up as a 200-line diff. Now nobody can see what really changed.
+
+**Prettier removes the question.** It parses your code, throws away all your formatting, and re-prints it from its own rules. Not "checks" — *reprints*. There is no version of the file that Prettier considers acceptable-but-different. There's one output, and it's the same for everyone.
+
+<Callout type="analogy">
+
+A formatter is the house style of a newspaper. No journalist argues about whether headlines get a full stop — the style guide decided years ago, and the argument is over. What's left is the writing.
+
+The value isn't that Prettier's choices are the best possible ones. It's that they're **made**, permanently, by something that isn't you.
+
+</Callout>
+
+<Callout type="note">
+
+This is worth doing even alone. "Future you" is a different developer who has forgotten your habits, and a consistent file is easier to read six months later. The git-diff benefit applies to you on your own, too.
+
+</Callout>
+
+## Prettier is not a linter {#vs-eslint}
+
+The single most common confusion, so let's nail it:
+
+| | ESLint | Prettier |
+| --- | --- | --- |
+| Question | Is this probably a bug? | How should this look? |
+| Understands meaning | Yes | No |
+| Can break your code | It won't, but it *reasons* about it | Never — same code, new layout |
+| Example | Missing `useEffect` dependency | Line is 120 chars, wrap it |
+
+ESLint reads what your code *means*. Prettier only reads its *structure* and prints it out again. That's why they compose: Prettier handles every layout question, ESLint handles every correctness question, and neither should be doing the other's job.
+
+## Adding Prettier {#install}
+
+Two packages, both `-D` — they never reach the browser:
+
+```bash
+npm install -D prettier eslint-config-prettier
+```
+
+- **`prettier`** — the formatter.
+- **`eslint-config-prettier`** — turns *off* every ESLint rule that has an opinion about layout, so the two tools stop contradicting each other. More on this below, because skipping it produces a genuinely maddening bug.
+
+## The config {#config}
+
+Create `.prettierrc.json` in the project root:
+
+```json title=".prettierrc.json"
+{
+  "semi": false,
+  "singleQuote": true,
+  "printWidth": 90,
+  "trailingComma": "all"
+}
+```
+
+That's the whole thing, and it's deliberately short:
+
+- **`semi: false`** — no semicolons at line ends. JavaScript inserts them automatically, and Prettier knows the handful of lines that genuinely need one (it adds a leading `;` there).
+- **`singleQuote: true`** — `'text'` rather than `"text"`. JSX attributes still use double quotes, which is correct HTML convention and Prettier handles automatically.
+- **`printWidth: 90`** — wrap past 90 characters. It's a target, not a hard limit.
+- **`trailingComma: "all"`** — a comma after the last item in a list. This one has a real payoff: adding an item touches **one** line in git instead of two, so diffs stay honest.
+
+Also add a `.prettierignore`, same syntax as `.gitignore`:
+
+```text title=".prettierignore"
+dist
+node_modules
+*.md
+```
+
+And a script:
+
+```json title="package.json"
+{
+  "scripts": {
+    "format": "prettier --write ."
+  }
+}
+```
+
+```bash
+npm run format
+```
+
+`--write` rewrites the files in place. Run it once now and watch your whole project become consistent — it's a satisfying first run, and a big one, so do it in its own commit rather than mixed with real changes.
+
+<Callout type="warn">
+
+**Don't spend an afternoon on these settings.** The entire value of Prettier is that formatting stops being a decision — spending three hours deciding `printWidth` is losing the game while winning the argument. Copy the config above, live with it for a month, and change something only if it genuinely irritates you in practice.
+
+</Callout>
+
+## Stopping the fight with ESLint {#conflict}
+
+Here's the bug that makes people give up on both tools.
+
+ESLint's older recommended sets include stylistic rules — `semi`, `quotes`, `indent`. Prettier also has opinions about all three. Install both without `eslint-config-prettier` and you get:
+
+1. Prettier removes a semicolon on save.
+2. ESLint immediately errors: "Missing semicolon."
+3. You run `eslint --fix`, which puts it back.
+4. You save. Prettier removes it again.
+
+An infinite loop, with a red squiggle that never goes away. The fix is to give Prettier sole authority over layout, and `eslint-config-prettier` does exactly that: it's a config that switches off every ESLint rule Prettier already handles.
+
+It must go **last** in `extends`, because later entries override earlier ones — its whole job is turning things off, so anything after it could turn them back on:
+
+```js title="eslint.config.js"
+import js from '@eslint/js'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import prettier from 'eslint-config-prettier'
+import reactHooks from 'eslint-plugin-react-hooks'
+import tseslint from 'typescript-eslint'
+
+export default defineConfig([
+  globalIgnores(['dist', 'node_modules']),
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      prettier, // ← last, always
+    ],
+  },
+])
+```
+
+<Callout type="mistake">
+
+There's also a package called `eslint-plugin-prettier`, which runs Prettier *as* an ESLint rule so formatting issues appear as lint errors. It sounds tidier and we don't use it: it makes linting slower, and it turns every formatting difference into an "error", which drowns out the ones that are actually bugs.
+
+Keep them separate. Prettier formats. ESLint finds bugs. `eslint-config-prettier` is the handshake between them, and that's all you need.
+
+</Callout>
+
+## Format on save {#on-save}
+
+Running `npm run format` by hand is the wrong workflow — you'll forget, and then a huge reformat lands mixed into a real change.
+
+In [Part 1](/guide/setup/vscode-settings) you started a `.vscode/settings.json`. Complete it:
+
+```json title=".vscode/settings.json"
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}
+```
+
+Install the **Prettier - Code formatter** extension, and now every save formats the file and applies ESLint's safe fixes. You stop thinking about layout entirely — type roughly, hit save, and it's right.
+
+Committing `.vscode/settings.json` to the repository is deliberate: it means a new person gets the same behaviour on their first day without a setup document.
+
+<Deeper title="Making it impossible to commit unformatted code">
+
+Editor settings only help people who have the extension. To guarantee it on a team, run Prettier automatically before each commit with `husky` (git hooks) and `lint-staged` (run tools on staged files only):
+
+```bash
+npm install -D husky lint-staged
+npx husky init
+```
+
+```json title="package.json"
+{
+  "lint-staged": {
+    "*.{ts,tsx,js,json,scss}": ["prettier --write", "eslint --fix"]
+  }
+}
+```
+
+```bash title=".husky/pre-commit"
+npx lint-staged
+```
+
+Now every commit is formatted and lint-clean, whatever anyone's editor is doing. `lint-staged` only processes the files you actually staged, so it stays fast even on a large project.
+
+</Deeper>
+
+<Together
+  task="A teammate's editor keeps reformatting whole files back to double quotes and semicolons, so every pull request is unreadable. They have the Prettier extension installed. What's most likely wrong, and what would you add to the repo so it can't happen again?"
+  hint="Think about which settings live on their machine versus in the repo — and what makes the answer not depend on their machine at all."
+>
+
+The most likely cause: their editor is formatting with **its own defaults** rather than your `.prettierrc.json`. Either the repo has no committed `.vscode/settings.json` naming Prettier as the default formatter, or their editor picked a different formatter for `.tsx` files, or `.prettierrc.json` was never committed at all — so Prettier runs with built-in defaults, which *are* double quotes and semicolons.
+
+Two things to commit:
+
+```json title=".vscode/settings.json"
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true
+}
+```
+
+```json title="package.json"
+{
+  "lint-staged": {
+    "*.{ts,tsx,js,json,scss}": ["prettier --write", "eslint --fix"]
+  }
+}
+```
+
+The first fixes the immediate cause for anyone who clones the repo. The second is the one that actually settles it, because it doesn't depend on their editor, their extensions, or their settings — the pre-commit hook formats the staged files on the way into git, so an unformatted commit stops being possible.
+
+That's the general principle worth taking away: **editor config is a convenience, a git hook is a guarantee.**
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="prettier and eslint installed, no eslint-config-prettier"
+  good="eslint-config-prettier last in the extends array"
+  note="Without it the two tools undo each other on every save, and the error never clears."
+/>
+
+<Diff
+  bad="Reformatting the whole project inside a feature branch"
+  good="One separate 'chore: format with prettier' commit, then feature work"
+  note="Otherwise the real change is one line hidden in a 4,000-line diff, and review is impossible."
+/>
+
+<Diff
+  bad="Relying on everyone having format-on-save configured"
+  good="lint-staged + husky formatting on commit"
+  note="Editor settings are per-machine. A hook is per-repo, so it holds for everyone including CI."
+/>
+
+<Diff
+  bad="Arguing about printWidth for an afternoon"
+  good="Copying a config and moving on"
+  note="The value is that the decision is made and permanent, not that it's optimal."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Prettier with a short .prettierrc.json, eslint-config-prettier last in the ESLint extends, and format-on-save in a committed .vscode/settings.json"
+  alt="A solo throwaway script needs none of this. But 'solo' is a weaker argument than it looks — future you reads the code as a stranger, and the git-diff noise is just as bad with one author."
+>
+
+Keep the config to a handful of lines. Every setting you add is a decision you've chosen to keep having, which is the opposite of the point.
+
+`eslint-config-prettier` goes **last** in `extends`, always. Skipping it, or ordering it wrongly, produces the save-loop that makes people distrust both tools.
+
+Commit `.vscode/settings.json` so the behaviour arrives with the repository rather than with a README instruction. And when you first adopt Prettier on an existing project, do the initial reformat as **its own commit**, so it never hides a real change from review.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **Format on save does nothing** … The Prettier extension isn't installed, or `editor.defaultFormatter` isn't set for that file type. Check the VS Code Output panel, "Prettier" channel.
+- **The whole file reformats to double quotes and semicolons** … Your `.prettierrc.json` isn't being found. Confirm it's in the project root and committed — without it, Prettier uses its own defaults.
+- **A red squiggle comes back the instant Prettier formats** … `eslint-config-prettier` is missing from `extends`, or isn't last.
+- **Prettier reformats files you didn't want touched** … Add them to `.prettierignore`.
+- **`prettier --write .` is slow** … It's walking the whole project. `.prettierignore` should cover `dist` and any generated folders; `node_modules` is skipped automatically.
+- **CI fails on formatting but your machine is clean** … Different Prettier versions. Pin it in `devDependencies` (not installed globally) so everyone runs the same one.
+- **Markdown or MDX gets mangled** … Prettier's markdown formatting can move things around more than you'd like. `*.md` in `.prettierignore` is a reasonable call.
+
+## Summary and practice {#summary}
+
+<Exercise answer="ESLint's recommended sets include stylistic rules (semi, quotes, indent) that overlap with Prettier's. Prettier removes a semicolon, the ESLint rule flags it as missing, --fix puts it back, and the next save removes it again — an endless loop with an error that never clears. eslint-config-prettier switches off every ESLint rule Prettier already handles, and it must come last in extends because later entries override earlier ones — putting it first would let the following configs turn those rules back on.">
+
+You install Prettier and ESLint but skip `eslint-config-prettier`. What specifically goes wrong, and why does the fix have to be *last* in the `extends` array?
+
+</Exercise>
+
+<SummaryBox>
+
+- Prettier **reprints** your code from its own rules; it doesn't check anything
+- ESLint = is this a bug. Prettier = how should it look. They don't overlap
+- Config is `.prettierrc.json`, ignore list is `.prettierignore`, command is `prettier --write .`
+- `eslint-config-prettier` **last** in `extends` — without it the two tools undo each other on every save
+- `trailingComma: "all"` keeps git diffs to one line per added item
+- Format on save via a **committed** `.vscode/settings.json`; guarantee it with husky + lint-staged
+- Do the first project-wide reformat as its own commit
+- Don't spend long on the settings — "decided" beats "optimal"
+
+</SummaryBox>

@@ -1,0 +1,291 @@
+---
+title: Icons with react-icons
+minutes: 10
+slug: react-icons
+section: libraries
+description: "Icons as components instead of image files. Install react-icons, read the naming scheme, size and colour them with CSS, and get the accessibility right so a screen reader doesn't read your decoration out loud."
+level: beginner
+prerequisites: ['components/props', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- Why an icon is better as a component than as a `.png` or an `<img>`
+- Adding `react-icons` and reading its naming scheme
+- Sizing and colouring icons with CSS instead of props
+- Icon-only buttons: the accessibility part everyone forgets
+- Why you import from `react-icons/fi`, never from `react-icons`
+
+</LearnBox>
+
+## How you probably did icons before {#why}
+
+On a static site, an icon was a file. A `cart.png` in `/images`, or an `<img src="cart.svg">`, or a webfont where `<i class="fa fa-cart"></i>` conjured a shopping cart out of a glyph.
+
+All three have the same three problems the moment you want the icon to *react* to anything:
+
+- **You can't recolour it.** A `.png` is baked. To have a grey icon and a white-on-hover icon you ship two files, or you reach for CSS filter hacks.
+- **You can't resize it cleanly.** Bitmaps blur. You end up with `@2x` variants.
+- **It's a second request.** Every icon file is another round trip, or a sprite sheet you maintain by hand.
+
+An **inline SVG** fixes all three — it's markup, so CSS can colour and size it — but pasting thirty lines of `<path d="M12 2L2 7...">` into your JSX for every icon makes the component unreadable fast.
+
+`react-icons` is the obvious resolution: **every icon is a React component that renders an inline SVG**. You write `<FiShoppingCart />` and get real SVG markup, styleable with CSS, no extra request.
+
+<Callout type="analogy">
+
+An `.png` icon is a printed photo — fixed size, fixed colour, and you need a new print for every variation. An icon component is a stencil: one shape, and you decide the size and the ink each time you use it.
+
+</Callout>
+
+## Adding react-icons {#install}
+
+It renders on screen, so it's a `dependencies` install (no `-D`):
+
+```bash
+npm install react-icons
+```
+
+Types are bundled, so no `@types/*` needed. The download looks alarming — it's tens of thousands of icons — but read the next section before you worry about that, because **almost none of it ends up in your build**.
+
+## The naming scheme {#naming}
+
+`react-icons` is not one icon set. It's a wrapper around **many** open-source sets, and every component name starts with a two-or-three-letter prefix telling you which set it came from:
+
+| Prefix | Set | Character |
+| --- | --- | --- |
+| `Fi` | Feather | Thin, minimal outlines. Great default. |
+| `Fa` | Font Awesome | Huge coverage, solid and filled. |
+| `Md` | Material Design | Google's set. Very complete. |
+| `Bi` | Bootstrap Icons | Clean, slightly rounded. |
+| `Hi` | Heroicons | Made for Tailwind; pairs well with modern UI. |
+
+So `FiShoppingCart` is Feather's shopping cart, and `MdShoppingCart` is Material's. Same idea, different drawing.
+
+The import path is the **lowercase prefix**:
+
+```tsx
+import { FiShoppingCart, FiHeart, FiX } from 'react-icons/fi'
+```
+
+<Callout type="warn">
+
+**Import from the sub-path, never from the root.** `import { FiHeart } from 'react-icons'` does not work, and even where a bare root import appears to work in some setups it drags in far more than you want. Always `react-icons/fi`, `react-icons/md`, and so on — one sub-path per set you actually use.
+
+</Callout>
+
+<Deeper title="Does 30,000 icons mean a 30,000-icon bundle?">
+
+No — because of **tree shaking**. When Vite builds for production, it walks your imports and keeps only what's reachable. You imported three names from `react-icons/fi`, so three icons' worth of SVG path data ends up in the bundle. The other 29,997 are never referenced, so they're dropped.
+
+This is also why the sub-path matters: importing from `react-icons/fi` gives the bundler one small, obvious module to look inside, instead of an index that re-exports every set.
+
+The practical rule: **pick one or two sets for the whole project.** Not for bundle size — three sets is still tiny — but because mixing Feather's thin lines with Font Awesome's solid shapes in the same toolbar looks like a mistake, and readers notice even when they can't say why.
+
+</Deeper>
+
+## Using one {#use}
+
+An icon is a component, so it goes where any component goes:
+
+```tsx
+import { FiShoppingCart } from 'react-icons/fi'
+
+export function CartButton() {
+  return (
+    <button type="button" className={styles.cart}>
+      <FiShoppingCart />
+      <span>Add to cart</span>
+    </button>
+  )
+}
+```
+
+That renders an `<svg>` into the page. Open the browser inspector and you'll see real SVG markup, not an image — which is the whole point, because it means CSS can get at it.
+
+## Size and colour: let CSS do it {#styling}
+
+Every icon component accepts `size` and `color` props:
+
+```tsx
+<FiShoppingCart size={20} color="#e2483d" />
+```
+
+Ignore both. Here's why: those props become **inline styles on the element**, and inline styles beat your stylesheet. The moment you want the icon to turn white on hover, or to shrink on mobile, your CSS loses to the prop and you're stuck adding `!important`.
+
+The SVG is built to inherit instead. Its `width`/`height` default to `1em` and its `fill` defaults to `currentColor` — meaning **an icon is already the size and colour of the text next to it**. So style the parent:
+
+```scss title="src/components/CartButton/style.module.scss"
+.cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-text);
+  font-size: 15px; // the icon is 1em → 15px, automatically
+
+  svg {
+    // Only when the icon should differ from the label
+    font-size: 1.2em;
+    flex-shrink: 0; // stop it squashing when the label is long
+  }
+
+  &:hover {
+    color: var(--c-accent); // label AND icon change together
+  }
+}
+```
+
+<Callout type="note">
+
+`currentColor` is the reason the hover works with one line. It's a CSS keyword meaning "whatever `color` is on this element right now." Since the icon's `fill` is `currentColor`, setting `color` on the button paints the text *and* the icon. This is not a react-icons trick — it's plain CSS, and it works with any inline SVG.
+
+</Callout>
+
+`flex-shrink: 0` looks fussy but saves a real bug: in a flex row, an SVG with a percentage-ish size will happily squash into an oval when the text beside it is long. Icons should never shrink.
+
+## Accessibility: the part everyone gets wrong {#a11y}
+
+There are exactly two kinds of icon, and they need opposite treatment.
+
+**Kind 1 — the icon sits next to a text label.** The text already says it. The icon is decoration, and a screen reader announcing "shopping cart image, Add to cart" is noise. Hide it:
+
+```tsx
+<button type="button">
+  <FiShoppingCart aria-hidden />
+  <span>Add to cart</span>
+</button>
+```
+
+**Kind 2 — the icon *is* the button.** A bare `×`, a bare heart. Now there is no text at all, so a screen-reader user hears "button" and nothing else. Useless. The button needs a name:
+
+```tsx
+<button type="button" aria-label="Close" onClick={onClose}>
+  <FiX aria-hidden />
+</button>
+```
+
+The `aria-label` on the **button** supplies the name; the icon stays hidden. Don't put the label on the icon — the accessible name belongs to the thing being clicked.
+
+<Callout type="mistake">
+
+An icon-only button with no `aria-label` is the single most common accessibility bug in React UIs, and it's invisible in testing because it looks perfect. Every close button, hamburger, and favourite heart needs one. If you take one thing from this page, take this one.
+
+</Callout>
+
+<Together
+  task="Build a FavouriteButton: a heart-only button with no visible text. It's filled and red when isFavourite is true, an outline otherwise. Get the accessible name right, and make the label say what pressing it will do."
+  hint="FiHeart is the outline, FaHeart (react-icons/fa) is the filled one. Use aria-pressed for the on/off state, and swap the aria-label with the state."
+>
+
+```tsx title="src/components/FavouriteButton/FavouriteButton.tsx"
+import { FaHeart } from 'react-icons/fa'
+import { FiHeart } from 'react-icons/fi'
+
+import styles from './style.module.scss'
+
+interface FavouriteButtonProps {
+  isFavourite: boolean
+  onToggle: () => void
+}
+
+export function FavouriteButton({ isFavourite, onToggle }: FavouriteButtonProps) {
+  return (
+    <button
+      type="button"
+      className={styles.fav}
+      aria-pressed={isFavourite}
+      aria-label={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+      onClick={onToggle}
+    >
+      {isFavourite ? <FaHeart aria-hidden /> : <FiHeart aria-hidden />}
+    </button>
+  )
+}
+```
+
+```scss title="src/components/FavouriteButton/style.module.scss"
+.fav {
+  display: inline-flex;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  font-size: 20px; // the icon inherits this as its size
+  color: var(--c-muted);
+
+  &[aria-pressed='true'] {
+    color: #e2483d; // and the icon follows, via currentColor
+  }
+}
+```
+
+Three things are doing work here. `aria-pressed` tells assistive tech this is a **toggle** that is currently on or off, not a one-shot action. The `aria-label` changes with the state, so it describes what the press will *do* rather than what the icon *is* — "Remove from favourites" is useful, "Heart" is not. And the colour comes from the `[aria-pressed='true']` attribute selector in CSS, so the state lives in exactly one place instead of being duplicated into a `className` too.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="import { FiHeart } from 'react-icons'"
+  good="import { FiHeart } from 'react-icons/fi'"
+  note="The root has no exports. Import from the set's sub-path — lowercase prefix."
+/>
+
+<Diff
+  bad={`<FiX size={24} color="#fff" />`}
+  good="<FiX /> with font-size and color on the parent in CSS"
+  note="Those props write inline styles, which beat your stylesheet. Hover and responsive rules then can't win."
+/>
+
+<Diff
+  bad={`<button onClick={onClose}><FiX /></button>`}
+  good={`<button aria-label="Close" onClick={onClose}><FiX aria-hidden /></button>`}
+  note="An icon-only button with no aria-label is announced as just 'button'. Unusable without sight."
+/>
+
+<Diff
+  bad="Feather icons in the header, Font Awesome in the footer, Material in the cards"
+  good="One set for the whole project (two at most, and deliberately)"
+  note="Different sets have different stroke weights and corner radii. Mixed sets read as sloppy even to people who can't name why."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Use react-icons, importing from one set's sub-path. Size and colour from CSS on the parent, never the size/color props"
+  alt="A logo, or a one-off illustrated mark, is not an icon-set icon — keep those as their own SVG file or component. And if a project genuinely needs three icons total, three hand-pasted inline SVGs are fine and save a dependency."
+>
+
+Pick a set at the start of the project (Feather is a safe default for a clean UI, Material if you need very broad coverage) and stay in it. Import per-set (`react-icons/fi`) so tree shaking keeps the bundle honest.
+
+Style through the parent's `font-size` and `color`, because SVG icons inherit both — that's what makes hover, dark mode, and responsive sizing free instead of a per-icon chore.
+
+And the non-negotiable: **every icon-only button gets an `aria-label`, every decorative icon gets `aria-hidden`.** It's two attributes, and it's the difference between a usable app and an unusable one.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`does not provide an export named 'FiHeart'`** … You imported from `'react-icons'` instead of `'react-icons/fi'`, or the prefix doesn't match the sub-path (`FaHeart` lives in `/fa`, not `/fi`).
+- **The icon ignores your CSS colour** … You passed the `color` prop somewhere. Inline styles win — remove the prop and let `currentColor` do it.
+- **The icon is enormous, or invisibly small** … It's `1em`, so it's inheriting a parent `font-size` you didn't intend. Set `font-size` on the icon's own container.
+- **It squashes into an oval next to long text** … It's a flex child. Add `flex-shrink: 0`.
+- **The icon name doesn't exist** … The sets don't share names. Search the [react-icons site](https://react-icons.github.io/react-icons/) — it shows the exact component name and its set.
+- **Slow dev-server startup after installing** … Vite is pre-bundling a large package on first run. It's a one-time cost; it's cached afterwards.
+
+## Summary and practice {#summary}
+
+<Exercise answer="Both are wrong in opposite directions. The first is decorative — the text 'Delete' already says it — so the icon should be aria-hidden, otherwise a screen reader announces the picture and then the label. The second has no text at all, so the button has no accessible name and is announced as just 'button'; it needs aria-label='Delete' on the button, with aria-hidden on the icon.">
+
+Two buttons: `<button><FiTrash /><span>Delete</span></button>` and `<button><FiTrash /></button>`. Both are missing an accessibility attribute — a different one each. Which, and why?
+
+</Exercise>
+
+<SummaryBox>
+
+- Icons as components render **inline SVG**: recolourable, resizable, no extra request
+- Import from the set's sub-path — `react-icons/fi` — never from `react-icons`
+- Tree shaking means only the icons you import ship; still, pick one set and stay in it
+- Icons default to `1em` and `currentColor`, so `font-size` and `color` on the parent style them — don't use the `size`/`color` props
+- Decorative icon → `aria-hidden`. Icon-only button → `aria-label` on the button
+
+</SummaryBox>

@@ -1,18 +1,18 @@
 ---
 title: motion を入れる
 minutes: 4
-slug: motion
-section: libraries
-description: アニメーションの部品 motion を入れる。何のためのものかと入れ方まで。実際の使い方は Framer Motion のパートで扱う。
+slug: framer-motion-install
+section: framer-motion
+description: アニメーションの部品 motion を入れる。何のためのものかと入れ方まで。実際の書き方は次のページから。
 level: beginner
-prerequisites: ['libraries/npm-install-writes']
+prerequisites: ['libraries/framer-motion/goal', 'libraries/npm-install-writes']
 ---
 
 <LearnBox>
 
 - アニメーション部品 `motion` は何のためのものか
 - `motion` を入れる
-- 使い方は Framer Motion のパートでやる、という見通し
+- 使い方は次のページからやる、という見通し
 
 </LearnBox>
 
@@ -38,9 +38,11 @@ npm install motion
 
 `package.json` の `dependencies` に `motion` が増えます。型は本体に同梱されています。
 
-## 使い方は Framer Motion のパートで {#later}
+## 書き方は次のページから {#later}
 
-`motion` の使い方は、コンポーネントや state（画面の状態）を理解してからのほうが腑に落ちます。「ボタンを押したら開く」「一覧が順に現れる」といった動きは、React の状態と結びついているからです。なので **ここでは入れるところまで**にして、実際の書き方は[Framer Motion のパート](/libraries/framer-motion/goal)で詳しくやります。
+`motion` の使い方は、コンポーネントや state（画面の状態）を理解してからのほうが腑に落ちます。「ボタンを押したら開く」「一覧が順に現れる」といった動きは、React の状態と結びついているからです。
+
+なので **このページは入れるところまで**。実際の書き方は、次の[motion の基本](/libraries/framer-motion/motion-basics)から始めます。
 
 ここでは「アニメーションを付けたくなったら `motion`」とだけ覚えておけば十分です。
 
@@ -61,6 +63,6 @@ npm install motion
 
 - `motion` は React の表示切り替えに合わせたアニメーションを書くための部品
 - `npm install motion`（dependencies）で入れる。型は同梱
-- 使い方は Framer Motion のパートで。単純な動きは CSS の transition で足りることも多い
+- 使い方は次のページから。単純な動きは CSS の transition で足りることも多い
 
 </SummaryBox>

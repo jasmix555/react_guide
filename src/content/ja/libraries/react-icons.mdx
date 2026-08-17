@@ -1,0 +1,291 @@
+---
+title: react-icons でアイコンを出す
+minutes: 10
+slug: react-icons
+section: libraries
+description: アイコンを画像ファイルではなくコンポーネントとして扱う。react-icons を入れ、命名規則を読み、サイズと色は CSS で当て、読み上げソフトに飾りを読ませないためのアクセシビリティまで。
+level: beginner
+prerequisites: ['components/props', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- アイコンが `.png` や `<img>` よりコンポーネントのほうが良い理由
+- `react-icons` を入れて、命名規則を読む
+- サイズと色は props ではなく CSS で当てる
+- アイコンだけのボタン——みんな忘れるアクセシビリティ
+- `react-icons` ではなく `react-icons/fi` から import する理由
+
+</LearnBox>
+
+## これまでのアイコンの出し方 {#why}
+
+静的なサイトでは、アイコンはファイルでした。`/images` の `cart.png`、`<img src="cart.svg">`、あるいは `<i class="fa fa-cart"></i>` でグリフからカートを召喚する webfont。
+
+この 3 つには同じ問題が 3 つあります。アイコンに何かへ*反応*してほしくなった瞬間に効いてきます。
+
+- **色を変えられない。** `.png` は焼き付いています。「通常はグレー、ホバーで白」にするには 2 枚用意するか、CSS filter で小細工することになります。
+- **きれいに拡大縮小できない。** ビットマップはボケます。`@2x` を作るはめになります。
+- **リクエストが増える。** アイコン 1 枚ごとに往復が増えるか、手作業でスプライトを維持することになります。
+
+**インライン SVG** ならこの 3 つは解決します（マークアップなので CSS で色もサイズも当たる）。ただし `<path d="M12 2L2 7...">` を 30 行ぶん JSX に貼り付けるのを毎回やると、コンポーネントはあっという間に読めなくなります。
+
+`react-icons` はその素直な折衷案です。**アイコン 1 つ 1 つが、インライン SVG を描く React コンポーネント**。`<FiShoppingCart />` と書けば本物の SVG が出て、CSS で当てられて、追加のリクエストも無い。
+
+<Callout type="analogy">
+
+`.png` のアイコンは現像した写真です。サイズも色も固定で、違うものが欲しければ焼き直すしかありません。アイコンコンポーネントはステンシル（型紙）。形は 1 つで、サイズとインクは使うたびに決められます。
+
+</Callout>
+
+## react-icons を入れる {#install}
+
+画面に出るものなので `dependencies`（`-D` なし）で入れます。
+
+```bash
+npm install react-icons
+```
+
+型は同梱なので `@types/*` は要りません。ダウンロード量を見るとぎょっとします（何万個ものアイコンが入っています）が、心配する前に次の節を読んでください。**そのほとんどはビルドに入りません。**
+
+## 命名規則 {#naming}
+
+`react-icons` は 1 つのアイコンセットではありません。**複数**のオープンソースのセットをまとめたもので、コンポーネント名の先頭 2〜3 文字が「どのセット由来か」を表します。
+
+| 接頭辞 | セット | 性格 |
+| --- | --- | --- |
+| `Fi` | Feather | 細い線のミニマル。既定として無難。 |
+| `Fa` | Font Awesome | 網羅性が高い。太めで塗り多め。 |
+| `Md` | Material Design | Google のセット。非常に充実。 |
+| `Bi` | Bootstrap Icons | すっきり、やや丸め。 |
+| `Hi` | Heroicons | Tailwind 向け。今どきの UI と相性が良い。 |
+
+つまり `FiShoppingCart` は Feather のカート、`MdShoppingCart` は Material のカート。同じ意味で、絵が違います。
+
+読み込むときのパスは、**接頭辞を小文字にしたもの**です。
+
+```tsx
+import { FiShoppingCart, FiHeart, FiX } from 'react-icons/fi'
+```
+
+<Callout type="warn">
+
+**ルートからではなく、サブパスから import します。** `import { FiHeart } from 'react-icons'` は動きません。仮に環境によって動いたように見えても、必要のないものまで巻き込みます。必ず `react-icons/fi`、`react-icons/md` のように、実際に使うセットごとに 1 つずつ指定してください。
+
+</Callout>
+
+<Deeper title="3 万個のアイコン＝3 万個ぶんのバンドル？">
+
+いいえ。**ツリーシェイキング**が効くからです。Vite は本番ビルド時に import をたどり、到達できるものだけを残します。`react-icons/fi` から 3 つ import したなら、バンドルに入る SVG のパスデータは 3 つぶん。残りの 29,997 個はどこからも参照されないので落とされます。
+
+サブパスが大事なのもこれが理由です。`react-icons/fi` なら、バンドラーが覗く対象が「小さくて分かりやすい 1 モジュール」になります。全セットを再エクスポートしている索引を渡すのとは違います。
+
+実務的な指針は、**プロジェクト全体でセットは 1〜2 個に絞る**こと。バンドルサイズのためではありません（3 セットでも十分小さい）。Feather の細い線と Font Awesome の塗りが同じツールバーに並ぶと事故に見えるからで、読む側は理由を言葉にできなくても気づきます。
+
+</Deeper>
+
+## 使ってみる {#use}
+
+アイコンはコンポーネントなので、コンポーネントが置ける場所に置くだけです。
+
+```tsx
+import { FiShoppingCart } from 'react-icons/fi'
+
+export function CartButton() {
+  return (
+    <button type="button" className={styles.cart}>
+      <FiShoppingCart />
+      <span>カートに入れる</span>
+    </button>
+  )
+}
+```
+
+これでページに `<svg>` が描かれます。検証ツールで見ると、画像ではなく本物の SVG マークアップになっているはずです。これが肝心で、だからこそ CSS が届きます。
+
+## サイズと色は CSS に任せる {#styling}
+
+アイコンコンポーネントは `size` と `color` の props を受け取れます。
+
+```tsx
+<FiShoppingCart size={20} color="#e2483d" />
+```
+
+どちらも使わないでください。理由は、これらが**要素のインラインスタイルになる**からです。インラインスタイルはスタイルシートより強い。「ホバーで白」や「モバイルでは小さく」をやろうとした瞬間、CSS が props に負けて `!important` を足すはめになります。
+
+SVG のほうは、そもそも継承する作りになっています。`width` / `height` の既定値は `1em`、`fill` の既定値は `currentColor`。つまり **アイコンは最初から「隣の文字と同じサイズ・同じ色」** です。だから親に当てます。
+
+```scss title="src/components/CartButton/style.module.scss"
+.cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-text);
+  font-size: 15px; // アイコンは 1em → 自動的に 15px
+
+  svg {
+    // ラベルと違うサイズにしたいときだけ
+    font-size: 1.2em;
+    flex-shrink: 0; // ラベルが長いときに潰れないように
+  }
+
+  &:hover {
+    color: var(--c-accent); // 文字とアイコンが一緒に変わる
+  }
+}
+```
+
+<Callout type="note">
+
+ホバーが 1 行で済むのは `currentColor` のおかげです。これは「今この要素の `color` が何であれ、それ」を意味する CSS のキーワード。アイコンの `fill` が `currentColor` なので、ボタンに `color` を当てると文字*と*アイコンが同時に塗られます。react-icons の仕掛けではなく、ただの CSS で、どんなインライン SVG でも同じように効きます。
+
+</Callout>
+
+`flex-shrink: 0` は細かく見えますが、実在するバグを防ぎます。flex の行の中では、隣の文字が長いと SVG が平気で楕円に潰れます。アイコンは縮ませてはいけません。
+
+## アクセシビリティ：みんな間違えるところ {#a11y}
+
+アイコンにはちょうど 2 種類あり、扱いは正反対です。
+
+**種類 1 — 文字のラベルが隣にあるアイコン。** 文字がすでに意味を言っています。アイコンは飾りで、読み上げソフトが「ショッピングカート 画像、カートに入れる」と読むのはノイズです。隠します。
+
+```tsx
+<button type="button">
+  <FiShoppingCart aria-hidden />
+  <span>カートに入れる</span>
+</button>
+```
+
+**種類 2 — アイコン*が*ボタンそのもの。** ただの `×`、ただのハート。文字が 1 つも無いので、読み上げソフトの利用者に聞こえるのは「ボタン」だけ。使えません。名前を与えます。
+
+```tsx
+<button type="button" aria-label="閉じる" onClick={onClose}>
+  <FiX aria-hidden />
+</button>
+```
+
+名前を与えるのは**ボタンの** `aria-label` で、アイコンは隠したまま。アイコン側にラベルを付けてはいけません。名前は「押される対象」に属します。
+
+<Callout type="mistake">
+
+`aria-label` の無いアイコンだけのボタンは、React の UI で最も多いアクセシビリティのバグです。しかも見た目は完璧なので、目視のテストでは絶対に見つかりません。閉じるボタン、ハンバーガー、お気に入りのハート——全部に必要です。このページから 1 つだけ持ち帰るなら、これにしてください。
+
+</Callout>
+
+<Together
+  task="FavouriteButton を作ってください。文字を持たないハートだけのボタンで、isFavourite が true なら塗りつぶしの赤、false なら輪郭だけ。読み上げ用の名前を正しく付け、しかも「押すと何が起きるか」が伝わる文言にします。"
+  hint="輪郭は FiHeart、塗りは FaHeart（react-icons/fa）。オン・オフの状態は aria-pressed で表し、aria-label は状態に応じて切り替えます。"
+>
+
+```tsx title="src/components/FavouriteButton/FavouriteButton.tsx"
+import { FaHeart } from 'react-icons/fa'
+import { FiHeart } from 'react-icons/fi'
+
+import styles from './style.module.scss'
+
+interface FavouriteButtonProps {
+  isFavourite: boolean
+  onToggle: () => void
+}
+
+export function FavouriteButton({ isFavourite, onToggle }: FavouriteButtonProps) {
+  return (
+    <button
+      type="button"
+      className={styles.fav}
+      aria-pressed={isFavourite}
+      aria-label={isFavourite ? 'お気に入りから外す' : 'お気に入りに追加'}
+      onClick={onToggle}
+    >
+      {isFavourite ? <FaHeart aria-hidden /> : <FiHeart aria-hidden />}
+    </button>
+  )
+}
+```
+
+```scss title="src/components/FavouriteButton/style.module.scss"
+.fav {
+  display: inline-flex;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  font-size: 20px; // アイコンはこれをサイズとして継承する
+  color: var(--c-muted);
+
+  &[aria-pressed='true'] {
+    color: #e2483d; // currentColor 経由でアイコンも追従する
+  }
+}
+```
+
+働いているものが 3 つあります。`aria-pressed` は「これは一度きりの操作ではなく、今オン／オフのトグルだ」を支援技術に伝えます。`aria-label` は状態に応じて変わるので、アイコンが*何であるか*ではなく、押すと*何が起きるか*を説明します。「お気に入りから外す」は有用ですが「ハート」は無用です。そして色は CSS の `[aria-pressed='true']` 属性セレクタから来ているので、状態の情報が 1 か所に収まります（`className` にも二重に持たせずに済みます）。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="import { FiHeart } from 'react-icons'"
+  good="import { FiHeart } from 'react-icons/fi'"
+  note="ルートには何も export されていない。セットのサブパス（接頭辞の小文字）から import する。"
+/>
+
+<Diff
+  bad={`<FiX size={24} color="#fff" />`}
+  good="<FiX /> と書き、font-size と color は CSS で親に当てる"
+  note="この props はインラインスタイルになり、スタイルシートより強い。ホバーやレスポンシブが勝てなくなる。"
+/>
+
+<Diff
+  bad={`<button onClick={onClose}><FiX /></button>`}
+  good={`<button aria-label="閉じる" onClick={onClose}><FiX aria-hidden /></button>`}
+  note="aria-label が無いアイコンだけのボタンは、ただ「ボタン」としか読まれない。目で見えない人には使えない。"
+/>
+
+<Diff
+  bad="ヘッダーは Feather、フッターは Font Awesome、カードは Material"
+  good="プロジェクト全体で 1 セット（多くても 2 セット、意図して）"
+  note="セットごとに線の太さも角の丸さも違う。混ぜると、理由を言えない人にも雑に見える。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="react-icons を使い、import は 1 つのセットのサブパスから。サイズと色は親に当てる CSS で決め、size / color の props は使わない"
+  alt="ロゴや一点物のイラストはアイコンセットのアイコンではありません。あれは独自の SVG ファイル／コンポーネントのままにします。また、本当にアイコンが 3 つしか要らないプロジェクトなら、インライン SVG を 3 つ貼るだけで十分で、依存を 1 つ減らせます。"
+>
+
+プロジェクトの最初にセットを決めて（すっきりした UI なら Feather が無難、網羅性が要るなら Material）、そこから動かないこと。import はセットごと（`react-icons/fi`）にして、ツリーシェイキングが効く状態を保ちます。
+
+スタイルは親の `font-size` と `color` から当てます。SVG アイコンはどちらも継承するので、ホバーもダークモードもレスポンシブも「無料」になります。アイコンごとの作業になりません。
+
+そして譲れないのがこれ。**アイコンだけのボタンには必ず `aria-label`、飾りのアイコンには必ず `aria-hidden`。** 属性 2 つで、使えるアプリと使えないアプリが分かれます。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **`does not provide an export named 'FiHeart'`** … `'react-icons/fi'` ではなく `'react-icons'` から import しているか、接頭辞とサブパスが食い違っています（`FaHeart` は `/fa` にあり `/fi` にはありません）。
+- **CSS の色が効かない** … どこかで `color` の props を渡しています。インラインスタイルが勝つので、props を消して `currentColor` に任せます。
+- **アイコンが巨大／見えないほど小さい** … `1em` なので、意図しない親の `font-size` を継承しています。アイコンを包む要素側に `font-size` を指定します。
+- **長い文字の隣で楕円に潰れる** … flex の子になっています。`flex-shrink: 0` を足します。
+- **その名前のアイコンが無い** … セット間で名前は共通ではありません。[react-icons のサイト](https://react-icons.github.io/react-icons/)で検索すると、正確なコンポーネント名とセットが出ます。
+- **入れた直後、開発サーバーの起動が遅い** … 初回に Vite が大きなパッケージを事前バンドルしています。一度きりで、以降はキャッシュされます。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="どちらも間違いですが、方向が逆です。1 つ目は飾り——「削除」という文字がすでに意味を言っているので、アイコンには aria-hidden が要ります。無いと読み上げが「絵」と「ラベル」を二重に読みます。2 つ目は文字が 1 つも無いので、ボタンに名前が無く「ボタン」としか読まれません。ボタンに aria-label='削除' を付け、アイコンには aria-hidden を付けます。">
+
+ボタンが 2 つあります。`<button><FiTrash /><span>削除</span></button>` と `<button><FiTrash /></button>`。どちらもアクセシビリティの属性が 1 つ足りませんが、足りないものはそれぞれ別です。何が足りず、なぜでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- コンポーネントとしてのアイコンは**インライン SVG** を描く。色も大きさも変えられて、追加のリクエストも無い
+- import はセットのサブパスから（`react-icons/fi`）。`react-icons` からは import しない
+- ツリーシェイキングで、import したアイコンだけがビルドに入る。それでもセットは 1 つに絞る
+- 既定が `1em` と `currentColor` なので、親の `font-size` と `color` で決まる。`size` / `color` の props は使わない
+- 飾りのアイコンは `aria-hidden`。アイコンだけのボタンはボタン側に `aria-label`
+
+</SummaryBox>

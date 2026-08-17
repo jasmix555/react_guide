@@ -1,0 +1,330 @@
+---
+title: Handling dates with dayjs
+minutes: 14
+slug: dayjs
+section: libraries
+description: "What a date actually is in JavaScript, why the string from an API has a Z on the end, and how dayjs formats, parses, compares and does relative time — plus when the built-in toLocaleDateString is enough."
+level: beginner
+prerequisites: ['data/custom-hook', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- What a JavaScript `Date` really holds, and why it isn't the date you see
+- Why API dates look like `2026-08-17T09:30:00Z`, and what the `Z` means
+- Adding `dayjs` and formatting, parsing, comparing, and doing arithmetic
+- "3 hours ago" with the `relativeTime` plugin, in Japanese
+- When you don't need dayjs at all
+
+</LearnBox>
+
+## Dates are where good developers get humbled {#why}
+
+You now know how to [get JSON from a server](/libraries/axios). Some of the fields in that JSON will be dates, and they will not look like dates:
+
+```json
+{
+  "id": "p_012",
+  "name": "Ceramic mug",
+  "createdAt": "2026-08-17T09:30:00Z"
+}
+```
+
+You want to show `2026/08/17 18:30` or `3 hours ago`. Getting from the first thing to the second is a genuinely awkward part of JavaScript, and the reasons are worth understanding before you install anything — otherwise the library is magic, and magic breaks confusingly.
+
+## What a JavaScript Date actually is {#what-is-a-date}
+
+A `Date` object does **not** store "August 17th". It stores **one number**: the count of milliseconds since midnight, 1 January 1970, UTC. That number is called a *timestamp*, and 1970 is called the *epoch*.
+
+```ts
+const d = new Date('2026-08-17T09:30:00Z')
+console.log(d.getTime()) // 1786613400000 — that's the whole truth of it
+```
+
+A single number, identical for everyone on Earth. The date and time you *see* are a rendering of that number **in some timezone** — and the timezone comes from the viewer's computer, not from the data.
+
+<Callout type="analogy">
+
+A timestamp is a photograph of the sky at one instant. Everyone on the planet saw that same instant — but one person says "it was 6:30pm", another says "it was 9:30am". They're not disagreeing about the moment; they're reading the same moment off different clocks.
+
+That's why the server sends the moment and the browser decides the clock. It's the only arrangement that works for a site with users in more than one place.
+
+</Callout>
+
+So `"2026-08-17T09:30:00Z"` decodes as: date, `T`, time, and **`Z` = Zulu = UTC**, the reference clock the world agrees on. That format has a name — **ISO 8601** — and it's what well-behaved APIs send, precisely because it's unambiguous. A server sending `"17/08/2026"` has created a problem, because half the world reads that as the 8th of the 17th month.
+
+<Deeper title="Why not just send '2026/08/17 18:30' and be done?">
+
+Because the server doesn't know where the reader is. Send a pre-formatted local time and you've frozen one timezone into the data — a customer in Los Angeles sees a shipping deadline in Tokyo time with no way to know it. Send the instant, and every browser renders it in the reader's own clock automatically.
+
+The rule is worth writing down: **store and transmit UTC, format at the very last moment, in the viewer's timezone.** Almost every date bug you'll ever chase is a violation of that sentence.
+
+</Deeper>
+
+## Why the built-in tools aren't enough {#native-pain}
+
+JavaScript's `Date` can format, but only awkwardly:
+
+```ts
+const d = new Date('2026-08-17T09:30:00Z')
+
+d.toString()       // 'Mon Aug 17 2026 18:30:00 GMT+0900 (Japan Standard Time)' — unusable
+d.toISOString()    // '2026-08-17T09:30:00.000Z' — machine format, back to UTC
+d.getMonth()       // 7  ← not 8. Months are zero-indexed. This has caused real outages.
+```
+
+To build `2026/08/17` by hand you write this, every time:
+
+```ts
+const yyyy = d.getFullYear()
+const mm = String(d.getMonth() + 1).padStart(2, '0') // +1 for the zero-indexing
+const dd = String(d.getDate()).padStart(2, '0')
+const formatted = `${yyyy}/${mm}/${dd}`
+```
+
+Five lines, one off-by-one trap, and it does nothing about "3 hours ago", "is this before that", or "add 7 days".
+
+<Callout type="warn">
+
+`Date` is also **mutable**, which bites badly in React. `d.setDate(d.getDate() + 7)` changes `d` *in place* — the same object you may have put in state. React compares by reference, sees the same object, and skips the re-render. You've changed the data and the screen doesn't update. This is [reference vs copy](/guide/javascript/reference-vs-copy) with a sharp edge.
+
+</Callout>
+
+## Adding dayjs {#install}
+
+```bash
+npm install dayjs
+```
+
+`dependencies`, types included. It's about 2KB — deliberately tiny, because everything optional lives in plugins you opt into.
+
+## Formatting {#format}
+
+`dayjs(...)` wraps a date; `.format(...)` renders it:
+
+```ts
+import dayjs from 'dayjs'
+
+const created = dayjs('2026-08-17T09:30:00Z')
+
+created.format('YYYY/MM/DD')        // '2026/08/17'
+created.format('YYYY年M月D日')       // '2026年8月17日'
+created.format('YYYY/MM/DD HH:mm')  // '2026/08/17 18:30'  ← rendered in YOUR timezone
+```
+
+The tokens are literal and readable: `YYYY` four-digit year, `MM` zero-padded month, `M` unpadded, `DD`/`D` day, `HH` 24-hour, `mm` minutes, `ddd` short weekday.
+
+Note the last line: the input said `09:30` UTC and the output says `18:30`, because dayjs formatted it in the browser's timezone (JST, UTC+9). That's not a bug — that's the whole point from the section above.
+
+`dayjs()` with no argument is "right now":
+
+```ts
+dayjs().format('YYYY/MM/DD') // today
+```
+
+## Parsing: from a string to a date {#parse}
+
+`dayjs()` takes ISO strings, `Date` objects, and timestamps:
+
+```ts
+dayjs('2026-08-17T09:30:00Z') // ISO from an API ✓
+dayjs('2026-08-17')           // ISO date only ✓
+dayjs(new Date())             // a Date object ✓
+dayjs(1786613400000)          // a raw timestamp ✓
+```
+
+For a format that isn't ISO — which happens with older APIs and with CSV imports — you must say what shape it is, using a plugin:
+
+```ts
+import dayjs from 'dayjs'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
+
+dayjs.extend(customParseFormat)
+
+dayjs('17/08/2026', 'DD/MM/YYYY').format('YYYY/MM/DD') // '2026/08/17'
+```
+
+Always check that parsing worked before you trust the result:
+
+```ts
+const d = dayjs(input)
+if (!d.isValid()) {
+  // don't render 'Invalid Date' at the user
+}
+```
+
+<Callout type="mistake">
+
+`dayjs('not a date')` does **not** throw. It returns an object that quietly formats as `'Invalid Date'` — which then sails through your components and lands on screen. Any date that came from outside your code (an API, a form field, a URL param) deserves an `isValid()` check. This is the date equivalent of not checking `res.ok`.
+
+</Callout>
+
+## Comparing and doing arithmetic {#compare}
+
+This is where dayjs stops being a formatter and starts saving you real time:
+
+```ts
+const created = dayjs('2026-08-17T09:30:00Z')
+
+created.add(7, 'day')          // a week later
+created.subtract(1, 'month')   // a month earlier
+created.startOf('day')         // 00:00 that day — perfect for "same day?" checks
+created.endOf('month')
+
+created.isBefore(dayjs())      // has it already happened?
+created.isAfter('2026-01-01')  // true
+created.diff(dayjs(), 'day')   // difference in whole days (negative = in the past)
+```
+
+**Every one of these returns a new object.** `created` is never modified — unlike native `Date`. That immutability is exactly what React wants: a new object is a new reference, so a state update actually re-renders.
+
+```ts
+const deadline = created.add(7, 'day')
+// `created` is still the original. No surprises later.
+```
+
+## "3 hours ago" {#relative}
+
+Relative time is a plugin, and it's the feature most people install dayjs for:
+
+```ts title="src/lib/date.ts"
+import dayjs from 'dayjs'
+import 'dayjs/locale/ja'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
+dayjs.locale('ja') // ← app-wide, set once
+
+export function fromNow(iso: string) {
+  return dayjs(iso).fromNow()
+}
+```
+
+```ts
+fromNow('2026-08-17T06:30:00Z') // '3時間前'
+```
+
+Set the plugin and the locale **once**, in a module that runs at app start — the settings are global to dayjs, so scattering `dayjs.extend()` calls across components is both redundant and a source of "works on one page, not the other" confusion.
+
+<Deeper title="Locale files and the tree-shaking catch">
+
+`import 'dayjs/locale/ja'` is a **side-effect import** — no braces, nothing assigned. It runs a file that registers Japanese with dayjs. That's why it looks different from your other imports, and why an aggressive "remove unused imports" cleanup will sometimes delete it and break your formatting.
+
+Also: import only the locales you actually use. `import 'dayjs/locale'` (the index) would pull in every language on Earth.
+
+</Deeper>
+
+## Using it in a component {#component}
+
+```tsx title="src/components/ProductMeta/ProductMeta.tsx"
+import dayjs from 'dayjs'
+
+import type { Product } from '@/types/product'
+
+export function ProductMeta({ product }: { product: Product }) {
+  const created = dayjs(product.createdAt)
+
+  return (
+    <p className={styles.meta}>
+      <time dateTime={created.toISOString()}>{created.format('YYYY/MM/DD')}</time>
+      {created.isAfter(dayjs().subtract(7, 'day')) && <span className={styles.new}>NEW</span>}
+    </p>
+  )
+}
+```
+
+The `<time dateTime={...}>` pairing is worth copying as a habit: the visible text is the human-readable local format, and `dateTime` carries the machine-readable ISO string. Search engines and assistive tech read the attribute; people read the text. You get both for one extra prop.
+
+<Together
+  task="Write a formatPostedAt(iso) helper that returns '3時間前' for anything within the last 24 hours, and a plain '2026/08/17' date for anything older. Handle a broken input string safely."
+  hint="Check isValid() first. Then compare against dayjs().subtract(24, 'hour') with isAfter, and branch between fromNow() and format()."
+>
+
+```ts title="src/lib/date.ts"
+import dayjs from 'dayjs'
+import 'dayjs/locale/ja'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
+dayjs.locale('ja')
+
+export function formatPostedAt(iso: string): string {
+  const d = dayjs(iso)
+  if (!d.isValid()) return '' // never render 'Invalid Date' at a user
+
+  const isRecent = d.isAfter(dayjs().subtract(24, 'hour'))
+  return isRecent ? d.fromNow() : d.format('YYYY/MM/DD')
+}
+```
+
+The `isValid()` guard comes first, because everything after it assumes a real date — and returning `''` lets the component decide whether to render nothing or a dash, rather than pushing `'Invalid Date'` onto the screen. `dayjs().subtract(24, 'hour')` builds "the cutoff" as its own value, which reads better than a `diff()` comparison and doesn't need you to remember the sign convention. Both branches are pure formatting, so this helper is trivial to test.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="dayjs.extend(relativeTime) inside the component that calls fromNow()"
+  good="dayjs.extend(relativeTime) once, in src/lib/date.ts"
+  note="Plugins register globally. Doing it per-component runs on every render and leaves other files silently missing the feature."
+/>
+
+<Diff
+  bad="d.getMonth() + 1 arithmetic scattered through components"
+  good="dayjs(d).format('YYYY/MM/DD')"
+  note="Zero-indexed months are a real bug source, and the padding is manual. Format in one place."
+/>
+
+<Diff
+  bad="Rendering dayjs(product.createdAt).format(...) with no isValid() check on API data"
+  good="const d = dayjs(iso); if (!d.isValid()) return null"
+  note="An invalid date doesn't throw. It formats as the string 'Invalid Date' and ships to production looking fine in your tests."
+/>
+
+<Diff
+  bad="Sending user-entered local times to the server as '2026-08-17 18:30'"
+  good="Sending d.toISOString() — '2026-08-17T09:30:00.000Z'"
+  note="Without a timezone marker the server has to guess, and it will guess its own. Transmit UTC, format locally."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Use dayjs, configured once in src/lib/date.ts, for parsing, comparing and relative time. Store and transmit ISO/UTC; format only at render"
+  alt="If the whole app formats exactly one date and does no arithmetic, the built-in Intl does it with zero dependencies: new Date(iso).toLocaleDateString('ja-JP') gives you '2026/8/17'. Reach for dayjs when you need parsing, comparison, arithmetic or 'x ago' — which is usually by the second screen."
+>
+
+Be honest about the ladder here. Formatting alone is a solved problem in the platform — `toLocaleDateString` and `Intl.DateTimeFormat` are built in, respect the user's locale, and cost nothing. dayjs earns its 2KB on the *other* jobs: parsing non-ISO input, comparing and adding, relative time, and being immutable so React re-renders correctly.
+
+Put `extend` and `locale` in one module that everything else imports, so the configuration can't drift between files. Keep dates as ISO strings everywhere except the moment of display — the second a formatted string enters your state, you've lost the ability to sort, compare, or re-format it.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`Invalid Date` on screen** … The input wasn't a format dayjs recognises. Log the raw string, and add `customParseFormat` if it isn't ISO.
+- **`d.fromNow is not a function`** … The `relativeTime` plugin wasn't extended, or the module that extends it never got imported on this path.
+- **The time is off by exactly your UTC offset** … You're formatting a UTC instant as local (correct) but expecting UTC, or the server sent a string with no `Z` and the browser guessed local. Check whether the raw string ends in `Z`.
+- **Relative time is in English** … `dayjs.locale('ja')` didn't run, or `import 'dayjs/locale/ja'` was removed as an "unused import".
+- **The date renders but doesn't update after a state change** … You mutated a native `Date` instead of using dayjs's immutable methods. `.add()` returns a new object; use its return value.
+- **Different results on your machine and a colleague's** … Different system timezones. That's dayjs behaving correctly. If a date must be shown in one fixed timezone regardless of viewer, add the `utc` and `timezone` plugins.
+
+## Summary and practice {#summary}
+
+<Exercise answer="Neither is wrong — they're the same instant rendered on two clocks. The stored value is a single number of milliseconds since 1970 UTC; 09:30Z and 18:30 JST are that same moment read off a UTC clock and a Tokyo clock. If the design needs one fixed timezone for everyone, that's a formatting decision (the utc/timezone plugins), not a reason to change what's stored.">
+
+An API sends `"2026-08-17T09:30:00Z"`. Your colleague in Tokyo sees `18:30` on the page and says the data is wrong. What's actually going on, and what would you change — if anything?
+
+</Exercise>
+
+<SummaryBox>
+
+- A `Date` holds **one number**: milliseconds since 1970 UTC. What you see is that number rendered in *someone's* timezone
+- `Z` on the end of an ISO string means UTC. **Store and transmit UTC, format at render**
+- `dayjs(iso).format('YYYY/MM/DD')` replaces the manual `getMonth() + 1` and `padStart` dance
+- dayjs is **immutable** — `.add()` returns a new object, which is what React needs to re-render
+- `relativeTime` gives `.fromNow()`; extend the plugin and set the locale **once**, app-wide
+- Always `isValid()` data that came from outside — an invalid date renders as text, it doesn't throw
+- Formatting a single date needs no library: `toLocaleDateString` is built in
+
+</SummaryBox>

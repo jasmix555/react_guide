@@ -1,0 +1,310 @@
+---
+title: Prettier で整形する
+minutes: 12
+slug: prettier
+section: libraries
+description: 整形を「判断」から外してしまう理由。Prettier を入れ、設定を書き、eslint-config-prettier で ESLint との喧嘩を止め、保存時整形だけで回るようにするまで。
+level: beginner
+prerequisites: ['libraries/eslint', 'setup/vscode-settings']
+---
+
+<LearnBox>
+
+- 1 人で書いていても整形ツールが割に合う理由
+- Prettier を入れて `.prettierrc.json` を書く
+- `eslint-config-prettier` で ESLint との喧嘩を止める
+- 保存時整形にして、コマンドを手で打たなくする
+- 設定に時間をかけてはいけない理由
+
+</LearnBox>
+
+## 誰もすべきでない議論 {#why}
+
+シングルクォートかダブルか。セミコロンは付けるか。長い JSX はどこで折るか。最後の要素の後ろにカンマは要るか。
+
+どれもコードの動作を変えません。そしてどれも意見を生み、その意見は 3 つの形で本当に時間を食います。
+
+1. **書いている間。** 長い行のたびに「どこで折るか」の小さな判断が要ります。ごく小さいけれど、絶え間なく。
+2. **レビューで。** 「ここ 1 行にしてもらえますか」で埋まったプルリクエストは、本当に大事な指摘を埋もれさせます。
+3. **git で。** 誰かのエディタはタブ、あなたはスペース。1 行の変更が 200 行の差分になります。もう何が変わったのか見えません。
+
+**Prettier は、その問いごと消します。** コードを解析し、あなたの整形をすべて捨て、自前のルールで印刷し直します。「チェックする」ではなく*印刷し直す*。Prettier にとって「許容できるが違う」書式は存在しません。出力は 1 つで、誰の環境でも同じです。
+
+<Callout type="analogy">
+
+整形ツールは新聞のハウススタイルです。見出しに句点を付けるかどうかで記者が議論することはありません。スタイルガイドが何年も前に決めていて、議論は終わっています。残るのは中身だけです。
+
+価値は「Prettier の選択が最良だから」ではありません。**決まっていて、恒久的で、しかも決めたのが自分ではない**ことです。
+
+</Callout>
+
+<Callout type="note">
+
+1 人でもやる価値があります。「未来の自分」は自分の癖を忘れた別人で、書式が一貫したファイルは半年後に読みやすい。git の差分が汚れない利点も、著者が 1 人でも同じように効きます。
+
+</Callout>
+
+## Prettier はリンターではない {#vs-eslint}
+
+いちばん多い混同なので、はっきりさせておきます。
+
+| | ESLint | Prettier |
+| --- | --- | --- |
+| 問い | これはたぶんバグでは？ | どう見えるべき？ |
+| 意味を理解する | する | しない |
+| コードを壊しうるか | 壊さないが、意味を*考えている* | 決して壊さない。同じコードを別のレイアウトで |
+| 例 | `useEffect` の依存が足りない | 行が 120 文字なので折る |
+
+ESLint はコードが*何を意味するか*を読みます。Prettier は*構造*だけを読んで印刷し直します。だから両立します。レイアウトの問いはすべて Prettier、正しさの問いはすべて ESLint。互いの仕事に手を出さないこと。
+
+## Prettier を入れる {#install}
+
+2 つ、どちらも `-D` です。ブラウザには届きません。
+
+```bash
+npm install -D prettier eslint-config-prettier
+```
+
+- **`prettier`** … 整形ツール本体。
+- **`eslint-config-prettier`** … レイアウトについて意見を持つ ESLint のルールを*すべて切る*ための設定。2 つの道具が矛盾しなくなります。これを飛ばすと本当に厄介なバグが出るので、下で詳しく扱います。
+
+## 設定 {#config}
+
+プロジェクトのルートに `.prettierrc.json` を作ります。
+
+```json title=".prettierrc.json"
+{
+  "semi": false,
+  "singleQuote": true,
+  "printWidth": 90,
+  "trailingComma": "all"
+}
+```
+
+これで全部です。短いのは意図的です。
+
+- **`semi: false`** … 行末のセミコロンを付けません。JavaScript が自動で補いますし、本当に必要な数少ない行は Prettier が知っています（そこには行頭に `;` を付けます）。
+- **`singleQuote: true`** … `"text"` ではなく `'text'`。JSX の属性はダブルのままで、これは HTML の慣習として正しく、Prettier が自動で使い分けます。
+- **`printWidth: 90`** … 90 文字を超えたら折ります。上限ではなく目安です。
+- **`trailingComma: "all"`** … 並びの最後の要素にもカンマを付けます。これは実利があります。要素を 1 つ足したとき、git の差分が 2 行ではなく**1 行**で済み、差分が正直になります。
+
+`.prettierignore` も足します。書き方は `.gitignore` と同じです。
+
+```text title=".prettierignore"
+dist
+node_modules
+*.md
+```
+
+スクリプトも足します。
+
+```json title="package.json"
+{
+  "scripts": {
+    "format": "prettier --write ."
+  }
+}
+```
+
+```bash
+npm run format
+```
+
+`--write` はファイルをその場で書き換えます。いま一度走らせて、プロジェクト全体が揃うのを眺めてください。初回はなかなか気持ちよく、そして差分が大きいので、実際の変更と混ぜず**単独のコミット**にしてください。
+
+<Callout type="warn">
+
+**この設定に半日かけないでください。** Prettier の価値は整形が判断でなくなることにあります。`printWidth` を 3 時間かけて決めるのは、議論に勝って勝負に負ける行為です。上の設定をそのまま写して 1 か月使い、実際に苛立ったところだけ変えてください。
+
+</Callout>
+
+## ESLint との喧嘩を止める {#conflict}
+
+両方の道具に嫌気がさす原因になるバグです。
+
+ESLint の古い推奨セットにはスタイル系のルール（`semi`、`quotes`、`indent`）が入っています。Prettier もその 3 つに意見を持っています。`eslint-config-prettier` 無しで両方入れると、こうなります。
+
+1. 保存すると Prettier がセミコロンを消す。
+2. ESLint がすかさずエラー：「セミコロンがありません」。
+3. `eslint --fix` を走らせると戻る。
+4. 保存する。Prettier がまた消す。
+
+無限ループで、赤い波線は永遠に消えません。直し方はレイアウトの権限を Prettier に一本化することで、`eslint-config-prettier` がまさにそれをします。Prettier が担当するルールを ESLint 側で全部オフにする設定です。
+
+`extends` の**最後**に置く必要があります。後ろのものが前を上書きするからで、これの仕事はオフにすることなので、後ろに何かがあれば戻されてしまいます。
+
+```js title="eslint.config.js"
+import js from '@eslint/js'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import prettier from 'eslint-config-prettier'
+import reactHooks from 'eslint-plugin-react-hooks'
+import tseslint from 'typescript-eslint'
+
+export default defineConfig([
+  globalIgnores(['dist', 'node_modules']),
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      prettier, // ← 必ず最後
+    ],
+  },
+])
+```
+
+<Callout type="mistake">
+
+`eslint-plugin-prettier` というパッケージもあります。Prettier を ESLint のルール*として*走らせ、整形の問題を lint エラーとして出すものです。一見きれいに見えますが、うちでは使いません。リントが遅くなりますし、整形の差異が全部「エラー」になって、本当にバグであるエラーを埋もれさせるからです。
+
+分けておきます。Prettier が整形し、ESLint がバグを見つけ、`eslint-config-prettier` がその握手。必要なのはそれだけです。
+
+</Callout>
+
+## 保存時整形 {#on-save}
+
+`npm run format` を手で打つのは間違った運用です。忘れますし、忘れたあとで巨大な再整形が実際の変更に混ざって入ります。
+
+[Part 1](/guide/setup/vscode-settings) で書き始めた `.vscode/settings.json` を仕上げます。
+
+```json title=".vscode/settings.json"
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}
+```
+
+**Prettier - Code formatter** 拡張を入れれば、保存のたびに整形と ESLint の安全な自動修正がかかります。レイアウトのことを考えるのをやめられます。雑に打って、保存すれば、正しくなります。
+
+`.vscode/settings.json` をリポジトリにコミットするのは意図的です。新しく入った人が、初日に手順書なしで同じ挙動を得られます。
+
+<Deeper title="未整形のコードをコミットできなくする">
+
+エディタの設定が助けるのは、拡張を入れている人だけです。チームで確実にするには、コミット前に Prettier を自動で走らせます。`husky`（git のフック）と `lint-staged`（ステージ済みのファイルだけに実行）を使います。
+
+```bash
+npm install -D husky lint-staged
+npx husky init
+```
+
+```json title="package.json"
+{
+  "lint-staged": {
+    "*.{ts,tsx,js,json,scss}": ["prettier --write", "eslint --fix"]
+  }
+}
+```
+
+```bash title=".husky/pre-commit"
+npx lint-staged
+```
+
+これで、誰のエディタがどうであれ、すべてのコミットが整形済み・lint クリーンになります。`lint-staged` は実際にステージしたファイルだけを処理するので、大きなプロジェクトでも速いままです。
+
+</Deeper>
+
+<Together
+  task="同僚のエディタが、ファイル全体をダブルクォートとセミコロンに戻し続けています。おかげでプルリクエストが読めません。その人は Prettier 拡張を入れています。原因として何が考えられ、二度と起きないようにリポジトリへ何を足しますか。"
+  hint="どの設定が「その人のマシン」にあり、どれが「リポジトリ」にあるかを考えてください。そして、その人のマシンに依存しなくなるのはどれか。"
+>
+
+いちばんありそうな原因は、エディタが `.prettierrc.json` ではなく**自前の既定値**で整形していることです。リポジトリに「Prettier を既定の整形ツールにする」`.vscode/settings.json` がコミットされていないか、その人のエディタが `.tsx` に別の整形ツールを選んでいるか、そもそも `.prettierrc.json` がコミットされていないか。最後の場合、Prettier は組み込みの既定値で動きます——それが*まさに*ダブルクォートとセミコロンです。
+
+コミットすべきものが 2 つあります。
+
+```json title=".vscode/settings.json"
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true
+}
+```
+
+```json title="package.json"
+{
+  "lint-staged": {
+    "*.{ts,tsx,js,json,scss}": ["prettier --write", "eslint --fix"]
+  }
+}
+```
+
+1 つ目は、クローンした人にとっての当面の原因を直します。2 つ目が本当の決着で、相手のエディタにも拡張にも設定にも依存しません。コミット時のフックが、git に入る途中でステージ済みファイルを整形するので、未整形のコミットが「あり得ない」ものになります。
+
+一般化して持ち帰る価値のある原則です。**エディタの設定は便利さ、git のフックは保証。**
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="prettier と eslint を入れて、eslint-config-prettier を入れない"
+  good="extends の最後に eslint-config-prettier"
+  note="無いと保存のたびに互いの結果を打ち消し合い、エラーが消えない。"
+/>
+
+<Diff
+  bad="機能開発のブランチの中でプロジェクト全体を再整形する"
+  good="'chore: format with prettier' を単独のコミットにしてから機能開発"
+  note="でないと本当の変更 1 行が 4,000 行の差分に埋もれ、レビューが成立しない。"
+/>
+
+<Diff
+  bad="全員が保存時整形を設定している前提にする"
+  good="lint-staged + husky でコミット時に整形する"
+  note="エディタの設定はマシンごと。フックはリポジトリごとなので、CI を含め全員に効く。"
+/>
+
+<Diff
+  bad="printWidth を半日議論する"
+  good="設定を写して先に進む"
+  note="価値は「最適であること」ではなく「決まっていて動かないこと」。"
+/>
+
+## うちの標準 {#standard}
+
+<Std
+  decision="短い .prettierrc.json の Prettier、ESLint の extends 最後に eslint-config-prettier、そしてコミット済み .vscode/settings.json による保存時整形"
+  alt="使い捨ての個人スクリプトには何も要りません。ただし「1 人だから」は見かけより弱い理由です。未来の自分は他人としてコードを読みますし、git の差分ノイズは著者が 1 人でも同じだけ邪魔になります。"
+>
+
+設定は数行に留めます。設定を 1 つ足すたびに「これからも判断し続ける項目」を 1 つ増やしていることになり、目的と逆行します。
+
+`eslint-config-prettier` は `extends` の**最後**。必ず。飛ばしたり順番を間違えたりすると、両方の道具が信用できなくなるあの保存ループが起きます。
+
+`.vscode/settings.json` はコミットして、README の説明ではなくリポジトリと一緒に挙動が届くようにします。そして既存プロジェクトに Prettier を入れる初回の再整形は、必ず**単独のコミット**に。実際の変更をレビューから隠さないためです。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **保存しても何も起きない** … Prettier 拡張が入っていないか、そのファイル種別に `editor.defaultFormatter` が設定されていません。VS Code の出力パネルの「Prettier」を確認します。
+- **ファイル全体がダブルクォートとセミコロンに戻る** … `.prettierrc.json` が見つかっていません。プロジェクトのルートにあり、コミットされているか確認します。無ければ Prettier は自前の既定値で動きます。
+- **Prettier が整形した瞬間に赤い波線が戻る** … `extends` に `eslint-config-prettier` が無いか、最後になっていません。
+- **触ってほしくないファイルまで整形される** … `.prettierignore` に足します。
+- **`prettier --write .` が遅い** … プロジェクト全体を歩いています。`.prettierignore` で `dist` や生成物のフォルダを除外します（`node_modules` は自動で飛ばされます）。
+- **手元は綺麗なのに CI が整形で落ちる** … Prettier のバージョン違いです。グローバルではなく `devDependencies` に固定して、全員が同じものを使うようにします。
+- **Markdown や MDX が崩れる** … Prettier の markdown 整形は、思った以上に動かすことがあります。`.prettierignore` に `*.md` を入れるのは妥当な判断です。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="ESLint の推奨セットにはスタイル系のルール（semi、quotes、indent）が含まれ、Prettier と担当が重なります。Prettier がセミコロンを消す→ESLint が「無い」と指摘→--fix が戻す→次の保存でまた消える、という終わらないループになり、エラーが消えません。eslint-config-prettier は Prettier が担当するルールを ESLint 側で全部オフにする設定で、extends は後ろが前を上書きするため最後に置く必要があります。先頭に置くと、後続の設定がそれらを戻してしまいます。">
+
+Prettier と ESLint を入れて `eslint-config-prettier` を飛ばしました。具体的に何が起きるでしょう。そして直すとき、なぜ `extends` の*最後*でなければならないのでしょう。
+
+</Exercise>
+
+<SummaryBox>
+
+- Prettier は自前のルールでコードを**印刷し直す**。検査はしない
+- ESLint ＝バグかどうか。Prettier ＝どう見えるか。担当は重ならない
+- 設定は `.prettierrc.json`、除外は `.prettierignore`、コマンドは `prettier --write .`
+- `eslint-config-prettier` は `extends` の**最後**。無いと保存のたびに互いを打ち消し合う
+- `trailingComma: "all"` は、要素 1 つの追加を git 差分 1 行に収める
+- 保存時整形は**コミットした** `.vscode/settings.json` で。確実にするなら husky + lint-staged
+- 初回のプロジェクト全体の再整形は、単独のコミットにする
+- 設定に時間をかけない。「最適」より「決まっている」
+
+</SummaryBox>

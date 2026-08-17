@@ -1,0 +1,399 @@
+---
+title: Talking to a server with axios
+minutes: 16
+slug: axios
+section: libraries
+description: "What a server and an API actually are, then axios: install it, make your first request, read the response, handle every kind of error, and share one configured instance across the app."
+level: beginner
+prerequisites: ['data/custom-hook', 'libraries/npm-install-writes']
+---
+
+<LearnBox>
+
+- What a "server" and an "API" actually are, starting from zero
+- Why `fetch` gets tiring once a project is real
+- Adding `axios` and making your first request
+- Reading the response, and the three different ways a request can fail
+- Sending data with POST
+- Making one configured `api` instance the whole app shares
+
+</LearnBox>
+
+## First: what is a server {#server}
+
+If everything you've built so far lived in a `dist` folder that someone uploaded, you may never have thought about this. Let's be concrete.
+
+Your React app runs **in the visitor's browser**, on their laptop or phone. It only knows what you shipped inside it. It does not know today's orders, who is logged in, or how many of a product are left — because those things change every minute, and they live **somewhere else**: on a computer that runs 24 hours a day and answers questions. That computer is the **server**.
+
+<Callout type="analogy">
+
+Think of a restaurant. The **browser** is the dining room: it's where things get shown, and it's all the customer sees. The **server** is the kitchen: it holds the ingredients (the database), it's the only one allowed to touch them, and it never comes out front.
+
+You (the front-end) don't walk into the kitchen and grab things. You **write an order on a slip and hand it over**, then wait for a plate to come back. That slip is a *request*. The plate is a *response*. Everything in this page is about writing that slip and reading that plate.
+
+</Callout>
+
+Two consequences of that split, and they explain most of what follows:
+
+1. **It takes time.** The kitchen isn't instant. A request goes over the network, the server does work, and the answer comes back — anywhere from 50 milliseconds to several seconds. Your code cannot stand still and wait, so this is `async` / `await` territory, exactly like the [Promise chapter](/guide/javascript/promise-async-await).
+2. **It can fail.** The Wi-Fi drops. The kitchen is on fire. You ordered something that isn't on the menu. "It worked on my machine" is not a plan — every request needs a plan for failing.
+
+## What an API is, and what one request looks like {#api}
+
+An **API** is just the menu: the list of questions this particular server has agreed to answer, and the exact wording each one needs. When someone says "hit the products API," they mean "send a request in the shape that server documented."
+
+One request has four parts. You have already used all four without naming them:
+
+- **The URL** — *which* thing you want. `https://api.myshop.com/products`
+- **The method** — *what you want done with it*. `GET` = give me this. `POST` = here, take this new one. `PUT`/`PATCH` = change this one. `DELETE` = remove it. Typing the URL in a browser address bar is always a `GET`.
+- **Headers** — notes in the margin. "I'm sending JSON." "Here's my access token." Small labelled facts *about* the request.
+- **The body** — the actual cargo, when you're sending something. A `GET` has no body (you're asking, not giving). A `POST` usually carries JSON.
+
+What comes back has two parts you care about:
+
+- **A status code** — a three-digit number saying how it went. `200` OK. `201` created. `400` your request was wrong. `401` you're not logged in. `403` you're logged in but not allowed. `404` no such thing. `500` the server itself broke. Rule of thumb: **2xx worked, 4xx you got it wrong, 5xx they got it wrong.**
+- **A body** — the actual answer, almost always [JSON](/guide/javascript/json).
+
+<Deeper title="Why is it almost always JSON?">
+
+Because both sides can read it and neither side has to be JavaScript. The server might be written in Go or PHP or Python; it turns its data into a JSON *string*, sends that text down the wire, and your JavaScript turns that text back into objects and arrays. JSON is the shared, boring, universal format in the middle. That's the entire reason the [JSON chapter](/guide/javascript/json) exists.
+
+</Deeper>
+
+## What you already did, and where it starts hurting {#recap-fetch}
+
+In [Part 8](/guide/data/fetch-basics) you used `fetch`, which is built into every browser. Nothing was wrong with it. Here's the honest version of that code again:
+
+```ts
+const res = await fetch('/products.json')
+if (!res.ok) throw new Error()
+const data: Product[] = await res.json()
+```
+
+Three lines, and each one is a small tax:
+
+1. **Two awaits for one request.** The first gives you a `Response` — an envelope. The contents need a second `await res.json()`. Forgetting the second one is the single most common `fetch` bug.
+2. **A failure isn't a failure.** This is the one that surprises everyone: a `404` or a `500` **does not throw**. `fetch` only rejects if the network itself died. As far as `fetch` is concerned, the server answered — it just answered "no." That's why the `if (!res.ok) throw` line has to be there, by hand, every single time. Leave it out and your app cheerfully calls `res.json()` on an error page.
+3. **Nothing is shared.** The base URL, the auth header, the timeout — you retype them at every call site, or you hand-roll a wrapper.
+
+`axios` is a small library that removes all three taxes. It is not magic and not faster; it's `fetch` with the boilerplate already written.
+
+## Adding axios {#install}
+
+The app needs it at runtime, so it's a `dependencies` install (no `-D`) — the same distinction from [what npm install changes](/libraries/npm-install-writes).
+
+```bash
+npm install axios
+```
+
+`axios` appears under `dependencies` in `package.json`. **Types ship inside the package**, so there is no `@types/axios` to install — that's the good case from [types in separate packages](/libraries/types-packages).
+
+<Callout type="warn">
+
+Stop the dev server and restart it after installing anything. Vite reads `node_modules` when it boots; adding a package while it's running sometimes leaves you staring at `Failed to resolve import "axios"` for ten confusing minutes.
+
+</Callout>
+
+## Your first request {#first-request}
+
+Same file you already fetched, rewritten with axios:
+
+```ts
+import axios from 'axios'
+
+const res = await axios.get('/products.json')
+console.log(res.data) // ← the products array, already parsed
+```
+
+Read that against the `fetch` version. **One `await`, not two.** `res.data` is the finished JavaScript array — no `res.json()`, because axios already did it. And if the server had answered `404`, this line would have **thrown**, so execution would never reach `console.log`.
+
+Add the type and you get full autocomplete on the way out:
+
+```ts
+import axios from 'axios'
+
+import type { Product } from '@/types/product'
+
+const res = await axios.get<Product[]>('/products.json')
+const products = res.data // Product[] — typed
+```
+
+<JsNote feature="What the angle brackets in axios.get<Product[]>(...) mean" to="/guide/typescript/basic-types">
+
+`axios.get` can return *anything*, because axios has no idea what your server sends. `<Product[]>` is you telling TypeScript "trust me, the `data` on this one is an array of `Product`." From then on `res.data[0].name` autocompletes and `res.data[0].nmae` is a red squiggle.
+
+It is a **promise, not a check**. Nothing verifies at runtime that the server really sent that shape — if the API changes, TypeScript stays happy and your app breaks. Making that promise actually enforced is exactly what [zod](/libraries/zod) is for, two pages from now.
+
+</JsNote>
+
+Almost always, `res.data` is the only part you want, so destructure it right there:
+
+```ts
+const { data: products } = await axios.get<Product[]>('/products.json')
+```
+
+That's [destructuring with a rename](/guide/javascript/destructuring): pull `data` out of the response and call it `products` locally.
+
+## What's actually in the response {#response}
+
+`res` is an object, and the other fields matter when you're debugging. Log the whole thing once so it stops being mysterious:
+
+```ts
+const res = await axios.get<Product[]>('/products.json')
+
+res.data    // the parsed body — what you came for
+res.status  // 200
+res.headers // what the server labelled it with
+res.config  // the request axios actually sent (great for "why did it call THAT url?")
+```
+
+When a request misbehaves, `res.config.url` and `res.status` answer most questions before you've opened the Network tab.
+
+## When it fails: the three cases {#errors}
+
+This is the part people skip and then regret. A request can fail in three genuinely different ways, and the fix is different for each:
+
+1. **The server answered, with a bad status.** `404`, `401`, `500`. There *is* a response — it's just not a good one. It often has a useful body: `{"message": "Product not found"}`.
+2. **No answer at all.** Wi-Fi dropped, the server is down, the request timed out, CORS blocked it. The slip went out and nothing came back.
+3. **You broke it before it left.** A typo in the config, a bad URL. It never got sent.
+
+axios throws for all three, so one `try` / `catch` catches all three — and inside the `catch` you can tell them apart:
+
+```ts
+import axios from 'axios'
+
+try {
+  const { data } = await axios.get<Product[]>('/products.json')
+  return data
+} catch (err) {
+  if (axios.isAxiosError(err)) {
+    if (err.response) {
+      // ① the server answered, but with 4xx / 5xx
+      console.error('Server said no:', err.response.status, err.response.data)
+    } else if (err.request) {
+      // ② nothing came back — offline, timeout, server down
+      console.error('No reply from the server')
+    } else {
+      // ③ we broke it before sending
+      console.error('Bad request setup:', err.message)
+    }
+  }
+  throw err // let the caller decide what the UI does
+}
+```
+
+<Callout type="mistake">
+
+`catch (err)` gives you `unknown` in TypeScript, not an error object — because JavaScript lets you `throw` literally anything, including a string. So `err.response` won't even compile until you've narrowed it. `axios.isAxiosError(err)` is the narrowing: it's a function that returns "yes, this is an axios error," and TypeScript then lets you reach inside. Never reach for `err as any` here — that's throwing away the exact check that stops the crash.
+
+</Callout>
+
+The `err.response` / `err.request` split is worth memorising, because it's the difference between two very different messages to your user: *"That product doesn't exist"* versus *"Check your connection and try again."*
+
+## Sending data: POST {#post}
+
+Everything so far was `GET` — asking. Sending is `post`, and the shape is `axios.post(url, body)`:
+
+```ts
+const newProduct = {
+  name: 'Ceramic mug',
+  price: 1800,
+  category: 'kitchen',
+}
+
+const { data } = await axios.post<Product>('/api/products', newProduct)
+console.log(data.id) // the server assigns the id and hands the saved item back
+```
+
+Two things axios did quietly that `fetch` makes you do yourself: it **turned your object into a JSON string**, and it **set the `Content-Type: application/json` header** so the server knows how to read it. With raw `fetch` that's `JSON.stringify(body)` plus a `headers` object, every time, and forgetting the header is a classic "why is the server seeing an empty body" afternoon.
+
+Notice the two different types in play: `<Product>` is what comes *back*, `newProduct` is what goes *out*. They're often not the same shape — you don't send an `id` for something that doesn't exist yet.
+
+## One instance the whole app shares {#instance}
+
+Right now every call site has to remember the full URL. In a real project the base URL is different in development and production, and requests usually need a shared header. Retyping that everywhere is how apps get inconsistent.
+
+`axios.create()` makes a **pre-configured copy** of axios. Set it up once, import it everywhere:
+
+```ts title="src/lib/api.ts"
+import axios from 'axios'
+
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL, // e.g. https://api.myshop.com
+  timeout: 10000, // give up after 10s instead of hanging forever
+  headers: { 'Content-Type': 'application/json' },
+})
+```
+
+`import.meta.env.VITE_API_URL` comes from your `.env` file — that's the [environment variables](/libraries/env) page. It's how the same code points at a local server while you develop and the real one once deployed, with no code change.
+
+Call sites now say only the part that differs:
+
+```ts
+import { api } from '@/lib/api'
+
+const { data } = await api.get<Product[]>('/products') // → https://api.myshop.com/products
+```
+
+<Callout type="note">
+
+`timeout` is the underrated one. Without it, a server that accepts your connection and then never replies leaves your spinner turning **forever** — no error, no timeout, just a permanently "loading" screen. Ten seconds is a sane default.
+
+</Callout>
+
+<Deeper title="Interceptors — the one advanced feature worth knowing exists">
+
+An instance can run a function on every request or every response, automatically:
+
+```ts
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+```
+
+Now every request through `api` carries the login token, and no call site has to remember. The response side is commonly used to catch `401` globally and bounce the user to the login page. You don't need this today — just know the hook exists, so you don't hand-write auth headers in forty places later.
+
+</Deeper>
+
+## Putting it in useProducts {#hook}
+
+Nothing about your component layer changes. Here is the [`useProducts` hook](/guide/data/custom-hook) from Part 8 with axios in it — compare it to the original:
+
+```ts title="src/hooks/useProducts.ts (full file)"
+import axios from 'axios'
+import { useEffect, useState } from 'react'
+
+import { api } from '@/lib/api'
+import type { Product } from '@/types/product'
+
+type Status = 'loading' | 'error' | 'success'
+
+export function useProducts() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [status, setStatus] = useState<Status>('loading')
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function load() {
+      try {
+        const { data } = await api.get<Product[]>('/products', {
+          signal: controller.signal,
+        })
+        setProducts(data)
+        setStatus('success')
+      } catch (err) {
+        if (axios.isCancel(err)) return // we cancelled it on purpose — not an error
+        setStatus('error')
+      }
+    }
+
+    load()
+    return () => controller.abort()
+  }, [])
+
+  return { products, status }
+}
+```
+
+Two changes worth calling out:
+
+- The `if (!res.ok) throw` line is **gone**, because axios already throws on a bad status. One less thing to forget.
+- The `ignore` flag from Part 8 became an `AbortController`. Same job — "the component went away, stop caring about this reply" — but it's better: `ignore` let the request finish and threw the answer away, while `abort()` actually cancels it. The `axios.isCancel(err)` guard matters, because cancelling lands in `catch`, and a cancelled request must **not** paint an error on screen.
+
+<Together
+  task="Write a getProduct(id) function that fetches one product from /products/:id using the shared api instance, returns the Product, and returns null instead of throwing when the server answers 404."
+  hint="axios.isAxiosError(err) first, then check err.response?.status === 404. Anything else should still throw — a 500 is not 'no such product'."
+>
+
+```ts title="src/lib/products.ts"
+import axios from 'axios'
+
+import { api } from '@/lib/api'
+import type { Product } from '@/types/product'
+
+export async function getProduct(id: string): Promise<Product | null> {
+  try {
+    const { data } = await api.get<Product>(`/products/${id}`)
+    return data
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      return null // genuinely not there — the caller shows "not found"
+    }
+    throw err // anything else is a real problem; don't swallow it
+  }
+}
+```
+
+`404` is the one status that means "your question was fine, the answer is no," so turning it into `null` gives the caller something easy to branch on. Everything else — `500`, a timeout, no connection — gets rethrown, because those are *broken*, not *empty*, and the UI should say so differently. `err.response?.status` uses [optional chaining](/guide/javascript/optional-chaining) because `err.response` is missing entirely in the "no reply" case.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="const data = await axios.get(url) — then wondering why data.map is not a function"
+  good="const { data } = await axios.get(url)"
+  note="axios.get resolves to the whole response envelope. The body is on .data. Destructure it or read res.data."
+/>
+
+<Diff
+  bad="const data = await axios.get(url).json()"
+  good="const { data } = await axios.get(url)"
+  note="That's the fetch habit. axios already parsed the JSON — there is no .json() to call."
+/>
+
+<Diff
+  bad="catch (err) { setError(err.response.data.message) }"
+  good="catch (err) { if (axios.isAxiosError(err) && err.response) setError(err.response.data.message) }"
+  note="In the offline case there is no err.response, so the unchecked version crashes exactly when the network is already failing."
+/>
+
+<Diff
+  bad="axios.get('https://api.myshop.com/products') at forty call sites"
+  good="api.get('/products') with baseURL set once in src/lib/api.ts"
+  note="One place to change when the URL moves, and the auth header and timeout come along for free."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Use axios through one shared instance in src/lib/api.ts, with baseURL and timeout set. Plain fetch is fine for a one-off"
+  alt="A single request to a fixed public URL — no auth, no shared config — works fine with fetch and saves a dependency. The moment there are two call sites, or a token, or a base URL that differs per environment, switch to an axios instance."
+>
+
+The reason isn't that axios is faster (it isn't). It's that the three things people forget with `fetch` — the second `await`, the `res.ok` check, and the missing timeout — are the three things axios does for you. Create the instance once, import `api` everywhere, and let `baseURL` come from `.env` so shipping to production is a config change, not a code change.
+
+Type every call (`api.get<Product[]>`) so responses aren't `any`, and treat that type as a promise you'll want [zod](/libraries/zod) to enforce later.
+
+</Std>
+
+## When it doesn't work {#trouble}
+
+- **`Failed to resolve import "axios"`** … Restart the dev server. Vite scanned `node_modules` before axios existed.
+- **`data.map is not a function`** … You've got the whole response, not the body. Use `const { data } = ...`.
+- **A CORS error in the console** … `Access-Control-Allow-Origin` missing. This is the **server's** setting, not something a front-end change can fix — the browser is blocking it on purpose. Ask whoever owns the API to allow your origin. In development, a [Vite proxy](https://vite.dev/config/server-options) is the usual workaround.
+- **`401 Unauthorized`** … The token is missing or expired. Check that the header is actually going out: `err.config.headers` in the catch, or the Network tab.
+- **The spinner never stops** … No `timeout` on the instance, or the `catch` isn't setting an error state. Both, usually.
+- **It works in the browser address bar but not from the app** … The address bar sends a `GET` with your cookies; your app may be sending different headers or none. Compare them in the Network tab.
+
+## Summary and practice {#summary}
+
+<Exercise answer="Because fetch only rejects when the network itself fails — a 404 or 500 is, to fetch, a successful round trip that happens to carry a bad status. So you must check res.ok yourself and throw. axios inverts that: any non-2xx status throws automatically, so a plain try/catch catches bad statuses and dead networks alike.">
+
+With `fetch` you have to write `if (!res.ok) throw new Error()` yourself, but with axios you don't. What is `fetch` actually doing differently — and why does forgetting that line cause bugs?
+
+</Exercise>
+
+<SummaryBox>
+
+- A **server** holds the data your app can't; you send a **request** (URL + method + headers + body) and get back a **status code** and a JSON **body**
+- **2xx worked, 4xx you got it wrong, 5xx they got it wrong**
+- `axios.get()` gives the parsed body on `res.data` — one `await`, no `res.json()`
+- Unlike `fetch`, axios **throws on 4xx/5xx**, so `try` / `catch` is enough
+- In the `catch`: `err.response` = the server said no, `err.request` = nothing came back, neither = you broke it before sending
+- Create one instance in `src/lib/api.ts` with `baseURL` and `timeout`, and import `api` everywhere
+
+</SummaryBox>
