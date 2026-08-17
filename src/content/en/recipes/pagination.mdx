@@ -1,0 +1,193 @@
+---
+title: Pagination
+minutes: 10
+slug: pagination
+section: recipes
+description: "Split a long list across pages. Keep only the page number in state and derive the slice, window the buttons so 100 pages don't become 100 buttons, and mark the current page with aria-current."
+level: intermediate
+prerequisites: ['components/rendering-lists', 'state/use-state/basics']
+---
+
+import { PaginationDemo } from '@/demos/Pagination'
+
+<LearnBox>
+
+- Storing only the page number, and **deriving** the visible slice from it
+- The two lines of arithmetic that do all the work
+- Windowing the buttons so a long list doesn't produce a wall of numbers
+- `aria-current="page"`, which styles the active button *and* announces it
+
+</LearnBox>
+
+## See the finished version first {#goal}
+
+Twenty-three items, four per page.
+
+<Demo title="Pagination">
+  <PaginationDemo />
+</Demo>
+
+## Store the page, derive everything else {#derive}
+
+The instinct is to keep the visible items in state and rewrite them on every click. Don't. The moment you have two pieces of state that must agree — the page number *and* the slice — they will eventually disagree, and the screen shows page 3's items with page 4 highlighted.
+
+Keep the **one** thing you can't calculate, and calculate the rest:
+
+```tsx
+const PER_PAGE = 4
+const [page, setPage] = useState(1)
+
+const pageCount = Math.ceil(items.length / PER_PAGE)
+const visible = items.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+```
+
+`pageCount` and `visible` are plain `const`s recalculated on every render. There is no `useState` for them and no `useEffect` keeping them in sync, because there's nothing to keep in sync.
+
+<JsNote feature="Why the slice maths looks like that" to="/guide/javascript/array-methods">
+
+`slice(start, end)` takes items from `start` up to **but not including** `end`.
+
+Pages are 1-based for humans, arrays are 0-based, so `page - 1` converts between them. On page 1: `slice(0, 4)` → items 0–3. On page 2: `slice(4, 8)` → items 4–7.
+
+`Math.ceil` on the count is what handles the last, partial page: 23 items at 4 per page is 5.75, and rounding **up** gives 6 pages, the last holding the leftover 3.
+
+</JsNote>
+
+## The buttons {#buttons}
+
+The control holds no state — it takes the current page and reports clicks. That keeps it reusable: the same component can drive a local slice today and a `?page=3` URL param tomorrow.
+
+```tsx title="src/components/Pagination/Pagination.tsx"
+interface PaginationProps {
+  page: number
+  pageCount: number
+  onChange: (page: number) => void
+}
+
+export function Pagination({ page, pageCount, onChange }: PaginationProps) {
+  if (pageCount <= 1) return null // one page needs no pager
+
+  return (
+    <nav aria-label="Pagination">
+      <button type="button" onClick={() => onChange(page - 1)} disabled={page === 1}>
+        ← Prev
+      </button>
+
+      {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+        <button
+          key={n}
+          type="button"
+          aria-current={n === page ? 'page' : undefined}
+          aria-label={`Page ${n}`}
+          onClick={() => onChange(n)}
+        >
+          {n}
+        </button>
+      ))}
+
+      <button type="button" onClick={() => onChange(page + 1)} disabled={page === pageCount}>
+        Next →
+      </button>
+    </nav>
+  )
+}
+```
+
+`disabled` on the ends is doing real work: without it, Prev on page 1 calls `onChange(0)` and the slice quietly returns an empty list.
+
+## aria-current, and styling from it {#aria-current}
+
+`aria-current="page"` marks the one you're on. Screen readers announce it as "current page," and — the part people miss — **CSS can select it**, so you don't need a second `className` carrying the same fact:
+
+```scss
+.page[aria-current='page'] {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: var(--c-on-accent);
+  font-weight: 700;
+}
+```
+
+One source of truth for "which page is active." A class and an attribute that must agree is exactly the two-copies problem from the top of this page, in miniature.
+
+## Don't render a hundred buttons {#window}
+
+With 100 pages the version above renders 100 buttons. Show a window around the current page instead, with the first and last always reachable:
+
+```tsx
+// Three pages centred on the current one, clamped to the ends.
+const start = Math.max(1, Math.min(page - 1, pageCount - 2))
+const window = [start, start + 1, start + 2].filter((n) => n >= 1 && n <= pageCount)
+```
+
+Then render `1 …` before the window when it doesn't already start at 1, and `… pageCount` after it when it doesn't end there. The `Math.max` / `Math.min` pair is what stops the window sliding off either end near the edges.
+
+<Together
+  task="A filter is applied above the list and the result drops from 23 items to 6. The user is on page 4. What breaks, and what's the fix?"
+  hint="pageCount recalculates, but page doesn't. What does slice() return when the start index is past the end of the array?"
+>
+
+`pageCount` becomes 2, but `page` is still 4 — so `slice(12, 16)` on a six-item array returns `[]`. The user sees an **empty list with no explanation**, and the pager shows a page that no longer exists.
+
+The fix is to reset the page whenever the thing being paged changes:
+
+```tsx
+// Filtering changed the list, so start again from page 1.
+function onFilterChange(next: string) {
+  setFilter(next)
+  setPage(1)
+}
+```
+
+Reset it in the **event handler**, not in a `useEffect` watching `filter`. An effect would render the broken empty state first and then correct it — a visible flash — where the handler updates both in the same pass and the broken state never renders.
+
+This is worth remembering beyond pagination: when two pieces of state are related, changing them together in the handler beats syncing them afterwards.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="const [visible, setVisible] = useState(items.slice(0, 4))"
+  good="const visible = items.slice((page - 1) * PER_PAGE, page * PER_PAGE)"
+  note="Two pieces of state that must agree will eventually disagree. Derive the slice; store only the page."
+/>
+
+<Diff
+  bad="Prev and Next always enabled"
+  good="disabled={page === 1} and disabled={page === pageCount}"
+  note="Otherwise you can page to 0 or past the end and get a silently empty list."
+/>
+
+<Diff
+  bad={`className={n === page ? 'active' : ''}`}
+  good={`aria-current={n === page ? 'page' : undefined}, styled via [aria-current='page']`}
+  note="The attribute both announces the state and gives CSS a hook, so the fact lives in one place."
+/>
+
+<Diff
+  bad="Filtering the list without resetting the page"
+  good="setPage(1) in the same handler that changes the filter"
+  note="Otherwise page 4 of a now-2-page list shows an empty screen with no error."
+/>
+
+## When it doesn't work {#trouble}
+
+- **The list is empty but there are items** … `page` is past `pageCount`, usually after a filter change. Reset to 1 when the source list changes.
+- **The last page is missing** … `Math.floor` instead of `Math.ceil` — the partial final page gets rounded away.
+- **The first page shows one item too few** … The `page - 1` conversion is missing somewhere; pages are 1-based, indexes are 0-based.
+- **Keyboard users can't tell which page they're on** … `aria-current` is missing, or you're styling only with a class.
+- **`key` warnings from the buttons** … `Array.from({ length: n }, (_, i) => i + 1)` gives real numbers to use as keys; don't key on the array index of a re-sorted list.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Keep **only the page number** in state — `pageCount` and the visible slice are derived on every render
+- `items.slice((page - 1) * PER_PAGE, page * PER_PAGE)`, and `Math.ceil` for the count so the partial last page survives
+- `disabled` on Prev/Next at the ends, or you can page out of the array
+- `aria-current="page"` announces the active page **and** styles it — no duplicate class
+- Window the buttons once the list is long, keeping the first and last reachable
+- Reset to page 1 in the handler that changes the filter, not in an effect
+
+</SummaryBox>

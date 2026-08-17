@@ -1,0 +1,220 @@
+---
+title: Skeleton loader
+minutes: 9
+slug: skeleton
+section: recipes
+description: "Grey placeholders shaped like the content that's coming, instead of a spinner. A CSS shimmer, one reusable Skeleton component, aria-hidden on the boxes with a live region carrying the real message, and honouring reduced-motion."
+level: intermediate
+prerequisites: ['data/three-states']
+---
+
+import { SkeletonDemo } from '@/demos/Skeleton'
+
+<LearnBox>
+
+- Why a skeleton beats a spinner, and when it doesn't
+- One tiny `Skeleton` component, sized by the caller
+- The shimmer, in CSS alone
+- Hiding the boxes from screen readers and announcing the state properly
+- Turning the animation off for `prefers-reduced-motion`
+
+</LearnBox>
+
+## See the finished version first {#goal}
+
+Press the button to reload.
+
+<Demo title="Skeleton loader">
+  <SkeletonDemo />
+</Demo>
+
+## Why not a spinner {#why}
+
+In [Part 8](/guide/data/three-states) you built the three states: loading, error, success. A spinner is the simplest loading state, and for a short wait inside a button it's still the right answer.
+
+For a **page or a list**, a skeleton is better for two concrete reasons:
+
+1. **The layout doesn't jump.** A spinner occupies a small box; the real content is a grid of cards. When the data lands, everything shifts. Skeletons take up the same room the content will, so nothing moves.
+2. **It sets expectations.** A grid of card outlines says "a grid of products is coming" before anything arrives. A spinner says only "wait."
+
+<Callout type="note">
+
+Don't reach for it every time. A skeleton is worth it when the shape of what's coming is **predictable** — a list of cards, a profile, a table. When you don't know what's arriving, or the wait is under ~300ms, a skeleton is worse: it flashes on and off and reads as a glitch.
+
+</Callout>
+
+## One component, sized by the caller {#component}
+
+The whole thing is a grey box you can size:
+
+```tsx title="src/components/Skeleton/Skeleton.tsx"
+import styles from './Skeleton.module.scss'
+
+export function Skeleton({ width = '100%', height = '1em' }: { width?: string; height?: string }) {
+  return <span className={styles.skeleton} style={{ width, height }} aria-hidden />
+}
+```
+
+`width` and `height` are `string`s, not numbers, so callers can pass `'70%'`, `'72px'` or `'1.2em'` — whichever matches the thing being stood in for. Defaulting `height` to `1em` means a bare `<Skeleton />` is exactly one line of text tall.
+
+<Callout type="warn">
+
+This is one of the few good uses of an inline `style`. The dimensions vary per instance, so they can't be a class — creating `.skeleton-72px` classes is worse. Everything that *doesn't* vary (colour, radius, animation) stays in the stylesheet where it belongs.
+
+</Callout>
+
+Then you compose placeholders that mirror the real card's shape:
+
+```tsx
+{loading ? (
+  <div className={styles.card}>
+    <Skeleton height="72px" />
+    <Skeleton width="70%" />
+    <Skeleton width="40%" height="0.8em" />
+  </div>
+) : (
+  <div className={styles.card}>
+    <img src={product.imageUrl} alt="" />
+    <span>{product.name}</span>
+    <span>¥{product.price.toLocaleString()}</span>
+  </div>
+)}
+```
+
+The widths are deliberately uneven — `70%` for a title, `40%` for a price. A stack of identical full-width bars reads as a broken table; ragged widths read as text.
+
+## The shimmer {#shimmer}
+
+No JavaScript. A wide gradient with a lighter band, slid across the box:
+
+```scss title="Skeleton.module.scss"
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--c-sunk) 25%,
+    color-mix(in srgb, var(--c-sunk) 60%, var(--c-line)) 37%,
+    var(--c-sunk) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+```
+
+`background-size: 400%` makes the gradient four times wider than the element, so there's somewhere to slide *from*. Animating `background-position` rather than `left` or `margin` keeps it off the layout — the browser doesn't recalculate anything, which matters when twelve of these are on screen.
+
+Building the colours from `--c-sunk` and `--c-line` means the skeletons follow your theme, including dark mode, with no second palette.
+
+## Reduced motion {#reduced-motion}
+
+A looping shimmer on a dozen boxes is precisely the kind of motion that makes some people feel unwell, and it's exactly what this media query exists for:
+
+```scss
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+```
+
+The placeholder stays — the layout benefit is untouched. Only the movement goes.
+
+## Accessibility: hide the boxes, announce the state {#a11y}
+
+A screen reader has nothing useful to say about grey rectangles, so `aria-hidden` on each `Skeleton` keeps them out of the way. But the *state* still needs announcing, or the user gets silence and then a list appearing out of nowhere.
+
+One live region carries the message for the whole group:
+
+```tsx
+<p className={styles.srOnly} role="status">
+  {loading ? 'Loading products' : ''}
+</p>
+```
+
+`role="status"` is a polite live region: it's announced at the next natural pause. Clearing it to `''` when loading finishes matters — the next load then changes the text again, which is what triggers a fresh announcement.
+
+<Together
+  task="The skeleton flashes for 40ms on a fast connection and looks like a glitch. Add a delay so it only appears if loading is genuinely slow — without leaving a timer running after the data lands."
+  hint="A second piece of state, flipped by a setTimeout, with the same cleanup pattern as the debounce recipe."
+>
+
+```tsx
+const [showSkeleton, setShowSkeleton] = useState(false)
+
+useEffect(() => {
+  if (!loading) {
+    setShowSkeleton(false)
+    return
+  }
+  const timer = setTimeout(() => setShowSkeleton(true), 200)
+  return () => clearTimeout(timer)
+}, [loading])
+```
+
+Loading starts, and a 200ms timer is scheduled. If the data arrives in 40ms, `loading` flips to `false`, the effect re-runs, and **the cleanup cancels the timer before it ever fires** — so `showSkeleton` was never `true` and nothing flashed. If the request is genuinely slow, the timer fires and the skeleton appears.
+
+Render on `showSkeleton`, not `loading`. Same cleanup mechanism as the [search filter](/recipes/search-filter): "before the next effect, undo the last one."
+
+A word of warning on the threshold. Below about 200ms a flash reads as a glitch; above about 1s of blank screen people think the page is broken. 150–250ms is the usual window, and it's worth checking on a throttled connection rather than guessing.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="Skeletons that don't match the real content's size"
+  good="Placeholders shaped like what's coming — 72px image, 70% title, 40% price"
+  note="If the sizes differ, the layout jumps anyway and you've gained nothing over a spinner."
+/>
+
+<Diff
+  bad="A skeleton for every load, however fast"
+  good="Show it only after ~200ms of actual waiting"
+  note="A 40ms flash reads as a rendering glitch, not as feedback."
+/>
+
+<Diff
+  bad="Leaving the grey boxes visible to screen readers"
+  good="aria-hidden on each box, one role='status' region for the message"
+  note="Otherwise it announces a pile of empty elements and never says 'loading'."
+/>
+
+<Diff
+  bad="An infinite shimmer with no reduced-motion guard"
+  good="animation: none inside @media (prefers-reduced-motion: reduce)"
+  note="A dozen looping gradients is exactly the motion that setting exists to stop."
+/>
+
+## When it doesn't work {#trouble}
+
+- **The shimmer doesn't move** … `background-size` is missing or 100%; there's nothing to slide. It needs to be wider than the element.
+- **The layout still jumps when data lands** … The placeholder heights don't match the real content. Measure the real card and match it.
+- **The skeleton flashes on every load** … Add the delay from the exercise above.
+- **The grey is invisible in dark mode** … You hardcoded a hex instead of building the gradient from theme tokens.
+- **Nothing is announced** … The live region's text isn't *changing*. Clear it to `''` when loading ends, so the next load is a change.
+- **The animation stutters with many cards** … Something is animating a layout property. Animate `background-position`, `transform` or `opacity` only.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- A skeleton beats a spinner when the shape is **predictable** — no layout jump, and it previews what's coming
+- One `Skeleton` component with `width` / `height` props; inline `style` is right here because the sizes vary per instance
+- Ragged widths (70%, 40%) read as text; identical bars read as broken
+- Shimmer with a 400%-wide gradient and animated `background-position` — no JavaScript, no layout work
+- Build the colours from theme tokens so dark mode is free
+- `aria-hidden` the boxes, and carry the message in one `role="status"` region
+- `animation: none` under `prefers-reduced-motion`, keeping the placeholder
+- Delay ~200ms before showing it, so a fast response doesn't flash
+
+</SummaryBox>

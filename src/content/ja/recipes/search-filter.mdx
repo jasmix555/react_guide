@@ -1,0 +1,197 @@
+---
+title: 検索フィルタ（デバウンス）
+minutes: 11
+slug: search-filter
+section: recipes
+description: 1 文字ごとに走らせない絞り込み。useEffect の中の setTimeout と、前のタイマーを取り消すクリーンアップ。入力は即座、処理だけ遅らせる 2 つの state の型。
+level: intermediate
+prerequisites: ['state/use-effect/basics', 'javascript/array-methods']
+---
+
+import { SearchFilterDemo } from '@/demos/SearchFilter'
+
+<LearnBox>
+
+- 1 文字ごとの絞り込みが、手元では平気でも通信だと問題になる理由
+- **デバウンス**——入力が止まってから重い処理をする
+- 入力欄は即座、処理は遅れる、という 2 つの state の型
+- effect のクリーンアップ関数こそが仕掛けの本体であること
+- 1 打鍵ごとに叫ばずに、件数を読み上げに伝える
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+入力してみてください。打っている間は「入力中…」、手を止めて 300 ミリ秒で件数に落ち着きます。
+
+<Demo title="Search filter">
+  <SearchFilterDemo />
+</Demo>
+
+## デバウンスが解く問題 {#why}
+
+7 個の文字列を 1 文字ごとに絞り込むのはタダ同然です。これで問題ありません。
+
+```tsx
+const [query, setQuery] = useState('')
+const results = items.filter((i) => i.toLowerCase().includes(query.toLowerCase()))
+```
+
+困るのは、打鍵の裏側の処理が重いときです。「カラフェ」は 4 打鍵。1 打鍵ごとにリクエストを投げるなら、**1 つの質問に 4 回**投げたことになります。しかも 3 回は誰も知りたくない途中の文字列に対して。さらに悪いことに、返る順番は保証されません。「カラ」の結果が「カラフェ」の結果より後に届いて、上書きすることがあります。
+
+**デバウンス**がその答えです。1 打鍵ごとに動くのをやめ、打鍵が止まったら 1 回だけ動く。
+
+<Callout type="analogy">
+
+エレベーターの「閉」ボタンです。押してもすぐには閉まらず、誰か来ないか少し待ちます。人が入ってくるたびに、その待ち時間は**やり直し**になります。しばらく誰も来なくなって、はじめて閉まります。
+
+1 打鍵が「入ってくる人」。ドアが閉まるのが「検索が実際に走る」瞬間です。
+
+</Callout>
+
+## state は 1 つではなく 2 つ {#two-states}
+
+つい入力欄そのものを遅らせたくなりますが、それはやめてください。指の動きに遅れて文字が出るテキストボックスは、壊れているように感じます。
+
+代わりに値を**2 つ**持ちます。入力欄が見せる即座の値と、それ以外が読む遅れた値。
+
+```tsx
+const [query, setQuery] = useState('') // 即座。入力欄が表示する値
+const [debounced, setDebounced] = useState('') // 遅れる。絞り込みが使う値
+```
+
+入力欄は `query` に紐づいているので、反応は完璧なまま。重い処理は `debounced` を見ていて、こちらは手が止まったときだけ追いつきます。
+
+## デバウンスの effect {#effect}
+
+5 行で、肝心なのは最後の 1 行です。
+
+```tsx
+useEffect(() => {
+  const timer = setTimeout(() => setDebounced(query), 300)
+  return () => clearTimeout(timer)
+}, [query])
+```
+
+順番に追ってください。「カ」と打つ → effect が走る → 「300 ミリ秒後に `debounced` を 'カ' にする」を予約。80 ミリ秒後に「ラ」と打つ → `query` が変わったので、React は**まず前回のクリーンアップを実行**して予約を取り消し、それから新しく予約し直す。打ち続ける限り、タイマーは次の打鍵に消され続けます。300 ミリ秒止まって、最後の 1 つがようやく発火します。
+
+<Callout type="warn">
+
+`return () => clearTimeout(timer)` が無いと、何も取り消されません。打鍵ごとにタイマーが積まれ、**全部**が 300 ミリ秒ずつずれて順番に発火します。リクエストを減らしたのではなく遅らせただけで、デバウンスしないより悪い状態です。
+
+ここでのクリーンアップは「後片付け」ではありません。仕掛けそのものです。
+
+</Callout>
+
+<JsNote feature="クリーンアップ関数が走るタイミング" to="/guide/state/use-effect/basics">
+
+`useEffect` から `return` した関数が走る場面は 2 つです。**次に effect が走る直前**（依存配列の中身が変わったため）と、**コンポーネントが消えるとき**。
+
+デバウンスを成立させているのは前者、「次をやる前に、前のを取り消す」です。後者も効いています。入力の途中で別のページへ移動しても、予約されたタイマーは取り消され、もう存在しないコンポーネントに向けて発火することがありません。
+
+</JsNote>
+
+## 絞り込みと「入力中」 {#filter}
+
+`results` は導出です。state も effect も要りません。
+
+```tsx
+const results = items.filter((item) => item.toLowerCase().includes(debounced.toLowerCase()))
+const settling = query !== debounced
+```
+
+`settling` は気の利いた小技です。即座の値と遅れた値が食い違っているなら、デバウンスが進行中ということ。管理する state を増やさずに「入力中…」の表示が作れます。
+
+両側の `toLowerCase()` が大文字小文字を無視させています。無いと「Mug」で「mug」が出ず、利用者にはただの不具合に見えます。
+
+## 叫ばずに件数を伝える {#a11y}
+
+読み上げソフトの利用者にも「一覧が変わった」ことは必要です。件数をライブリージョンに入れます。
+
+```tsx
+<p aria-live="polite">
+  {settling ? '入力中…' : `${items.length} 件中 ${results.length} 件`}
+</p>
+```
+
+`aria-live="polite"` は「割り込まず、区切りのいいところで読んで」という指定です。ここではデバウンスがアクセシビリティの仕事も兼ねています。これが無ければ、このリージョンは**1 打鍵ごとに**読み上げを発生させ、実際に使いものになりません。
+
+CSS で行の高さを確保しておく（`min-height: 1.4em`）と、文字数が変わっても下の一覧が跳ねません。
+
+<Together
+  task="絞り込みをサーバー側に移します。手元の items.filter を /products?q=… への取得に置き換えてください。送るのはどちらの値で、通信の途中でコンポーネントが消えたら何が必要でしょう。"
+  hint="送るのは即座の値ではなくデバウンス後の値。そしてタイマーを取り消した effect は、リクエストも取り消せます。"
+>
+
+```tsx
+const [results, setResults] = useState<Product[]>([])
+
+useEffect(() => {
+  const controller = new AbortController()
+
+  async function search() {
+    const { data } = await api.get<Product[]>('/products', {
+      params: { q: debounced },
+      signal: controller.signal,
+    })
+    setResults(data)
+  }
+
+  search()
+  return () => controller.abort()
+}, [debounced])
+```
+
+デバウンスの effect から引き継いでいるものが 2 つあります。見るのは **`debounced`** であって `query` ではありません。即座の値を見た瞬間、1 打鍵 1 リクエストに逆戻りで、避けたかったことそのものになります。
+
+そしてクリーンアップは、1 階層上で `clearTimeout` と同じ仕事をします。`controller.abort()` は、次の入力が来たときやコンポーネントが消えたときに、まだ飛んでいるリクエストを取り消します。冒頭の「順番が入れ替わる」問題を止めているのもこれです。取り消されていれば、古い返事が新しい結果を上書きできません。[axios のページ](/libraries/axios)と同じ型で、`catch` に `axios.isCancel(err)` が要るのも同じ理由です。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="useEffect(() => { setTimeout(() => setDebounced(query), 300) }, [query])"
+  good="const timer = setTimeout(...); return () => clearTimeout(timer)"
+  note="クリーンアップが無いとタイマーが全部生き残り、順に発火する。デバウンスではなく、ただの遅延。"
+/>
+
+<Diff
+  bad="入力欄自体の値をデバウンスして、文字が遅れて出るようにする"
+  good="入力欄は query、処理は debounced"
+  note="理由がどれだけ正当でも、打鍵に遅れるテキストボックスは壊れて感じられる。"
+/>
+
+<Diff
+  bad="items.filter((i) => i.includes(query))"
+  good="items.filter((i) => i.toLowerCase().includes(query.toLowerCase()))"
+  note="大文字小文字を区別する検索は不具合に見える。「Mug」で「mug」が出ないのは報告される。"
+/>
+
+<Diff
+  bad="[query] で取得する"
+  good="[debounced] で取得する"
+  note="即座の値を見ると 1 打鍵 1 リクエストに戻り、デバウンスが飾りになる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **やはり 1 打鍵ごとに走る** … effect の依存が `debounced` ではなく `query` になっているか、クリーンアップがありません。
+- **結果が常に 1 文字遅れる** … `debounced` で絞り込んでいるのにどこかで `query` と比べているか、待ち時間が長すぎます。250〜400 ミリ秒が普通の範囲です。
+- **入力がもたつく** … 入力欄が `debounced` に紐づいています。`query` に戻します。
+- **古い結果が一瞬戻る** … レスポンスの順番が入れ替わっています。上記のように `AbortController` で取り消します。
+- **1 打鍵ごとに読み上げられる** … ライブリージョンがデバウンス前の値を表示しています。
+- **打つたびに一覧が跳ねる** … 状態表示の行の高さが変わっています。`min-height` を付けます。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- デバウンス＝入力が**止まってから**重い処理をする
+- state は 2 つ。`query`（即座・入力欄用）と `debounced`（遅れる・処理用）
+- effect の中の `setTimeout` と、**`return () => clearTimeout(timer)`**。クリーンアップは後片付けではなく仕掛けそのもの
+- クリーンアップは「次の effect の直前」と「アンマウント時」に走るので、打鍵ごとに前のタイマーが消える
+- `results` は `debounced` からの導出。`query !== debounced` がそのまま「入力中…」になる
+- 通信なら見るのは `debounced`。飛んでいるリクエストは `AbortController` で取り消す
+
+</SummaryBox>

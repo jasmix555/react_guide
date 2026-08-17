@@ -1,0 +1,217 @@
+---
+title: Tag input (chips)
+minutes: 11
+slug: tag-input
+section: recipes
+description: "Free-text tags added with Enter and removed with ✕ or Backspace. Immutable array updates, why duplicates break your keys, preventDefault inside a form, and not losing what the user typed on blur."
+level: intermediate
+prerequisites: ['state/use-state/updating-array-state']
+---
+
+import { TagInputDemo } from '@/demos/TagInput'
+
+<LearnBox>
+
+- Adding and removing from an array **without mutating** it
+- Enter to add, ✕ or Backspace-on-empty to remove
+- Why duplicate tags break `key` — and why rejecting them isn't just tidiness
+- `preventDefault()` on Enter, or your form submits instead
+- The `onBlur` detail that stops people losing what they typed
+
+</LearnBox>
+
+## See the finished version first {#goal}
+
+Type and press Enter. Press Backspace in an empty box to take the last one back.
+
+<Demo title="Tag input">
+  <TagInputDemo />
+</Demo>
+
+## The state, and who owns it {#state}
+
+Two pieces of state doing different jobs:
+
+```tsx
+const [tags, setTags] = useState<string[]>([]) // the committed chips
+const [draft, setDraft] = useState('') // what's currently in the box
+```
+
+In the component itself, `tags` comes in as a prop with an `onChange` — the list belongs to whoever is going to submit it, and `draft` stays inside because nobody else cares about a half-typed word:
+
+```tsx
+interface TagInputProps {
+  tags: string[]
+  onChange: (tags: string[]) => void
+  max?: number
+}
+```
+
+That's the same split as the [Pagination recipe](/recipes/pagination): the component owns the interaction, the parent owns the data.
+
+## Adding and removing without mutating {#immutable}
+
+This is the part that bites people coming from plain JavaScript. `push` and `splice` change the array **in place**, so React sees the same array reference, decides nothing changed, and skips the re-render. Your data updated and the screen didn't.
+
+```ts
+// ✗ mutates — same reference, no re-render
+tags.push(value)
+
+// ✓ new array — new reference, React re-renders
+onChange([...tags, value])
+```
+
+Removal is `filter`, which returns a new array by nature:
+
+```ts
+onChange(tags.filter((t) => t !== tag))
+```
+
+And "remove the last one" is `slice`:
+
+```ts
+onChange(tags.slice(0, -1))
+```
+
+<JsNote feature="Why these three and not push / splice" to="/guide/javascript/reference-vs-copy">
+
+`[...tags, value]`, `filter` and `slice` all **return a new array** and leave the original untouched. `push`, `splice` and `sort` modify the one you have.
+
+React compares state by reference — `Object.is(oldValue, newValue)`. A mutated array is still the same object, so the comparison says "unchanged" and no re-render happens. This is [reference vs copy](/guide/javascript/reference-vs-copy) with a visible consequence: the bug isn't an error message, it's a screen that quietly refuses to update.
+
+`slice(0, -1)` reads as "from the start, up to one before the end" — a negative index counts back from the end.
+
+</JsNote>
+
+## Rejecting duplicates {#duplicates}
+
+Skipping a tag that's already there looks like a nicety. It isn't:
+
+```tsx
+if (tags.includes(value) || tags.length >= max) {
+  setDraft('')
+  return
+}
+```
+
+Since the list is rendered with `key={tag}`, two identical tags mean **two identical keys**. React uses keys to tell items apart between renders, so duplicates make it lose track — remove one and the wrong chip can disappear. You'll also get a console warning about duplicate keys.
+
+The alternative is to give each tag a generated id and key on that. For free-text tags, "you can't add the same one twice" is both simpler and the behaviour users expect anyway.
+
+## The keyboard {#keyboard}
+
+Everything interesting happens in `onKeyDown`:
+
+```tsx
+function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    add()
+  }
+  if (e.key === 'Backspace' && draft === '' && tags.length > 0) {
+    onChange(tags.slice(0, -1))
+  }
+}
+```
+
+**`preventDefault()` on Enter is not optional.** Inside a `<form>`, Enter in a text field submits the form — so without it, adding your first tag submits a half-filled form. It's the kind of bug that never shows up in an isolated demo and always shows up in the real page.
+
+**Backspace on an empty box** removes the last chip. Every tag field people have used behaves this way, so its absence feels broken — and the `draft === ''` guard is what keeps it from firing while they're still deleting letters.
+
+<Callout type="note">
+
+Worth adding once the basics work: comma as a second commit key (`if (e.key === 'Enter' || e.key === ',')`), since people paste comma-separated lists and expect them to split.
+
+</Callout>
+
+## Don't lose what they typed {#blur}
+
+One line, and it prevents a small betrayal:
+
+```tsx
+<input value={draft} onChange={...} onKeyDown={onKeyDown} onBlur={add} />
+```
+
+Someone types "gift", doesn't press Enter, and clicks Submit. Without `onBlur={add}`, "gift" is silently thrown away and the form saves without it. With it, leaving the field commits what's there.
+
+This is why `add()` starts by checking `if (!value) return` — blur fires constantly, including when the box is empty, and it must be safe to call at any moment.
+
+<Together
+  task="Tags are arriving with stray spaces and mixed casing, so 'Gift', 'gift ' and ' gift' all become separate chips. Fix the duplicate check without changing what the user sees on chips they already added."
+  hint="Normalise for comparison only. trim() the value you store; lowercase only inside the includes() test."
+>
+
+```ts
+function add() {
+  const value = draft.trim()
+  if (!value) return
+
+  const exists = tags.some((t) => t.toLowerCase() === value.toLowerCase())
+  if (exists || tags.length >= max) {
+    setDraft('')
+    return
+  }
+
+  onChange([...tags, value])
+  setDraft('')
+}
+```
+
+Two different jobs, deliberately kept apart. `trim()` cleans the value you actually **store** — trailing spaces are never meaningful in a tag, so removing them is a real fix rather than a display trick.
+
+Casing is different: `Gift` may well be how the user wants it shown, so you don't want to lowercase what you keep. Instead, lowercase **only inside the comparison**, which is why `some()` with an explicit test replaces `includes()`. Store what they typed, compare case-insensitively.
+
+The general shape is worth keeping: normalise for *comparison*, preserve for *display*. Lowercasing the stored value would "fix" the duplicate bug by introducing a smaller, more annoying one.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="tags.push(value); setTags(tags)"
+  good="onChange([...tags, value])"
+  note="push mutates, so the reference is unchanged, so React skips the re-render. Data updates, screen doesn't."
+/>
+
+<Diff
+  bad="Handling Enter without e.preventDefault()"
+  good="e.preventDefault() before adding"
+  note="Inside a form, Enter in a text input submits it. Your first tag submits the form."
+/>
+
+<Diff
+  bad="Allowing duplicate tags with key={tag}"
+  good="Rejecting duplicates, or keying on a generated id"
+  note="Duplicate keys make React lose track of which item is which — removing one can delete the wrong chip."
+/>
+
+<Diff
+  bad="No onBlur, so an uncommitted draft is silently dropped"
+  good="onBlur={add}, with add() safely ignoring an empty value"
+  note="Typing a tag and clicking Submit shouldn't quietly throw the tag away."
+/>
+
+## When it doesn't work {#trouble}
+
+- **Chips don't appear** … You mutated the array. Use the spread, `filter` and `slice`.
+- **The page reloads when you press Enter** … Missing `preventDefault()`; the surrounding form submitted.
+- **"Encountered two children with the same key"** … Duplicate tags. Reject them, or key on an id.
+- **Backspace deletes a chip while I'm still typing** … The `draft === ''` guard is missing.
+- **The last tag never gets saved** … No `onBlur={add}`; the draft was never committed.
+- **The ✕ button submits the form** … Every button inside a form needs `type="button"`, or it defaults to `type="submit"`.
+- **Screen readers just say "button"** … The remove button needs an `aria-label` naming the tag it removes. A bare ✕ has no accessible name.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Two states: `tags` (committed, owned by the parent) and `draft` (in progress, local)
+- Add with `[...tags, value]`, remove with `filter`, drop the last with `slice(0, -1)` — **never `push`**
+- A mutated array keeps its reference, so React skips the re-render entirely
+- Reject duplicates: `key={tag}` breaks when two chips are identical
+- `e.preventDefault()` on Enter, or the surrounding form submits
+- Backspace on an **empty** box removes the last chip
+- `onBlur={add}` so an uncommitted draft isn't lost, with `add()` safe to call when empty
+- Normalise for comparison (`toLowerCase`), preserve what they typed for display
+
+</SummaryBox>

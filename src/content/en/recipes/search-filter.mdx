@@ -1,0 +1,197 @@
+---
+title: Search filter (debounced)
+minutes: 11
+slug: search-filter
+section: recipes
+description: "Type-to-filter that doesn't fire on every keystroke. A setTimeout in useEffect whose cleanup cancels the previous timer, plus the two-state pattern that keeps the input instant while the work waits."
+level: intermediate
+prerequisites: ['state/use-effect/basics', 'javascript/array-methods']
+---
+
+import { SearchFilterDemo } from '@/demos/SearchFilter'
+
+<LearnBox>
+
+- Why filtering on every keystroke is fine locally and a problem over the network
+- **Debouncing**: waiting until typing stops before doing the expensive part
+- The two-state pattern — the box updates instantly, the work lags behind
+- Why the effect's cleanup function is the entire trick
+- Announcing the result count without shouting on every keypress
+
+</LearnBox>
+
+## See the finished version first {#goal}
+
+Type in the box. Notice the status line says "Typing…" while you're mid-word, and settles to a count 300ms after you stop.
+
+<Demo title="Search filter">
+  <SearchFilterDemo />
+</Demo>
+
+## The problem debouncing solves {#why}
+
+Filtering an array of seven strings on every keystroke costs nothing. Do this, and it's fine:
+
+```tsx
+const [query, setQuery] = useState('')
+const results = items.filter((i) => i.toLowerCase().includes(query.toLowerCase()))
+```
+
+The trouble starts when the work behind the keystroke is expensive. Typing "carafe" is seven keystrokes, and if each one triggers a request you've sent **seven requests to answer one question** — six of them for prefixes nobody cares about. Worse, they can come back out of order, so the answer for "car" lands after the answer for "carafe" and overwrites it.
+
+**Debouncing** is the fix: don't act on every keystroke, act once the keystrokes stop.
+
+<Callout type="analogy">
+
+A lift with a door-close button. Press it and the doors don't shut instantly — the lift waits a moment in case someone else steps in. Every new person **restarts** that wait. The doors close once nobody has arrived for a few seconds.
+
+Each keystroke is a person stepping in. The doors closing is your search actually running.
+
+</Callout>
+
+## Two states, not one {#two-states}
+
+The instinct is to delay the input itself. Don't — a text box that lags behind your fingers feels broken.
+
+Keep **two** values instead: the live one the input shows, and the delayed one everything else reads.
+
+```tsx
+const [query, setQuery] = useState('') // instant — what the input displays
+const [debounced, setDebounced] = useState('') // lagging — what the filter uses
+```
+
+The input stays perfectly responsive because it's bound to `query`. The expensive work watches `debounced`, which only catches up when you pause.
+
+## The debounce effect {#effect}
+
+Five lines, and the last one is the one that matters:
+
+```tsx
+useEffect(() => {
+  const timer = setTimeout(() => setDebounced(query), 300)
+  return () => clearTimeout(timer)
+}, [query])
+```
+
+Read it as a sequence. You type "c" → the effect runs → it schedules "set `debounced` to 'c' in 300ms". You type "a" 80ms later → `query` changed, so React **runs the cleanup from last time first**, cancelling that pending timer, then schedules a new one. Type continuously and every timer is cancelled by the next keystroke. Stop for 300ms and the last one finally fires.
+
+<Callout type="warn">
+
+Without the `return () => clearTimeout(timer)` line, nothing is cancelled. Every keystroke schedules a timer and they **all** fire, 300ms apart, in a little cascade — you've delayed the requests rather than avoided them, which is worse than not debouncing at all.
+
+The cleanup isn't tidy-up here. It's the mechanism.
+
+</Callout>
+
+<JsNote feature="When cleanup functions run" to="/guide/state/use-effect/basics">
+
+The function you `return` from `useEffect` runs in two situations: **before the effect runs again** (because something in the dependency array changed), and **when the component unmounts**.
+
+That first case is what makes debouncing work — "before the next one, undo the last one." The unmount case matters too: navigate away mid-typing and the pending timer is cancelled instead of firing into a component that no longer exists.
+
+</JsNote>
+
+## Filtering, and the "typing" state {#filter}
+
+`results` is derived — no state, no effect:
+
+```tsx
+const results = items.filter((item) => item.toLowerCase().includes(debounced.toLowerCase()))
+const settling = query !== debounced
+```
+
+`settling` is a neat trick: if the live value and the delayed value disagree, a debounce is in flight. That's your "Typing…" indicator, with no extra state to manage.
+
+`toLowerCase()` on both sides is what makes the search case-insensitive — without it, "Mug" doesn't find "mug", which users read as broken.
+
+## Announcing it without shouting {#a11y}
+
+A screen reader user needs to know the list changed. Put the count in a live region:
+
+```tsx
+<p aria-live="polite">
+  {settling ? 'Typing…' : `${results.length} of ${items.length} shown`}
+</p>
+```
+
+`aria-live="polite"` means "announce this when there's a natural pause," rather than interrupting. The debounce is doing accessibility work for free here: without it, this region would fire an announcement on **every keystroke**, which is genuinely unusable.
+
+Reserve the line's height in CSS (`min-height: 1.4em`) so the list below doesn't jump as the text changes length.
+
+<Together
+  task="Move the filtering to the server: replace the local items.filter with a fetch to /products?q=… . Which value do you send, and what has to happen when the component unmounts mid-request?"
+  hint="The debounced value, not the live one. And the same effect that cancels timers can cancel requests."
+>
+
+```tsx
+const [results, setResults] = useState<Product[]>([])
+
+useEffect(() => {
+  const controller = new AbortController()
+
+  async function search() {
+    const { data } = await api.get<Product[]>('/products', {
+      params: { q: debounced },
+      signal: controller.signal,
+    })
+    setResults(data)
+  }
+
+  search()
+  return () => controller.abort()
+}, [debounced])
+```
+
+Two things carry over from the debounce effect. You watch **`debounced`**, not `query` — watching the live value would put you back to one request per keystroke, which is the whole thing you were avoiding.
+
+And the cleanup does the same job as `clearTimeout` did, one layer up: `controller.abort()` cancels a request that's still in flight when the query changes again or the component unmounts. That's what stops the out-of-order problem from the top of this page — a stale response can't overwrite a newer one if it was cancelled. It's the same pattern as the [axios page](/libraries/axios), and the same reason `axios.isCancel(err)` belongs in the `catch`.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="useEffect(() => { setTimeout(() => setDebounced(query), 300) }, [query])"
+  good="const timer = setTimeout(...); return () => clearTimeout(timer)"
+  note="Without cleanup every timer survives and they all fire in sequence — delayed, not debounced."
+/>
+
+<Diff
+  bad="Debouncing the input's own value so the box updates late"
+  good="query drives the input, debounced drives the work"
+  note="A text field that lags behind typing feels broken, however good the reason."
+/>
+
+<Diff
+  bad="items.filter((i) => i.includes(query))"
+  good="items.filter((i) => i.toLowerCase().includes(query.toLowerCase()))"
+  note="Case-sensitive search reads as broken: 'Mug' failing to find 'mug' is a bug report."
+/>
+
+<Diff
+  bad="Fetching on [query]"
+  good="Fetching on [debounced]"
+  note="Watching the live value reinstates one request per keystroke — the debounce is then decorative."
+/>
+
+## When it doesn't work {#trouble}
+
+- **It still fires on every keystroke** … The effect depends on `query` instead of `debounced`, or the cleanup is missing.
+- **The results are always one keystroke behind** … You're filtering on `debounced` but comparing against `query` somewhere, or the delay is far too long. 250–400ms is the usual range.
+- **Typing feels sluggish** … The input is bound to `debounced`. Bind it to `query`.
+- **The old results flash back** … Responses arriving out of order. Cancel with `AbortController`, as above.
+- **The screen reader announces on every keypress** … The live region is showing the undebounced value.
+- **The list jumps as you type** … The status line changes height. Give it a `min-height`.
+
+## Summary {#summary}
+
+<SummaryBox>
+
+- Debounce = wait until typing **stops** before doing the expensive part
+- Keep two states: `query` (instant, drives the input) and `debounced` (lagging, drives the work)
+- `setTimeout` in an effect, and **`return () => clearTimeout(timer)`** — the cleanup is the mechanism, not tidy-up
+- Cleanup runs before the next effect and on unmount, so each keystroke cancels the previous timer
+- `results` is derived from `debounced`; `query !== debounced` gives you a free "typing…" state
+- Over the network, watch `debounced` and cancel in-flight requests with `AbortController`
+
+</SummaryBox>

@@ -1,0 +1,193 @@
+---
+title: ページネーション
+minutes: 10
+slug: pagination
+section: recipes
+description: 長い一覧をページで分ける。state に持つのはページ番号だけにして表示分は計算で出し、ボタンは窓で絞り、現在地は aria-current で示す。
+level: intermediate
+prerequisites: ['components/rendering-lists', 'state/use-state/basics']
+---
+
+import { PaginationDemo } from '@/demos/Pagination'
+
+<LearnBox>
+
+- state に持つのはページ番号だけ。表示する範囲は**計算で出す**
+- 全部を支えている、たった 2 行の算数
+- ボタンを窓で絞って、番号の壁を作らない
+- `aria-current="page"`——見た目の指定*と*読み上げを兼ねる
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+23 件を 1 ページ 4 件で。
+
+<Demo title="Pagination">
+  <PaginationDemo />
+</Demo>
+
+## ページ番号だけ持ち、あとは導く {#derive}
+
+つい「表示中の配列」を state に持って、クリックのたびに入れ替えたくなります。やめましょう。**一致していなければならない state が 2 つ**（ページ番号と、切り出した配列）ある時点で、いつか必ずズレます。そして「3 ページ目の中身が出ているのに 4 ページ目が光っている」画面ができます。
+
+計算では出せない**唯一の**ものだけを持ち、残りは計算します。
+
+```tsx
+const PER_PAGE = 4
+const [page, setPage] = useState(1)
+
+const pageCount = Math.ceil(items.length / PER_PAGE)
+const visible = items.slice((page - 1) * PER_PAGE, page * PER_PAGE)
+```
+
+`pageCount` も `visible` も、毎回の描画で計算し直されるただの `const` です。`useState` も、同期のための `useEffect` も要りません。同期すべきものが存在しないからです。
+
+<JsNote feature="slice の計算式がこうなる理由" to="/guide/javascript/array-methods">
+
+`slice(start, end)` は `start` から `end` の**手前まで**を取り出します。
+
+ページは人間向けに 1 始まり、配列は 0 始まりなので、`page - 1` がその変換です。1 ページ目は `slice(0, 4)` で 0〜3 番目、2 ページ目は `slice(4, 8)` で 4〜7 番目。
+
+最後の半端なページを救っているのが `Math.ceil` です。23 件を 4 件ずつだと 5.75。**切り上げ**て 6 ページになり、最後のページに余りの 3 件が入ります。
+
+</JsNote>
+
+## ボタン側 {#buttons}
+
+このコンポーネントは state を持ちません。現在のページを受け取り、クリックを報告するだけ。だから使い回せます。今日はローカルの配列を、明日は `?page=3` の URL パラメータを動かせます。
+
+```tsx title="src/components/Pagination/Pagination.tsx"
+interface PaginationProps {
+  page: number
+  pageCount: number
+  onChange: (page: number) => void
+}
+
+export function Pagination({ page, pageCount, onChange }: PaginationProps) {
+  if (pageCount <= 1) return null // 1 ページならページ送りは不要
+
+  return (
+    <nav aria-label="ページ送り">
+      <button type="button" onClick={() => onChange(page - 1)} disabled={page === 1}>
+        ← 前へ
+      </button>
+
+      {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+        <button
+          key={n}
+          type="button"
+          aria-current={n === page ? 'page' : undefined}
+          aria-label={`${n} ページ目`}
+          onClick={() => onChange(n)}
+        >
+          {n}
+        </button>
+      ))}
+
+      <button type="button" onClick={() => onChange(page + 1)} disabled={page === pageCount}>
+        次へ →
+      </button>
+    </nav>
+  )
+}
+```
+
+両端の `disabled` はちゃんと働いています。無いと、1 ページ目で「前へ」が `onChange(0)` を呼び、`slice` が静かに空配列を返します。
+
+## aria-current と、そこからのスタイル {#aria-current}
+
+`aria-current="page"` は「今ここ」の印です。読み上げソフトは「現在のページ」と伝えます。そして見落とされがちですが、**CSS はこの属性を選択できます**。同じ事実を持つ `className` をもう 1 つ用意する必要はありません。
+
+```scss
+.page[aria-current='page'] {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: var(--c-on-accent);
+  font-weight: 700;
+}
+```
+
+「どのページが有効か」の真実が 1 か所に収まります。一致させ続ける必要のあるクラスと属性は、このページ冒頭の「2 つ持つと壊れる」の縮小版です。
+
+## ボタンを 100 個出さない {#window}
+
+100 ページあると、上のコードはボタンを 100 個描きます。現在のページのまわりだけを窓として出し、最初と最後には常に飛べるようにします。
+
+```tsx
+// 現在のページを中心に 3 つ。端では収まるように寄せる。
+const start = Math.max(1, Math.min(page - 1, pageCount - 2))
+const window = [start, start + 1, start + 2].filter((n) => n >= 1 && n <= pageCount)
+```
+
+あとは、窓が 1 から始まっていなければ前に `1 …` を、`pageCount` で終わっていなければ後ろに `… pageCount` を出します。端の近くで窓がはみ出さないようにしているのが `Math.max` と `Math.min` の組です。
+
+<Together
+  task="一覧の上に絞り込みを付けたら、23 件が 6 件になりました。利用者は 4 ページ目にいます。何が壊れ、どう直しますか。"
+  hint="pageCount は計算し直されますが、page はそのままです。開始位置が配列の終端を越えたとき slice() は何を返すでしょう。"
+>
+
+`pageCount` は 2 になりますが `page` は 4 のまま。つまり 6 件の配列に対して `slice(12, 16)` となり、返るのは `[]` です。利用者には**説明のない空の一覧**が見え、ページ送りには存在しないページが表示されます。
+
+直し方は、ページ送りの対象が変わったらページを戻すことです。
+
+```tsx
+// 絞り込みで一覧が変わったので、1 ページ目から見せ直す。
+function onFilterChange(next: string) {
+  setFilter(next)
+  setPage(1)
+}
+```
+
+戻すのは **イベントハンドラの中**であって、`filter` を監視する `useEffect` ではありません。effect だと、壊れた空の状態を一度描画してから直すので、一瞬ちらつきます。ハンドラなら両方が同じ更新にまとまり、壊れた状態は一度も描画されません。
+
+ページネーションに限らず覚えておく価値があります。**関連する 2 つの state は、あとから同期するより、ハンドラで一緒に変える。**
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="const [visible, setVisible] = useState(items.slice(0, 4))"
+  good="const visible = items.slice((page - 1) * PER_PAGE, page * PER_PAGE)"
+  note="一致が必要な state が 2 つあれば、いつか必ずズレる。持つのはページ番号だけにして、範囲は導く。"
+/>
+
+<Diff
+  bad="「前へ」「次へ」を常に押せる状態にする"
+  good="disabled={page === 1} と disabled={page === pageCount}"
+  note="無いと 0 ページ目や終端の先に行けてしまい、黙って空の一覧になる。"
+/>
+
+<Diff
+  bad={`className={n === page ? 'active' : ''}`}
+  good={`aria-current={n === page ? 'page' : undefined} と [aria-current='page'] でのスタイル`}
+  note="属性 1 つで読み上げにも CSS にも効くので、事実を 1 か所に置ける。"
+/>
+
+<Diff
+  bad="絞り込みを変えたのにページを戻さない"
+  good="絞り込みを変える同じハンドラで setPage(1)"
+  note="2 ページしか無い一覧の 4 ページ目は、エラーも出ずにただの空画面になる。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **件数はあるのに一覧が空** … `page` が `pageCount` を越えています。だいたい絞り込みの直後です。元の一覧が変わったら 1 に戻します。
+- **最後のページが出てこない** … `Math.ceil` ではなく `Math.floor` になっていて、半端な最終ページが切り捨てられています。
+- **1 ページ目だけ 1 件足りない** … どこかで `page - 1` の変換が抜けています。ページは 1 始まり、添字は 0 始まりです。
+- **キーボードだと今どのページか分からない** … `aria-current` が無いか、クラスだけでスタイルを当てています。
+- **ボタンで `key` の警告が出る** … `Array.from({ length: n }, (_, i) => i + 1)` なら実体のある数値が key になります。並び替わる配列の添字を key にしないこと。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- state に持つのは**ページ番号だけ**。`pageCount` も表示範囲も毎回の描画で導く
+- `items.slice((page - 1) * PER_PAGE, page * PER_PAGE)`、件数は `Math.ceil` で最後の半端なページを残す
+- 両端の「前へ」「次へ」に `disabled`。無いと配列の外へ出られてしまう
+- `aria-current="page"` は読み上げ**と**スタイルを兼ねる。クラスを二重に持たない
+- 一覧が長くなったらボタンは窓で絞り、最初と最後へは常に飛べるように
+- 1 ページ目への戻しは、絞り込みを変えるハンドラの中で。effect ではなく
+
+</SummaryBox>

@@ -1,0 +1,217 @@
+---
+title: タグ入力（チップ）
+minutes: 11
+slug: tag-input
+section: recipes
+description: Enter で足して ✕ や Backspace で消す自由入力のタグ。配列を壊さない更新、重複が key を壊す理由、フォーム内での preventDefault、そして打った内容を失わせない onBlur。
+level: intermediate
+prerequisites: ['state/use-state/updating-array-state']
+---
+
+import { TagInputDemo } from '@/demos/TagInput'
+
+<LearnBox>
+
+- 配列を**壊さずに**足す・消す
+- Enter で追加、✕ か「空欄での Backspace」で削除
+- タグの重複が `key` を壊す理由——単なる行儀の問題ではない
+- Enter での `preventDefault()`。無いとフォームが送信される
+- 打った内容を失わせない `onBlur` の一手
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+入力して Enter。空欄で Backspace を押すと最後の 1 つが戻ります。
+
+<Demo title="Tag input">
+  <TagInputDemo />
+</Demo>
+
+## state と、その持ち主 {#state}
+
+役割の違う state が 2 つあります。
+
+```tsx
+const [tags, setTags] = useState<string[]>([]) // 確定したチップ
+const [draft, setDraft] = useState('') // いま入力欄にあるもの
+```
+
+コンポーネント自身では、`tags` は `onChange` とセットの props で受け取ります。一覧を送信するのは呼び出し側なので一覧は向こうのもの、書きかけの単語は誰の関心事でもないので `draft` は内側に置いたままです。
+
+```tsx
+interface TagInputProps {
+  tags: string[]
+  onChange: (tags: string[]) => void
+  max?: number
+}
+```
+
+[ページネーションのレシピ](/recipes/pagination)と同じ分け方です。操作はコンポーネントのもの、データは親のもの。
+
+## 壊さずに足す・消す {#immutable}
+
+素の JavaScript から来た人がやられるのがここです。`push` や `splice` は配列を**その場で**書き換えるので、React から見れば同じ参照のまま。「変わっていない」と判断して再描画を飛ばします。データは更新されたのに画面は変わりません。
+
+```ts
+// ✗ 破壊的。参照が同じなので再描画されない
+tags.push(value)
+
+// ✓ 新しい配列。参照が変わるので React が再描画する
+onChange([...tags, value])
+```
+
+削除は `filter`。性質上、新しい配列を返します。
+
+```ts
+onChange(tags.filter((t) => t !== tag))
+```
+
+「最後の 1 つを消す」は `slice`。
+
+```ts
+onChange(tags.slice(0, -1))
+```
+
+<JsNote feature="なぜ push / splice ではなくこの 3 つなのか" to="/guide/javascript/reference-vs-copy">
+
+`[...tags, value]`・`filter`・`slice` は、いずれも**新しい配列を返し**、元をそのままにします。`push`・`splice`・`sort` は手元のものを書き換えます。
+
+React は state を参照で比較します（`Object.is(oldValue, newValue)`）。書き換えた配列は同じオブジェクトのままなので、比較は「変化なし」と答え、再描画は起きません。[参照とコピー](/guide/javascript/reference-vs-copy)が目に見える形で出てくる場面です。エラーメッセージは出ず、画面が静かに更新を拒むだけ、というのが厄介なところ。
+
+`slice(0, -1)` は「先頭から、末尾の 1 つ手前まで」。マイナスの添字は末尾から数えます。
+
+</JsNote>
+
+## 重複を弾く {#duplicates}
+
+すでにあるタグを飛ばすのは、気配りに見えて実は必須です。
+
+```tsx
+if (tags.includes(value) || tags.length >= max) {
+  setDraft('')
+  return
+}
+```
+
+一覧は `key={tag}` で描いているので、同じタグが 2 つ＝**同じ key が 2 つ**です。React は描画をまたいで要素を見分けるのに key を使うため、重複すると追跡できなくなります。片方を消したつもりが、別のチップが消えることがあります。コンソールにも重複 key の警告が出ます。
+
+もう 1 つの手はタグごとに id を生成して、それを key にすること。ただ自由入力のタグなら、「同じものは 2 回入れられない」ほうが簡単ですし、利用者の期待とも一致します。
+
+## キーボード {#keyboard}
+
+面白いところは全部 `onKeyDown` にあります。
+
+```tsx
+function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    add()
+  }
+  if (e.key === 'Backspace' && draft === '' && tags.length > 0) {
+    onChange(tags.slice(0, -1))
+  }
+}
+```
+
+**Enter の `preventDefault()` は任意ではありません。** `<form>` の中では、テキスト入力での Enter はフォームを送信します。付けないと、最初のタグを足した瞬間に書きかけのフォームが送信されます。切り出したデモでは絶対に出ず、本番のページでは必ず出る種類のバグです。
+
+**空欄での Backspace** は最後のチップを消します。世の中のタグ入力はどれもこう動くので、無いと壊れて感じられます。`draft === ''` の条件が、まだ文字を消している最中に発動しないようにしている部分です。
+
+<Callout type="note">
+
+基本が動いたら足す価値があるのがカンマでの確定です（`if (e.key === 'Enter' || e.key === ',')`）。カンマ区切りの一覧を貼り付けて、分割されることを期待する人が多いからです。
+
+</Callout>
+
+## 打った内容を捨てない {#blur}
+
+1 行で、小さな裏切りを防げます。
+
+```tsx
+<input value={draft} onChange={...} onKeyDown={onKeyDown} onBlur={add} />
+```
+
+「ギフト」と打ち、Enter を押さないまま送信ボタンを押す人がいます。`onBlur={add}` が無いと「ギフト」は黙って捨てられ、それ抜きで保存されます。あれば、欄から離れた時点で確定します。
+
+`add()` の先頭が `if (!value) return` なのはこのためです。blur は空欄のときも含めて何度でも起きるので、いつ呼ばれても安全である必要があります。
+
+<Together
+  task="前後の空白や大文字小文字がまちまちで、'Gift'・'gift '・' gift' が別々のチップになってしまいます。すでに追加されたチップの見た目を変えずに、重複判定だけ直してください。"
+  hint="正規化は比較のためだけに。保存する値は trim()、小文字化は includes() の判定の内側だけで。"
+>
+
+```ts
+function add() {
+  const value = draft.trim()
+  if (!value) return
+
+  const exists = tags.some((t) => t.toLowerCase() === value.toLowerCase())
+  if (exists || tags.length >= max) {
+    setDraft('')
+    return
+  }
+
+  onChange([...tags, value])
+  setDraft('')
+}
+```
+
+役割の違う 2 つを、意図して分けています。`trim()` は実際に**保存する**値を整えます。タグの末尾の空白に意味があることはないので、これは見た目の小細工ではなく本当の修正です。
+
+大文字小文字は違います。`Gift` はその表記で見せたいのかもしれないので、保存する値を小文字にはしたくない。代わりに**比較の内側だけ**で小文字化します。`includes()` ではなく判定式を書ける `some()` に替えたのはそのためです。打たれたまま保存し、比較は大文字小文字を無視する。
+
+この形は覚えておく価値があります。**比較のために正規化し、表示のために元を保つ。** 保存する値を小文字にするのは、重複バグを直す代わりに、より小さくて苛立つバグを持ち込むやり方です。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="tags.push(value); setTags(tags)"
+  good="onChange([...tags, value])"
+  note="push は破壊的で参照が変わらないので、React は再描画を飛ばす。データは更新、画面はそのまま。"
+/>
+
+<Diff
+  bad="e.preventDefault() 無しで Enter を処理する"
+  good="追加する前に e.preventDefault()"
+  note="フォームの中ではテキスト入力の Enter が送信になる。最初のタグでフォームが飛ぶ。"
+/>
+
+<Diff
+  bad="key={tag} のまま重複タグを許す"
+  good="重複を弾くか、生成した id を key にする"
+  note="key が重複すると React が対応を見失い、消したつもりのチップとは別のものが消える。"
+/>
+
+<Diff
+  bad="onBlur が無く、確定していない入力が黙って消える"
+  good="onBlur={add}。add() は空なら何もしない"
+  note="タグを打って送信を押した人から、そのタグを黙って取り上げるべきではない。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **チップが出てこない** … 配列を破壊的に更新しています。スプレッド・`filter`・`slice` にします。
+- **Enter でページが再読み込みされる** … `preventDefault()` が無く、囲っているフォームが送信されました。
+- **`Encountered two children with the same key`** … タグが重複しています。弾くか、id を key にします。
+- **入力中なのに Backspace でチップが消える** … `draft === ''` の条件が抜けています。
+- **最後のタグが保存されない** … `onBlur={add}` が無く、下書きが確定していません。
+- **✕ ボタンでフォームが送信される** … フォーム内のボタンには `type="button"` が要ります。既定は `type="submit"` です。
+- **読み上げが「ボタン」としか言わない** … 削除ボタンには、どのタグを消すのかを含む `aria-label` が必要です。✕ だけでは名前がありません。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- state は 2 つ。`tags`（確定済み・親が持つ）と `draft`（入力中・ローカル）
+- 追加は `[...tags, value]`、削除は `filter`、末尾を落とすのは `slice(0, -1)`。**`push` は使わない**
+- 破壊的に更新した配列は参照が同じなので、React は再描画そのものを飛ばす
+- 重複は弾く。`key={tag}` は同じチップが 2 つあると壊れる
+- Enter では `e.preventDefault()`。無いと囲っているフォームが送信される
+- **空欄での** Backspace で最後のチップを削除
+- `onBlur={add}` で未確定の入力を失わせない。`add()` は空でも安全に呼べるように
+- 比較のために正規化（`toLowerCase`）し、表示のために打たれたままを保つ
+
+</SummaryBox>

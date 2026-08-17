@@ -1,0 +1,93 @@
+@use 'styles/mixins' as *;
+
+// The demo stage is a flex container, so without this the root shrinks to its
+// content — and a grid with an indefinite width resolves auto-fit to a SINGLE
+// track, which is what stacks the cards into one column.
+.root {
+  width: 100%;
+}
+
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  // Two stops of the same grey with a lighter band travelling across it.
+  background: linear-gradient(
+    90deg,
+    var(--c-sunk) 25%,
+    color-mix(in srgb, var(--c-sunk) 60%, var(--c-line)) 37%,
+    var(--c-sunk) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+// A looping shimmer is exactly the kind of motion this setting exists to stop.
+// The placeholder stays; only the animation goes.
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.srOnly {
+  @include visually-hidden;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+}
+
+.grid {
+  display: grid;
+  // auto-FIT, not auto-fill: empty tracks collapse, so the cards that exist
+  // stretch across the full width instead of leaving dead space on the right.
+  // Rows stay implicit — a fixed row count would leave gaps below the cards.
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-3);
+}
+
+.name {
+  font-size: var(--fs-small);
+  font-weight: 700;
+}
+
+.price {
+  font-size: var(--fs-small);
+  color: var(--c-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.reload {
+  margin-bottom: var(--sp-3);
+  padding: 6px 14px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--c-sunk);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

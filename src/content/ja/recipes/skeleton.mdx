@@ -1,0 +1,220 @@
+---
+title: スケルトンローダー
+minutes: 9
+slug: skeleton
+section: recipes
+description: スピナーではなく、これから来る中身の形をしたグレーの箱。CSS だけのシマー、使い回せる Skeleton コンポーネント、箱は aria-hidden にしてライブリージョンで状態を伝える、そして reduced-motion への配慮。
+level: intermediate
+prerequisites: ['data/three-states']
+---
+
+import { SkeletonDemo } from '@/demos/Skeleton'
+
+<LearnBox>
+
+- スケルトンがスピナーに勝つ理由と、勝たない場面
+- 呼び出し側がサイズを決める、小さな `Skeleton` コンポーネント
+- CSS だけで作るシマー
+- 箱を読み上げから隠し、状態はきちんと伝える
+- `prefers-reduced-motion` でアニメーションを止める
+
+</LearnBox>
+
+## 完成形を先に見る {#goal}
+
+ボタンで読み込み直せます。
+
+<Demo title="Skeleton loader">
+  <SkeletonDemo />
+</Demo>
+
+## なぜスピナーではないのか {#why}
+
+[Part 8](/guide/data/three-states) で「読み込み中・エラー・成功」の 3 状態を作りました。スピナーは最も簡単な読み込み中の表現で、ボタンの中の短い待ち時間なら今でも正解です。
+
+**ページや一覧**では、スケルトンのほうが良い理由が 2 つあります。
+
+1. **レイアウトが跳ねない。** スピナーは小さな箱を占めますが、本物の中身はカードのグリッドです。データが届いた瞬間、全部がずれます。スケルトンは中身と同じ場所を先に取るので、何も動きません。
+2. **期待値を作れる。** カードの輪郭がグリッドに並んでいれば、届く前から「商品の一覧が来る」と分かります。スピナーが言えるのは「待って」だけです。
+
+<Callout type="note">
+
+いつでも使うものではありません。スケルトンが効くのは、来るものの形が**予測できる**とき（カードの一覧、プロフィール、表）です。何が来るか分からないときや、待ち時間が 300 ミリ秒未満のときは、むしろ逆効果。パッと出てパッと消えて、不具合に見えます。
+
+</Callout>
+
+## コンポーネントは 1 つ、サイズは呼び出し側 {#component}
+
+正体は「サイズを指定できるグレーの箱」だけです。
+
+```tsx title="src/components/Skeleton/Skeleton.tsx"
+import styles from './Skeleton.module.scss'
+
+export function Skeleton({ width = '100%', height = '1em' }: { width?: string; height?: string }) {
+  return <span className={styles.skeleton} style={{ width, height }} aria-hidden />
+}
+```
+
+`width` と `height` を数値ではなく `string` にしているので、呼び出し側は `'70%'` でも `'72px'` でも `'1.2em'` でも渡せます。代わりに立てるものに合わせて選べばいい。`height` の既定値が `1em` なので、素の `<Skeleton />` はちょうど 1 行ぶんの高さになります。
+
+<Callout type="warn">
+
+ここはインラインの `style` が正しい数少ない場面です。寸法はインスタンスごとに違うのでクラスにはできません（`.skeleton-72px` のようなクラスを作るほうが悪い）。**変わらないもの**（色・角丸・アニメーション）はスタイルシートに置いたままにします。
+
+</Callout>
+
+あとは、本物のカードの形をなぞるように組み合わせます。
+
+```tsx
+{loading ? (
+  <div className={styles.card}>
+    <Skeleton height="72px" />
+    <Skeleton width="70%" />
+    <Skeleton width="40%" height="0.8em" />
+  </div>
+) : (
+  <div className={styles.card}>
+    <img src={product.imageUrl} alt="" />
+    <span>{product.name}</span>
+    <span>¥{product.price.toLocaleString()}</span>
+  </div>
+)}
+```
+
+幅をわざと不揃いにしています。タイトルは `70%`、価格は `40%`。同じ幅の帯が並ぶと壊れた表に見え、不揃いだと文章に見えます。
+
+## シマー {#shimmer}
+
+JavaScript は使いません。明るい帯を含む横長のグラデーションを、箱の上で滑らせるだけです。
+
+```scss title="Skeleton.module.scss"
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--c-sunk) 25%,
+    color-mix(in srgb, var(--c-sunk) 60%, var(--c-line)) 37%,
+    var(--c-sunk) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+```
+
+`background-size: 400%` でグラデーションを要素の 4 倍の幅にしているので、*滑ってくる余地*ができます。`left` や `margin` ではなく `background-position` を動かすのがポイントで、レイアウトに触りません。ブラウザは再計算をせずに済み、これが画面に 12 個並んだときに効いてきます。
+
+色を `--c-sunk` と `--c-line` から組み立てているので、ダークモードを含めてテーマに追従します。2 つ目のパレットは要りません。
+
+## 動きを減らす設定 {#reduced-motion}
+
+十数個の箱でループするシマーは、まさに気分が悪くなる人がいる種類の動きで、このメディアクエリはそのためにあります。
+
+```scss
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+```
+
+プレースホルダー自体は残るので、レイアウト上の利点はそのまま。消えるのは動きだけです。
+
+## アクセシビリティ：箱は隠し、状態を伝える {#a11y}
+
+読み上げソフトにとって、グレーの長方形について言えることは何もありません。各 `Skeleton` の `aria-hidden` で邪魔にならないようにします。ただし*状態*は伝える必要があります。でないと、無音のあとに一覧が突然現れることになります。
+
+グループ全体でライブリージョンを 1 つ持たせます。
+
+```tsx
+<p className={styles.srOnly} role="status">
+  {loading ? '商品を読み込み中' : ''}
+</p>
+```
+
+`role="status"` は控えめなライブリージョンで、区切りのいいところで読まれます。読み込みが終わったら `''` に戻すのが大事で、次の読み込みでまた文字が変わり、それが新しい読み上げのきっかけになります。
+
+<Together
+  task="回線が速いとスケルトンが 40 ミリ秒だけ光って不具合に見えます。本当に遅いときだけ出るように遅延を入れてください。データが届いた後にタイマーを残さないように。"
+  hint="state をもう 1 つ、setTimeout で立てます。デバウンスのレシピと同じクリーンアップの型です。"
+>
+
+```tsx
+const [showSkeleton, setShowSkeleton] = useState(false)
+
+useEffect(() => {
+  if (!loading) {
+    setShowSkeleton(false)
+    return
+  }
+  const timer = setTimeout(() => setShowSkeleton(true), 200)
+  return () => clearTimeout(timer)
+}, [loading])
+```
+
+読み込みが始まり、200 ミリ秒のタイマーが予約されます。40 ミリ秒でデータが届けば `loading` が `false` になり、effect が走り直し、**発火する前にクリーンアップがタイマーを取り消します**。`showSkeleton` は一度も `true` にならず、何も光りません。本当に遅いときだけタイマーが発火してスケルトンが出ます。
+
+描画の条件は `loading` ではなく `showSkeleton` にします。仕掛けは[検索フィルタ](/recipes/search-filter)と同じ、「次の effect の前に、前のを取り消す」です。
+
+しきい値について一言。200 ミリ秒を下回ると一瞬の点滅は不具合に見え、1 秒以上まっさらだと「壊れている」と思われます。150〜250 ミリ秒あたりが普通で、勘で決めずに通信を絞った状態で確認する価値があります。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="本物の中身とサイズが合っていないスケルトン"
+  good="来るものの形に合わせる（画像 72px、タイトル 70%、価格 40%）"
+  note="サイズが違えば結局レイアウトは跳ね、スピナーに対する利点が消える。"
+/>
+
+<Diff
+  bad="どんなに速くても毎回スケルトンを出す"
+  good="実際に 200 ミリ秒ほど待ってから出す"
+  note="40 ミリ秒の点滅はフィードバックではなく描画の不具合に見える。"
+/>
+
+<Diff
+  bad="グレーの箱を読み上げに見せたままにする"
+  good="箱には aria-hidden、メッセージは role='status' のリージョン 1 つ"
+  note="でないと空の要素が延々と読まれ、肝心の「読み込み中」は伝わらない。"
+/>
+
+<Diff
+  bad="reduced-motion の配慮が無い無限シマー"
+  good="@media (prefers-reduced-motion: reduce) の中で animation: none"
+  note="ループするグラデーションが十数個——この設定が止めたい動きそのもの。"
+/>
+
+## うまくいかないとき {#trouble}
+
+- **シマーが動かない** … `background-size` が無いか 100% です。滑る余地がありません。要素より幅を大きくします。
+- **データ到着時にやはりレイアウトが跳ねる** … プレースホルダーの高さが本物と合っていません。本物のカードを測って合わせます。
+- **毎回スケルトンが点滅する** … 上の練習の遅延を入れます。
+- **ダークモードでグレーが見えない** … テーマのトークンからではなく、16 進数を直接書いています。
+- **何も読み上げられない** … ライブリージョンの文字が*変化*していません。読み込み終了時に `''` に戻して、次の読み込みが変化になるようにします。
+- **カードが多いとカクつく** … レイアウトに影響するプロパティを動かしています。`background-position`・`transform`・`opacity` だけにします。
+
+## まとめ {#summary}
+
+<SummaryBox>
+
+- 形が**予測できる**ときはスケルトンが有利。レイアウトが跳ねず、来るものを先に見せられる
+- `width` / `height` の props を持つ `Skeleton` を 1 つ。寸法はインスタンスごとに違うので、ここはインライン `style` が正しい
+- 幅を不揃い（70%・40%）にすると文章に見える。同じ幅の帯は壊れて見える
+- シマーは 400% 幅のグラデーション＋`background-position` のアニメーション。JS もレイアウト計算も無し
+- 色はテーマのトークンから組み立てれば、ダークモードは無料
+- 箱は `aria-hidden`、メッセージは `role="status"` のリージョン 1 つに集約
+- `prefers-reduced-motion` では `animation: none`。プレースホルダーは残す
+- 表示は 200 ミリ秒ほど遅らせて、速い応答で点滅させない
+
+</SummaryBox>
