@@ -24,5 +24,10 @@ dist-ssr
 *.sln
 *.sw?
 
-
-.claude
+# Claude Code / AI assistant artifacts — local only, never pushed
+.claude/
+.claude.json
+.claude.local.json
+CLAUDE.local.md
+.mcp.json
+docs/superpowers/

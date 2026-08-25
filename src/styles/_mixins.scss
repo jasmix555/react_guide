@@ -6,12 +6,6 @@
 $bp-toc: 1200px;
 $bp-sidebar: 900px;
 
-@mixin up($px) {
-  @media (min-width: $px) {
-    @content;
-  }
-}
-
 @mixin down($px) {
   @media (max-width: #{$px - 0.02px}) {
     @content;

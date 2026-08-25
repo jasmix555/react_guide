@@ -36,13 +36,51 @@ PHP の include に `$type` を渡して出し分けていた感覚と同じで�
 
 ## ステップ 1：一番小さい Button {#minimal}
 
-まず、ただ `<button>` を包むだけの最小の Button を作ります。`src/components/ButtonVariants/Button.tsx` を新規作成します。
+まず、ただ `<button>` を包むだけの最小の Button を作ります。`src/components/ButtonVariants/Button.tsx` を新規作成します。省略した書き方から入ると混乱するので、**まずは省略なしの形**で書きます。
 
-```tsx title="src/components/ButtonVariants/Button.tsx（新規作成）"
+```tsx title="src/components/ButtonVariants/Button.tsx（新規作成・省略なし）"
+export function Button(props: { label: string }) {
+  return <button type="button">{props.label}</button>
+}
+```
+
+ここで一番大事なのは、**引数は 1 つしかない**ということです。`<Button label="購入する" />` と書いても、React は `label` を単独で渡してきません。`{ label: '購入する' }` という**オブジェクトを 1 個**だけ渡してきます。それを受け取る箱が `props`、`: { label: string }` は「その箱の中身はこういう形」という型です。
+
+## 寄り道：`props.` を省略する（分割代入） {#destructuring}
+
+`props.label` `props.variant` … と毎回 `props.` を書くのは面倒なので、React では受け取った瞬間に中身を取り出す書き方が標準です。これが**分割代入**で、意味は上のコードとまったく同じです。
+
+```tsx title="src/components/ButtonVariants/Button.tsx（同じ意味・短い書き方）"
 export function Button({ label }: { label: string }) {
   return <button type="button">{label}</button>
 }
 ```
+
+`{` が 2 回出てきて混乱しやすいところですが、この 2 つは**役割がまったく別**です。
+
+```tsx
+export function Button({ label }: { label: string }) {
+//                     ↑          ↑
+//                     │          └─ 型：この props はこういう形、という宣言
+//                     └─ 値：届いた props から label を取り出す（分割代入）
+```
+
+- **`:` の左（値）** … 実際に届いたオブジェクトから、使う名前だけを取り出す
+- **`:` の右（型）** … そこにどんなキーが入るかの説明。TypeScript のもので、実行時には消える
+
+ふつうの JavaScript に置き換えると、やっていることはこれだけです。
+
+```js
+const props = { label: '購入する' }
+const { label } = props // props から label を取り出す
+console.log(label) // '購入する'
+```
+
+<JsNote feature="{ label } は分割代入。props.label の省略形" to="/guide/javascript/destructuring">
+
+`function f({ label })` は「引数として届いたオブジェクトから `label` を取り出す」という意味で、`function f(props) { const label = props.label }` と同じです。引数が 2 つに増えたわけではありません（引数は常にオブジェクト 1 個）。
+
+</JsNote>
 
 これを使うと `<Button label="購入する" />` でボタンが 1 つ出ます。動きますが、これだと見た目を変えられません。次のステップで「見た目の種類」を受け取れるようにします。
 
@@ -68,6 +106,15 @@ export function Button({
     </button>
   )
 }
+```
+
+縦に長くなって別物に見えますが、**形は「寄り道」で見たものとまったく同じ**です。props が 2 つになったので、Prettier が改行しているだけです。1 行に戻すと同じ「値 `:` 型」の並びだと分かります。
+
+```tsx
+export function Button({ label, variant = 'primary' }: { label: string; variant?: Variant }) {
+//                     ↑                              ↑
+//                     │                              └─ 型：props の形（? は「渡さなくてよい」）
+//                     └─ 値：props から取り出す名前（= 'primary' は既定値）
 ```
 
 3 行目の `type Variant = 'primary' | 'secondary' | 'ghost'` が肝です。「`variant` に入れてよいのは、この 3 つの文字列だけ」と型で決めています。`variant = 'primary'` は既定値なので、渡さなければ `primary` になります。`styles[variant]` で、渡された値に応じて当てる CSS クラスを選んでいます。

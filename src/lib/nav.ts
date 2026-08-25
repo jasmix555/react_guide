@@ -19,7 +19,7 @@ const NON_GUIDE_PREFIXES = ['recipes/', 'standards/', 'project/', 'libraries/']
 const navigationByLocale: Record<Locale, AuthoredTab[]> = { ja: navJa, en: navEn }
 
 /** Learn pages live under /{locale}/guide/*; the other tabs carry their own prefix. */
-export function hrefForRoute(route: string, locale: Locale): string {
+function hrefForRoute(route: string, locale: Locale): string {
   const neutral = NON_GUIDE_PREFIXES.some((p) => route.startsWith(p))
     ? `/${route}`
     : `/guide/${route}`

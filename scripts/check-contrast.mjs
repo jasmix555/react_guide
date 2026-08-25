@@ -52,7 +52,6 @@ const TAB_BG = hex('#1a2130')
 const CHECKS = [
   ['コード本文 (--c-code-fg)', '#e7ecf5', CODE_BG, 4.5],
   ['ファイル名タブ (--c-code-tab-fg)', '#aeb6c6', TAB_BG, 4.5],
-  ['言語バッジ (--c-code-badge-fg)', '#aab3c4', TAB_BG, 4.5],
   ['コピーボタン (--c-code-copy-fg)', '#c3cad8', TAB_BG, 4.5],
   ['diff 注記 (--c-code-note-fg)', '#aab3c4', CODE_BG, 4.5],
   ['diff ❌ ボーダー/記号 (--c-code-danger)', '#ff6b60', CODE_BG, 3],

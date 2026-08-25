@@ -23,5 +23,3 @@ export function lazyForRoute(
 ): LazyExoticComponent<ComponentType> | undefined {
   return lazyByKey[`${locale}/${route}`]
 }
-
-export const knownRoutes = Object.keys(lazyByKey)

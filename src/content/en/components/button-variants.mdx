@@ -36,13 +36,51 @@ It's the same feeling as passing `$type` to a PHP include and switching the outp
 
 ## Step 1: the smallest Button {#minimal}
 
-First, make the smallest Button that just wraps a `<button>`. Create a new file at `src/components/ButtonVariants/Button.tsx`.
+First, make the smallest Button that just wraps a `<button>`. Create a new file at `src/components/ButtonVariants/Button.tsx`. Starting from the shorthand is confusing, so we'll write **the un-abbreviated form** first.
 
-```tsx title="src/components/ButtonVariants/Button.tsx (new file)"
+```tsx title="src/components/ButtonVariants/Button.tsx (new file, nothing abbreviated)"
+export function Button(props: { label: string }) {
+  return <button type="button">{props.label}</button>
+}
+```
+
+The most important thing here is that **there is only ever one argument**. Even when you write `<Button label="Buy" />`, React doesn't hand you `label` on its own. It hands you **one single object**, `{ label: 'Buy' }`. `props` is the box that receives it, and `: { label: string }` is the type saying "here's the shape of what's in that box".
+
+## A detour: dropping the `props.` prefix (destructuring) {#destructuring}
+
+Writing `props.` every time — `props.label`, `props.variant`, … — gets tedious, so React code standardly pulls the contents out the moment they arrive. That's **destructuring**, and it means exactly the same thing as the code above.
+
+```tsx title="src/components/ButtonVariants/Button.tsx (same meaning, shorter)"
 export function Button({ label }: { label: string }) {
   return <button type="button">{label}</button>
 }
 ```
+
+Seeing `{` twice is the confusing part, but the two have **completely different jobs**.
+
+```tsx
+export function Button({ label }: { label: string }) {
+//                     ↑          ↑
+//                     │          └─ type: a declaration that props has this shape
+//                     └─ value: pull label out of the props that arrived (destructuring)
+```
+
+- **Left of the `:` (the value)** … from the object that actually arrived, take out just the names you use
+- **Right of the `:` (the type)** … a description of what keys go in there. It's TypeScript, and it disappears at runtime
+
+Rewritten as plain JavaScript, this is all it's doing.
+
+```js
+const props = { label: 'Buy' }
+const { label } = props // take label out of props
+console.log(label) // 'Buy'
+```
+
+<JsNote feature="{ label } is destructuring — shorthand for props.label" to="/guide/javascript/destructuring">
+
+`function f({ label })` means "take `label` out of the object that arrived as the argument", and it's the same as `function f(props) { const label = props.label }`. It does not mean the function now takes two arguments (the argument is always one object).
+
+</JsNote>
 
 Using this, `<Button label="Buy" />` produces one button. It works, but you can't change the look this way. In the next step we'll let it receive a "type of look".
 
@@ -68,6 +106,15 @@ export function Button({
     </button>
   )
 }
+```
+
+It's grown tall enough to look like something new, but **the shape is exactly the one from the detour above**. There are two props now, so Prettier breaks it across lines — put it back on one line and you can see it's the same value `:` type pairing.
+
+```tsx
+export function Button({ label, variant = 'primary' }: { label: string; variant?: Variant }) {
+//                     ↑                              ↑
+//                     │                              └─ type: the shape of props (? = "optional")
+//                     └─ value: the names to pull out (= 'primary' is a default)
 ```
 
 The `type Variant = 'primary' | 'secondary' | 'ghost'` on line 3 is the key. It uses a type to decide "the only things allowed in `variant` are these three strings". `variant = 'primary'` is the default value, so if you don't pass one, it becomes `primary`. `styles[variant]` picks the CSS class to apply based on the value passed in.
