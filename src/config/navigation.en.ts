@@ -113,6 +113,24 @@ export const navigation: AuthoredTab[] = [
             group: 'useEffect',
             pages: [{ route: 'state/use-effect/basics', title: 'What is useEffect (side effects)' }],
           },
+          {
+            group: 'useRef',
+            pages: [
+              {
+                route: 'state/use-ref/basics',
+                title: "Values that don't redraw the screen",
+              },
+            ],
+          },
+          {
+            group: 'useMemo',
+            pages: [
+              {
+                route: 'state/use-memo/basics',
+                title: 'Skipping wasted work (useMemo / memo)',
+              },
+            ],
+          },
           { route: 'state/summary', title: 'Summary & practice' },
         ],
       },

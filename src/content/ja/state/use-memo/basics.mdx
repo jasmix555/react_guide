@@ -1,0 +1,236 @@
+---
+title: ムダな計算を省く（useMemo / useCallback / memo）
+minutes: 13
+slug: use-memo-basics
+section: state
+description: state を更新するたびにコンポーネントの本体は全部やり直される。そのムダをデモで実測し、useMemo・useCallback・memo で取り除く。依存配列の考え方は useEffect と同じ。そして「使わないほうがよい場面」も整理する。
+level: intermediate
+prerequisites: ['state/use-ref/basics']
+---
+
+import { MemoizeDemo } from '@/demos/Memoize'
+
+<LearnBox>
+
+- state を更新するたびに**コンポーネントの本体が丸ごと動き直す**こと
+- 結果を覚える `useMemo`、関数を覚える `useCallback`、子を飛ばす `memo`
+- **使わないほうがよい**場面の判断基準（構文より、こちらが大事）
+
+</LearnBox>
+
+## 更新のたびに関数が丸ごと動き直す {#why}
+
+コンポーネントは関数です。state が変わると、React は**その関数を上から呼び直します**——すべての行、すべての計算、その場で書いたアロー関数も含めて。
+
+```tsx
+function ProductList({ products }: { products: Product[] }) {
+  const [query, setQuery] = useState('')
+  const [dark, setDark] = useState(false) // 一覧とは無関係
+
+  const sorted = [...products].sort((a, b) => a.price - b.price) // 毎回動く
+  ...
+}
+```
+
+`dark` を切り替えるだけで `sorted` が計算し直されます——`products` は変わっておらず、結果もまったく同じなのに、一覧のコピーとソートが丸ごと走ります。12 件なら誰も気づきません。5,000 件になると、トグルが重く感じ始めます。
+
+<Callout type="note">
+
+**たいていの場合、これで問題ありません。** React は速く、小さい配列に `filter` をかけ直すコストはほぼゼロです。このページは「問題になる場合」と、「自分がその場合だと確かめる方法」の話です。
+
+</Callout>
+
+## まずムダを見る {#demo}
+
+下は、わざと重い計算（2,000 万回の足し算）と、それとは**まったく無関係な**カウンターです。各描画にかかった時間を表示します。
+
+チェックを**入れた**まま「無関係なカウント」を押し、次に**外して**もう一度押してください。
+
+<Demo title="同じクリック、useMemo あり／なし">
+  <MemoizeDemo />
+</Demo>
+
+`useMemo` ありなら、無関係なクリックのコストはおよそ **0 ms**——計算は飛ばされ、前回の結果が再利用されます。なしなら、変わりもしない答えのために、クリック 1 回ごとにフルコストを払います。
+
+## useMemo の構文を分解する {#anatomy}
+
+`useEffect` を知っていれば、8 割は同じです。第 2 引数も、そのルールも同じ。
+
+```tsx
+const sorted = useMemo(() => {
+  return [...products].sort((a, b) => a.price - b.price) // ① 計算
+}, [products])
+//  ↑
+//  └─ ② 依存配列：この中の値が変わったときだけ計算し直す
+```
+
+- **① 計算** … ほしい値を **return する**関数。`useMemo` はその戻り値をそのまま返します。
+- **② 依存配列** … 「いつ計算し直すか」。`[products]` なら、`products` が同じあいだは前回の値をそのまま返します。
+
+`useEffect` との違いは目的です。`useEffect` は描画のあとに何かを**する**、`useMemo` は描画中に値を**返す**。
+
+<Diff
+  bad="const sorted = useMemo(expensiveSort(products), [products])"
+  good="const sorted = useMemo(() => expensiveSort(products), [products])"
+  note="呼び出した結果ではなく、関数を渡します。アロー関数がないと、useMemo が見る前に毎回計算が終わってしまいます。"
+/>
+
+## useCallback：同じ考えを関数に {#usecallback}
+
+描画のたびに**関数オブジェクトも新しく作られます**。ふだんは無害ですが、新しい関数は「変わった props」であり、変わった props は子の描き直しを引き起こします。
+
+```tsx
+const handleSelect = useCallback((id: string) => {
+  setSelected(id)
+}, []) // 依存なし：この関数は変わる必要がない
+```
+
+`useCallback(fn, deps)` は `useMemo(() => fn, deps)` を書きやすくしただけのものです。依存が変わるまで**同じ関数オブジェクト**を返し続けます。
+
+単体では役に立ちません。`memo` と組み合わせて初めて効きます。
+
+## memo：子に描き直しを飛ばさせる {#memo}
+
+既定では、親が描き直されると**その子もすべて描き直されます**。`memo` はコンポーネントを包んで「props が前回と同じなら、やらなくていい」と伝えます。
+
+```tsx title="src/components/ProductRow/ProductRow.tsx"
+import { memo } from 'react'
+
+export const ProductRow = memo(function ProductRow({ product, onSelect }: ProductRowProps) {
+  return <li onClick={() => onSelect(product.id)}>{product.name}</li>
+})
+```
+
+これで `ProductRow` は `product` か `onSelect` が実際に変わったときだけ描き直されます。**そして、ここが `useCallback` の存在理由です**。`useCallback` がなければ `onSelect` は親の描画ごとに新しい関数になり、`memo` は毎回「props が変わった」と判断し、結局 5,000 行すべてが描き直されます。3 つは 1 セットで働きます。
+
+```tsx
+const rows = useMemo(() => sortRows(products), [products]) // ① 計算をやり直さない
+const handleSelect = useCallback((id: string) => setSelected(id), []) // ② props を安定させる
+// ③ ProductRow は memo で包んであるので、どちらも変わらなければ描き直しを飛ばす
+```
+
+`memo` の props 比較は**浅い比較**です——[参照とコピー](/guide/javascript/reference-vs-copy)で見た `===` と同じルール。その場で書いたオブジェクト・配列・アロー関数は常に「別物」なので、インラインのオブジェクト props は `memo` を静かに無効化します。
+
+## わざと壊す：依存配列から値を落とす {#break-deps}
+
+間違った依存配列は、書かないより危険です。
+
+```tsx
+const [tax, setTax] = useState(0.1)
+
+const total = useMemo(() => price * (1 + tax), [price]) // tax が抜けている
+```
+
+税率を変えても合計が**動きません**。`useMemo` は「関係あるのは `price` だけ」と言われたので、古い答えを返し続けます。エラーもブラウザの警告も出ず、ただ画面の数字が間違っているだけです。
+
+直し方は `[price, tax]`。ESLint の `react-hooks/exhaustive-deps` ルールがエディタ上で警告してくれます——**黙らせないでください**。
+
+## 使わないほうがよい場面 {#when-not}
+
+ここは読み飛ばされがちですが、いちばん大事な節です。メモ化はタダではありません。React は前回の値を保持し、描画ごとに依存を比較します。軽い処理では、**節約した計算より管理コストのほうが高く**、コードも読みにくくなります。
+
+- **まず素直に書く。** ふつうの一覧に対する `const visible = products.filter(...)` は本当に問題ありません。
+- **`useMemo` を使うのは**、計算が重いとき（数千件のソートやフィルタ）、または値が `memo` で包んだ子への props で安定させる必要があるとき。
+- **`useCallback` を使うのは**、関数が `memo` の子への props か、`useEffect` の依存になるとき。
+- **`memo` を使うのは**、子が重くて props がめったに変わらないとき。
+- **まず測る。** 体感でも Profiler でも遅さが出ないなら、何も得ずに複雑さだけ払っています。
+
+<Callout type="warn">
+
+「念のため」で全部包むのは、はっきりアンチパターンです。コードは増え、間違える依存配列も増え、たいていわずかに遅くなります。素直に書いて、本当に痛い 1 か所だけを直しましょう。
+
+</Callout>
+
+## 書き方カタログ {#catalog}
+
+```tsx
+// ① 値を覚える
+const sorted = useMemo(() => [...items].sort(byPrice), [items])
+
+// ② 関数を覚える（memo の子への props や effect の依存に）
+const handleClick = useCallback(() => setOpen(true), [])
+
+// ③ オブジェクト／配列の props を安定させ、memo を効かせる
+const style = useMemo(() => ({ width: size }), [size])
+
+// ④ props が変わらない子の描き直しを飛ばす
+const Row = memo(function Row({ item }: RowProps) {
+  return <li>{item.name}</li>
+})
+```
+
+<Together
+  task="検索語を state に持ち、キー入力のたびに 10,000 件の配列を絞り込むページがあり、入力がもたつきます。必要なときだけ絞り込みが走るように包んでください。"
+  hint="結果が依存するのは 2 つ——元の一覧と検索語。両方を依存配列に入れます。"
+>
+
+```tsx
+const results = useMemo(
+  () => items.filter((item) => item.name.includes(query)),
+  [items, query],
+)
+```
+
+これで絞り込みは `items` か `query` が変わったときだけ動きます——無関係な state（テーマ切り替え、メニューの開閉）でページが描き直されても走りません。`query` を落とすと結果が最初の検索で固まり、`items` を落とすと後から読み込んだデータが反映されません。
+
+</Together>
+
+## よくある間違い {#mistakes}
+
+<Diff
+  bad="すべての値とハンドラを useMemo / useCallback で包む"
+  good="まず素直に書き、実測して遅い 1 か所だけをメモ化する"
+  note="メモ化は保持と比較のコストを払います。全体に撒くと、読みにくくなるだけで速くもなりません。"
+/>
+
+<Diff
+  bad="const total = useMemo(() => price * (1 + tax), [price])"
+  good="const total = useMemo(() => price * (1 + tax), [price, tax])"
+  note="中で使う値はすべて配列に入れます。依存の漏れは、エラーなしで古い値を返します。"
+/>
+
+<Diff
+  bad="memo で包んだ子に style={{ width: 100 }} を渡す"
+  good="const style = useMemo(() => ({ width: 100 }), [])"
+  note="インラインのオブジェクトは毎回新しい別物なので、memo は常に「変わった」と判断して結局描き直します。"
+/>
+
+## 私たちの標準 {#standard}
+
+<Std
+  decision="まず素直に書く。useMemo / useCallback / memo は、実測して遅かった処理か、memo の子への props を安定させるためだけに足す"
+  alt="そもそもこれを考えたくないなら、React Compiler がこの最適化を自動で入れてくれます（セットアップのパート参照）。学習中に切ってあるのは、まさにこのページで仕組みを自分の目で見るためです。"
+>
+
+`useMemo(() => 値, deps)` は値を覚え、`useCallback(fn, deps)` は関数を覚え、`memo(Component)` は props が変わらない子を飛ばします。依存配列のルールは `useEffect` と同じ——**中で使っているものは全部入れる**。痛い 1 か所にだけ使い、全体には撒かないこと。
+
+</Std>
+
+## うまくいかないとき {#trouble}
+
+- **値が古いまま更新されない** … 中で使っている何かが依存配列から漏れています。追加し、`react-hooks/exhaustive-deps` を切っているなら戻してください。
+- **`memo` なのに描き直しが止まらない** … どれかの props が毎回新しいオブジェクト・配列・アロー関数です。`useMemo` / `useCallback` で安定させます。
+- **かえって遅くなった** … 軽い処理をメモ化しています。外してください。比較のほうが計算より高くついています。
+- **結局毎回計算し直される** … `useMemo(() => calc(), deps)` ではなく `useMemo(calc(), deps)` と書いています。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="親が描画のたびに新しいアロー関数を作るため、onSelect が毎回別の props になり、memo の浅い比較が「変わった」と判断するからです。useCallback（正しい依存配列つき）で包み、毎回同じ関数オブジェクトを渡します。">
+
+子を `memo` で包んだのに、親が描き直されるたびに子も描き直されます。渡しているのは `onSelect={() => setId(item.id)}` です。なぜ `memo` が効かず、どう直しますか。
+
+</Exercise>
+
+<Exercise answer="よくありません。配列が小さいので、filter のコストは「前回の値を保持して依存を毎回比較する」コストよりずっと安いからです。素直に書き、実測して遅かったものだけをメモ化します。">
+
+10 件の一覧の `filter` を `useMemo` で包もう、と提案されました。良い判断でしょうか。
+
+</Exercise>
+
+<SummaryBox>
+
+- state を更新するたびにコンポーネントの本体は丸ごと動き直す。やり直す必要のない計算も含めて
+- `useMemo` は値を、`useCallback` は関数を覚え、`memo` は props が変わらない子を飛ばす。依存配列の挙動は `useEffect` と同じ
+- まず素直に書く。メモ化するのは実測して遅かった 1 か所だけで、全体ではない
+
+</SummaryBox>

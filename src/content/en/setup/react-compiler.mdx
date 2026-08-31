@@ -40,7 +40,7 @@ There is a clear reason for not adding something so convenient.
 
 The goal while learning is to understand, with your own head, **why React re-renders** and **where the waste happens**. If the React Compiler is turned on from the start, that optimization happens automatically behind the scenes, and **you lose sight of "what would happen if I wrote it myself."**
 
-Concretely, in the later Part 9 "state and hooks" you will **write `useMemo` / `useCallback` / `React.memo` by hand** to confirm "where the waste is and how to prevent it." If the React Compiler is turned on first, that optimization happens automatically on the reader's machine, and **the exercise "does not hold up on your own screen"** (we will cover this in detail later).
+Concretely, in the later [Part 4 "state and hooks"](/guide/state/use-memo/basics) you will **write `useMemo` / `useCallback` / `React.memo` by hand** to confirm "where the waste is and how to prevent it." If the React Compiler is turned on first, that optimization happens automatically on the reader's machine, and **the exercise "does not hold up on your own screen"** (we will cover this in detail later).
 
 So first understand the mechanism without automation, and **add it later once you need it**. The React Compiler can be added to a plain project at any time.
 

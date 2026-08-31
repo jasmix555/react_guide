@@ -1,0 +1,236 @@
+---
+title: Skipping wasted work (useMemo / useCallback / memo)
+minutes: 13
+slug: use-memo-basics
+section: state
+description: "Every state update re-runs the whole component body. Measure that waste in a live demo, then remove it with useMemo, useCallback and memo. The dependency array works exactly like useEffect's. Includes when NOT to reach for them."
+level: intermediate
+prerequisites: ['state/use-ref/basics']
+---
+
+import { MemoizeDemo } from '@/demos/Memoize'
+
+<LearnBox>
+
+- Why **the whole component body runs again** on every state update
+- `useMemo` to remember a result, `useCallback` to remember a function, `memo` to skip a child
+- The rule for **when not to use them** (this matters more than the syntax)
+
+</LearnBox>
+
+## Every update re-runs the whole function {#why}
+
+A component is a function. When state changes, React **calls that function again from the top** — every line, every calculation, every arrow function you wrote inline.
+
+```tsx
+function ProductList({ products }: { products: Product[] }) {
+  const [query, setQuery] = useState('')
+  const [dark, setDark] = useState(false) // nothing to do with the list
+
+  const sorted = [...products].sort((a, b) => a.price - b.price) // runs every render
+  ...
+}
+```
+
+Toggle `dark` and `sorted` is computed again — a full copy and sort of the list — even though `products` didn't change and the result is identical. With 12 products nobody notices. With 5,000, the toggle starts to feel sticky.
+
+<Callout type="note">
+
+**Most of the time this is fine.** React is fast, and re-running a `filter` over a small array costs nothing. This page is about the cases where it isn't fine, and how to prove you're in one.
+
+</Callout>
+
+## See the waste first {#demo}
+
+Below is a deliberately expensive calculation (20 million additions) plus a counter that has **nothing to do with it**. The demo prints how long each render took.
+
+Press "Unrelated count" with the checkbox **on**, then turn it **off** and press it again.
+
+<Demo title="The same click, with and without useMemo">
+  <MemoizeDemo />
+</Demo>
+
+With `useMemo` on, the unrelated click costs about **0 ms** — the calculation is skipped and the old result reused. With it off, every single click pays the full cost, for an answer that never changed.
+
+## Break down the useMemo syntax {#anatomy}
+
+If you know `useEffect`, you already know 80% of this — same second argument, same rules.
+
+```tsx
+const sorted = useMemo(() => {
+  return [...products].sort((a, b) => a.price - b.price) // ① the calculation
+}, [products])
+//  ↑
+//  └─ ② dependency array: redo the calculation only when a value in here changes
+```
+
+- **① The calculation** … a function that **returns** the value you want. `useMemo` gives you back what it returns.
+- **② The dependency array** … "when to recalculate". `[products]` means: while `products` is the same, hand back the value from last time.
+
+The difference from `useEffect` is what it's for: `useEffect` **does** something after rendering, `useMemo` **returns** a value during rendering.
+
+<Diff
+  bad="const sorted = useMemo(expensiveSort(products), [products])"
+  good="const sorted = useMemo(() => expensiveSort(products), [products])"
+  note="Pass a function, not the result of calling one. Without the arrow, the work happens every render before useMemo ever sees it."
+/>
+
+## useCallback: the same idea, for a function {#usecallback}
+
+Every render also creates **brand new function objects**. Usually harmless — but a new function is a *changed prop*, and a changed prop can force a child to redraw.
+
+```tsx
+const handleSelect = useCallback((id: string) => {
+  setSelected(id)
+}, []) // no dependencies: this function never needs to change
+```
+
+`useCallback(fn, deps)` is just `useMemo(() => fn, deps)` with nicer syntax. It hands back **the same function object** until a dependency changes.
+
+On its own it does nothing useful. It only pays off next to `memo`.
+
+## memo: let a child skip its own redraw {#memo}
+
+By default, when a parent redraws, **all of its children redraw too**. `memo` wraps a component and says: "if my props are the same as last time, don't bother."
+
+```tsx title="src/components/ProductRow/ProductRow.tsx"
+import { memo } from 'react'
+
+export const ProductRow = memo(function ProductRow({ product, onSelect }: ProductRowProps) {
+  return <li onClick={() => onSelect(product.id)}>{product.name}</li>
+})
+```
+
+Now `ProductRow` only redraws when `product` or `onSelect` actually changes. **And this is why `useCallback` exists**: without it, `onSelect` would be a new function on every parent render, `memo` would see a changed prop every time, and all 5,000 rows would redraw anyway. The three tools work as one:
+
+```tsx
+const rows = useMemo(() => sortRows(products), [products]) // ① don't redo the work
+const handleSelect = useCallback((id: string) => setSelected(id), []) // ② keep the prop stable
+// ③ ProductRow is wrapped in memo, so it skips redrawing when neither changed
+```
+
+`memo` compares props **shallowly** — same rules as `===` on objects from [reference vs copy](/guide/javascript/reference-vs-copy). A fresh `{}`, `[]`, or arrow function passed inline is always "different", which is why inline object props quietly defeat `memo`.
+
+## Break it on purpose: leave a value out of the deps {#break-deps}
+
+A wrong dependency array is worse than none at all.
+
+```tsx
+const [tax, setTax] = useState(0.1)
+
+const total = useMemo(() => price * (1 + tax), [price]) // tax is missing
+```
+
+Change the tax rate and the total **doesn't move**. `useMemo` was told "only `price` matters", so it keeps handing back the stale answer. No error, no warning in the browser — just a wrong number on screen.
+
+The fix is `[price, tax]`. ESLint's `react-hooks/exhaustive-deps` rule catches this for you as a warning in your editor — **don't silence it**.
+
+## When NOT to use them {#when-not}
+
+This is the part people skip, and it's the important one. Memoizing isn't free: React has to store the old value and compare the dependencies on every render. For cheap work, **the bookkeeping costs more than the work you saved**, and the code gets harder to read.
+
+- **Default to writing it plainly.** `const visible = products.filter(...)` over a normal list is genuinely fine.
+- **Reach for `useMemo` when** the calculation is heavy (sorting or filtering thousands of items), or when the value is a prop for a `memo`-wrapped child and must stay stable.
+- **Reach for `useCallback` when** the function is a prop for a `memo`-wrapped child, or a dependency of a `useEffect`.
+- **Reach for `memo` when** a child is expensive and its props rarely change.
+- **Measure first.** If you can't feel the lag and the Profiler doesn't show it, you're paying complexity for nothing.
+
+<Callout type="warn">
+
+Wrapping everything "just in case" is a real anti-pattern. It's more code, more dependency arrays to get wrong, and usually slightly slower. Write it plain, and optimize the spot that actually hurts.
+
+</Callout>
+
+## Cheat sheet {#catalog}
+
+```tsx
+// ① remember a value
+const sorted = useMemo(() => [...items].sort(byPrice), [items])
+
+// ② remember a function (for a memo child or an effect dependency)
+const handleClick = useCallback(() => setOpen(true), [])
+
+// ③ keep an object/array prop stable, so memo can do its job
+const style = useMemo(() => ({ width: size }), [size])
+
+// ④ let a child skip redrawing when its props are unchanged
+const Row = memo(function Row({ item }: RowProps) {
+  return <li>{item.name}</li>
+})
+```
+
+<Together
+  task="A page holds a search query in state and filters a 10,000-item array on every keystroke, and typing feels laggy. Wrap the filter so it only re-runs when it has to."
+  hint="The result depends on two things: the full list and the query. Both go in the dependency array."
+>
+
+```tsx
+const results = useMemo(
+  () => items.filter((item) => item.name.includes(query)),
+  [items, query],
+)
+```
+
+The filter now runs when `items` or `query` changes — not when unrelated state (a theme toggle, an open menu) redraws the page. Leaving `query` out would freeze the results at the first search; leaving `items` out would ignore newly loaded data.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="wrapping every value and every handler in useMemo / useCallback"
+  good="writing it plainly, then memoizing the one spot that measurably lags"
+  note="Memoizing costs storage and comparisons. Applied everywhere it makes code slower to read and no faster to run."
+/>
+
+<Diff
+  bad="const total = useMemo(() => price * (1 + tax), [price])"
+  good="const total = useMemo(() => price * (1 + tax), [price, tax])"
+  note="Every value used inside goes in the array. A missing dependency gives you a stale value with no error."
+/>
+
+<Diff
+  bad="passing style={{ width: 100 }} to a memo-wrapped child"
+  good="const style = useMemo(() => ({ width: 100 }), [])"
+  note="An inline object is a new object every render, so memo always sees a changed prop and redraws anyway."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Write it plainly first. Add useMemo / useCallback / memo only for work you have measured as slow, or to keep a prop stable for a memo-wrapped child"
+  alt="If your team would rather not think about this at all, the React Compiler inserts these optimizations automatically — see the setup part. We keep it off while learning so you can see the mechanism with your own eyes on this page."
+>
+
+`useMemo(() => value, deps)` remembers a value, `useCallback(fn, deps)` remembers a function, `memo(Component)` skips a child whose props didn't change. The dependency array follows the same rule as `useEffect`: **everything the code inside uses goes in it**. Reach for them at the spot that hurts, not everywhere.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **The value is stale / doesn't update** … Something used inside is missing from the dependency array. Add it, and re-enable `react-hooks/exhaustive-deps` if it's off.
+- **`memo` doesn't stop the redraw** … A prop is a fresh object, array, or arrow function each render. Stabilise it with `useMemo` / `useCallback`.
+- **It got slower** … You memoized cheap work. Take it back out; the comparison cost more than the calculation.
+- **It recalculates every render anyway** … You passed `useMemo(calc(), deps)` instead of `useMemo(() => calc(), deps)`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Because the parent creates a new arrow function on every render, so onSelect is a different prop each time and memo's shallow comparison sees a change. Wrap it in useCallback (with the right dependencies) so the same function object is passed each render.">
+
+You wrapped a child in `memo`, but it still redraws every time the parent does. You pass it `onSelect={() => setId(item.id)}`. Why doesn't `memo` help, and what fixes it?
+
+</Exercise>
+
+<Exercise answer="No. The array is tiny, so filter costs far less than storing the old value and comparing dependencies every render. Write it plainly and memoize only what you have measured as slow.">
+
+You have a 10-item list and someone suggests wrapping its `filter` in `useMemo`. Is that a good idea?
+
+</Exercise>
+
+<SummaryBox>
+
+- Every state update re-runs the whole component body, including calculations that didn't need redoing
+- `useMemo` remembers a value, `useCallback` remembers a function, `memo` skips a child with unchanged props. The dependency array behaves exactly like `useEffect`'s
+- Write it plainly first. Memoize the spot you have measured as slow, not everything
+
+</SummaryBox>

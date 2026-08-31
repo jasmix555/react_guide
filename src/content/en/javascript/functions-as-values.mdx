@@ -183,7 +183,7 @@ The top 4 "pass", and the bottom 2 "call (run immediately)". Just whether `()` i
 
 <Std
   decision="When passing a function to a handler, use just the name. Wrap with () => only when an argument is needed"
-  alt="In advanced situations where creating the wrapper function every time is measurably a problem, consider useCallback (Part 9). At first, the () => wrap form is fine."
+  alt="In advanced situations where creating the wrapper function every time is measurably a problem, consider useCallback (Part 4). At first, the () => wrap form is fine."
 >
 
 `onClick={fn}` is the basic form. Only when you want to pass an argument, `onClick={() => fn(arg)}`. `onClick={fn()}` and `onClick={fn(arg)}` "run on the spot", so don't pass them to handlers. If you can distinguish "pass = just the name" from "`()` = run it right now", you won't stumble on React event handling.

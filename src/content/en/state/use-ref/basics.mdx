@@ -1,0 +1,249 @@
+---
+title: Values that don't redraw the screen (useRef)
+minutes: 10
+slug: use-ref-basics
+section: state
+description: "useRef has two jobs: pointing at a DOM element (focus, scroll) and holding a value across renders without re-rendering. Break down the syntax, compare it with useState in a table, and see why a ref shown in JSX doesn't update."
+level: beginner
+prerequisites: ['state/use-effect/basics']
+---
+
+import { RefBasicsDemo } from '@/demos/RefBasics'
+
+<LearnBox>
+
+- `useRef`'s two jobs: **pointing at a DOM element** and **holding a value**
+- How it differs from `useState` (updating a ref does **not** redraw the screen)
+- The trap of showing `ref.current` in JSX, and the cheat sheet
+
+</LearnBox>
+
+## Sometimes you need to touch the real element {#why}
+
+With `useState` you say "what to show" and React draws it. But some jobs can't be expressed that way — **focus this input, scroll to this element, measure this box's height**. For these you need **the actual DOM element on screen**, and the way to hold on to it is **`useRef`**.
+
+`useRef` also has a second job: **holding a value that survives re-renders but doesn't cause one** (a timer id, a "have I run this already?" flag). Same tool, two uses.
+
+<Callout type="analogy">
+
+`useState` is a whiteboard on the wall — write on it and everyone in the room looks up. `useRef` is a sticky note in your pocket. It's still there next time you look, but writing on it doesn't make anyone turn around.
+
+</Callout>
+
+## Break down the useRef syntax {#anatomy}
+
+```tsx
+const inputRef = useRef<HTMLInputElement>(null)
+//    ↑                 ↑                  ↑
+//    │                 │                  └─ ② the starting value (null until React attaches it)
+//    │                 └─ ① the type of element it will point at
+//    └─ a box with one drawer: read and write it as inputRef.current
+
+<input ref={inputRef} />
+//     ↑ ③ hand the box to React, and it puts the real element into .current
+
+inputRef.current?.focus() // ④ use it (?. because it is null before it is attached)
+```
+
+- **① The type** … `HTMLInputElement` for an `<input>`, `HTMLDivElement` for a `<div>`. Your editor then knows which methods exist.
+- **② The starting value `null`** … The element doesn't exist yet on the first render. It's filled in after the screen is drawn.
+- **③ `ref={inputRef}`** … The one place you connect them. React writes the real element into `.current`.
+- **④ `.current`** … Always through `.current`. And always with `?.`, because it can be `null`.
+
+## Write a focus button in full {#build}
+
+Create `src/components/SearchBox/SearchBox.tsx` and paste in **this full file**. Press the button and the cursor jumps into the input.
+
+```tsx title="src/components/SearchBox/SearchBox.tsx (new file, full)"
+import { useRef } from 'react'
+
+export function SearchBox() {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div>
+      <input ref={inputRef} placeholder="Search" />
+      <button type="button" onClick={() => inputRef.current?.focus()}>
+        Focus the input
+      </button>
+    </div>
+  )
+}
+```
+
+## What happens when you save {#result}
+
+Click the button and the input gets the cursor. Notice that **nothing was redrawn** — no state changed. You reached out and told the real element "focus yourself", which is exactly what a ref is for.
+
+## See it in action {#demo}
+
+The left half is the focus button above. The right half shows the other job — a ref holding a number, next to state holding a number. **Press `ref +1` a few times and watch the screen do nothing.**
+
+<Demo title="A ref for the DOM, and a ref for a value">
+  <RefBasicsDemo />
+</Demo>
+
+## Updating a ref does not redraw the screen {#no-render}
+
+That's the whole difference, and it's worth staring at.
+
+```tsx
+const count = useRef(0)
+
+function handleClick() {
+  count.current += 1 // the value really does go up...
+  console.log(count.current) // 1, 2, 3 — the console proves it
+}
+
+return <p>{count.current}</p> // ...but this stays 0 on screen
+```
+
+The number in `count.current` genuinely increases. The screen just never hears about it, because **only a state update tells React to redraw**. In the demo, the ref number sits still until you press `state +1` — and then it jumps to the value it had been at all along.
+
+| | `useState` | `useRef` |
+| --- | --- | --- |
+| Changing it redraws the screen | **Yes** | **No** |
+| How you update it | `setCount(1)` | `ref.current = 1` |
+| Survives re-renders | Yes | Yes |
+| Use it for | anything you display | DOM elements, timer ids, flags |
+
+**Rule of thumb: if it appears on screen, it's state. If it doesn't, a ref is fine.**
+
+## Holding a value: a timer you can stop {#value}
+
+The second job, in practice. A stopwatch has to remember the id `setInterval` gave it, so `clearInterval` can stop it later. That id is never displayed, so it doesn't belong in state.
+
+```tsx
+const timerRef = useRef<number | null>(null)
+
+function start() {
+  if (timerRef.current !== null) return // already running
+  timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000)
+}
+
+function stop() {
+  if (timerRef.current === null) return
+  clearInterval(timerRef.current)
+  timerRef.current = null
+}
+```
+
+`seconds` is state (it's on screen). The timer id is a ref (it isn't). Putting the id in state would redraw the whole component for a number nobody ever sees.
+
+## Break it on purpose: display a ref {#break-display}
+
+Take the demo's right panel and try to make it work with a ref alone.
+
+```tsx
+const count = useRef(0)
+
+return (
+  <button type="button" onClick={() => { count.current += 1 }}>
+    Clicked {count.current} times
+  </button>
+)
+```
+
+Save and click. The label **stays at 0 forever**. No error, no warning — the worst kind of bug, because nothing tells you anything is wrong. The fix is not a better ref; it's **`useState`**, because this number is on screen.
+
+## Cheat sheet: the 4 shapes you will actually use {#catalog}
+
+```tsx
+// ① focus an element
+const inputRef = useRef<HTMLInputElement>(null)
+inputRef.current?.focus()
+
+// ② scroll to an element
+const topRef = useRef<HTMLDivElement>(null)
+topRef.current?.scrollIntoView({ behavior: 'smooth' })
+
+// ③ hold a timer id so you can stop it
+const timerRef = useRef<number | null>(null)
+timerRef.current = window.setInterval(tick, 1000)
+
+// ④ measure an element (inside useEffect, after it is drawn)
+const boxRef = useRef<HTMLDivElement>(null)
+useEffect(() => {
+  console.log(boxRef.current?.getBoundingClientRect().height)
+}, [])
+```
+
+Shapes ①–③ show up all over [the recipes](/recipes/modal) — modals focus their close button, "back to top" scrolls, toasts hold a timer id.
+
+<Together
+  task="You have a modal. When it opens you want the cursor to land on the close button. Write the ref and the useEffect. (Assume open is a boolean prop.)"
+  hint="Point a ref at the button, then focus it in a useEffect that depends on [open]."
+>
+
+```tsx
+const closeRef = useRef<HTMLButtonElement>(null)
+
+useEffect(() => {
+  if (open) closeRef.current?.focus()
+}, [open])
+
+return <button ref={closeRef} type="button" onClick={onClose}>Close</button>
+```
+
+Touching the DOM is a side effect, so it goes in `useEffect` — and it has to run **after** the button is drawn, which is exactly when an effect runs. The dependency array `[open]` re-runs it every time the modal opens.
+
+</Together>
+
+## Common mistakes {#mistakes}
+
+<Diff
+  bad="const count = useRef(0) for a number shown in JSX"
+  good="const [count, setCount] = useState(0)"
+  note="Refs don't redraw. Anything on screen belongs in state."
+/>
+
+<Diff
+  bad="inputRef.focus()"
+  good="inputRef.current?.focus()"
+  note="The element lives in .current, and it is null until React attaches it. Always go through .current with ?."
+/>
+
+<Diff
+  bad="reading inputRef.current during render (in the JSX body)"
+  good="reading it in an event handler or inside useEffect"
+  note="During the first render it is still null. Read it after the screen is drawn."
+/>
+
+## Our standard {#standard}
+
+<Std
+  decision="Use useRef for DOM elements and for values that are never displayed. Everything that appears on screen stays in useState"
+  alt="If you find yourself wanting a ref so a value won't cause a re-render, but you do display it, that's a sign the value should be state and something else needs fixing. Reach for a ref only when the value is genuinely invisible."
+>
+
+`useRef` is a box you reach through `.current`. `ref={...}` on an element to touch the DOM (focus, scroll, measure), or a plain `useRef(value)` to remember something across renders (timer ids, flags). Writing to `.current` never redraws — that's the point, and also the trap.
+
+</Std>
+
+## When things go wrong {#trouble}
+
+- **`Cannot read properties of null (reading 'focus')`** … You read `.current` before React attached the element. Use `?.`, and do it in an event handler or `useEffect`, not during render.
+- **The number doesn't change on screen** … It's in a ref. Move it to `useState`.
+- **`Property 'focus' does not exist on type ...`** … The type argument is wrong. Match the element: `useRef<HTMLInputElement>(null)` for an `<input>`.
+
+## Summary & practice {#summary}
+
+<Exercise answer="A ref: the id is never displayed, and putting it in state would redraw the component every time the timer changes for no visible reason. Refs are for values that survive re-renders but don't appear on screen.">
+
+You need to remember the id returned by `setInterval` so you can stop the timer later. State or a ref? Why?
+
+</Exercise>
+
+<Exercise answer="Writing to ref.current doesn't tell React to redraw, so the JSX keeps showing the value from the last render. Use useState for anything displayed. (It updates on screen the next time some state changes — which is why it looks like it 'catches up'.)">
+
+You wrote `count.current += 1` in an `onClick` and showed `{count.current}` in the JSX, but the screen never changes. Why?
+
+</Exercise>
+
+<SummaryBox>
+
+- `useRef` gives you a box you read and write as `.current`. Put it on an element with `ref={...}` to touch the real DOM
+- Writing to `.current` does **not** redraw the screen. Anything you display belongs in `useState`
+- Typical uses: focus, scroll, measure, and holding timer ids or flags
+
+</SummaryBox>

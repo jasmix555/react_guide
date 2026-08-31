@@ -124,6 +124,19 @@ export const navigation: AuthoredTab[] = [
             group: 'useEffect',
             pages: [{ route: 'state/use-effect/basics', title: 'useEffect とは（副作用）' }],
           },
+          {
+            group: 'useRef',
+            pages: [{ route: 'state/use-ref/basics', title: '画面を描き直さない値' }],
+          },
+          {
+            group: 'useMemo',
+            pages: [
+              {
+                route: 'state/use-memo/basics',
+                title: 'ムダな計算を省く（useMemo / memo）',
+              },
+            ],
+          },
           { route: 'state/summary', title: 'まとめと練習' },
         ],
       },
