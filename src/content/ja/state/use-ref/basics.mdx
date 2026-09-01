@@ -1,9 +1,9 @@
 ---
-title: 画面を描き直さない値（useRef）
-minutes: 10
+title: 'useRef：DOM に触れる・値を覚える'
+minutes: 31
 slug: use-ref-basics
 section: state
-description: useRef の 2 つの仕事——DOM 要素を指す（フォーカス・スクロール）ことと、再描画せずに値を持ち続けること。構文を分解し、useState との違いを表で整理し、JSX に ref を出しても更新されない理由を確かめる。
+description: useRef の総合リファレンス。ref とは何か・state との違い・最小の型付き例・答えを見る前に自分で考える5シナリオ（モーダルのフォーカス / スクロールと計測 / デバウンス / ライブラリのインスタンス / 直前のスクロール位置）・React 19 のコールバック ref と ref を普通の props として渡す方法・使わない判断・定番のバグ・TypeScript の落とし穴。
 level: beginner
 prerequisites: ['state/use-effect/basics']
 ---
@@ -12,238 +12,860 @@ import { RefBasicsDemo } from '@/demos/RefBasics'
 
 <LearnBox>
 
-- `useRef` の 2 つの仕事：**DOM 要素を指す**ことと、**値を持ち続ける**こと
-- `useState` との違い（ref を更新しても画面は**描き直されない**）
-- `ref.current` を JSX に出してしまう罠と、書き方カタログ
+- ref とは何か。そして state と分ける「たった 1 つの基準」
+- 答えを見る前に自分で考える 5 シナリオ：開いたらフォーカス・スクロールと計測・デバウンス・ライブラリのインスタンス・直前のスクロール位置
+- React 19 のコールバック ref（クリーンアップ付き）と、普通の props としての `ref`。加えて定番のバグと TypeScript の落とし穴
 
 </LearnBox>
 
-## 実物の要素に触りたいときがある {#why}
+## ref の正体 {#what}
 
-`useState` では「何を表示するか」を指定して、React に描いてもらいました。でも、それでは表せない仕事もあります——**この入力欄にフォーカスする、この要素までスクロールする、この箱の高さを測る**。こうした仕事には**画面にある実物の DOM 要素**が必要で、それを掴んでおく道具が **`useRef`** です。
+**ref は、React があなたのコンポーネントのために持っている箱で、React は中身を一度も見ません。**いつ読んでも、いつ書き換えても構いませんが、何も起きません——描き直しも、通知も、何も。
 
-`useRef` にはもう 1 つの仕事もあります。**再描画をまたいで残るが、再描画は起こさない値**（タイマーの id、「もう実行したか」のフラグなど）を持つことです。同じ道具で 2 通りの使い方をします。
+役に立たなさそうですが、他のフックにはできない仕事が 2 つあります。
+
+1. **本物の DOM 要素を渡してくれる。**LP では要素が欲しくなるたびに `document.querySelector('.hero')` と書いていました。React では要素を探しに行きません。React が作った要素を渡してもらう——その頼み方が `ref` です。
+2. **描画をまたいで値を覚え、しかも描き直さない。**ローカルの `let` は描画のたびに消えます。state は残りますが描き直します。ref は残って、黙っています。
 
 <Callout type="analogy">
 
-`useState` は壁のホワイトボードです。書けば部屋の全員が顔を上げます。`useRef` はポケットのメモ用紙。次に見たときちゃんと残っていますが、書いても誰も振り向きません。
+state は、React が描画のたびに読むホワイトボード。ref は、コンポーネントの内側に貼った付箋です。ちゃんと残り、いつでも書き換えられ、そして React は一度も見ません。
 
 </Callout>
 
-## useRef の構文を分解する {#anatomy}
+この 2 つは実際に重なる部分があるので、違いをはっきりさせておきます。
 
-```tsx
-const inputRef = useRef<HTMLInputElement>(null)
-//    ↑                 ↑                  ↑
-//    │                 │                  └─ ② 初期値（React が繋ぐまでは null）
-//    │                 └─ ① 指す予定の要素の型
-//    └─ 引き出しが 1 つの箱：inputRef.current で読み書きする
+| | `useState` | `useRef` |
+| --- | --- | --- |
+| 変えると画面が描き直される | される | **されない** |
+| 変え方 | `setValue(next)` | `ref.current = next` |
+| 描画中に読んでよい | よい | **だめ** |
+| 再描画をまたいで残る | 残る | 残る |
+| アンマウントで捨てられる | 捨てられる | 捨てられる |
+| 何のために使うか | 画面に出るもの | 画面に出ないもの |
 
-<input ref={inputRef} />
-//     ↑ ③ 箱を React に渡すと、実物の要素を .current に入れてくれる
+判定は 1 行です。**その値が変わったとき画面も変わらなければならないなら state。そうでなければ ref。**
 
-inputRef.current?.focus() // ④ 使う（繋がる前は null なので ?. を付ける）
-```
+## 最小の動く例 {#minimal}
 
-- **① 型** … `<input>` なら `HTMLInputElement`、`<div>` なら `HTMLDivElement`。エディタが使えるメソッドを教えてくれるようになります。
-- **② 初期値 `null`** … 初回の描画時点では要素がまだ存在しません。描画のあとに入ります。
-- **③ `ref={inputRef}`** … 繋ぐのはこの 1 か所だけ。React が実物の要素を `.current` に書き込みます。
-- **④ `.current`** … 必ず `.current` 経由で。そして `null` になり得るので必ず `?.` を付けます。
-
-## フォーカスボタンを全文で書く {#build}
-
-`src/components/SearchBox/SearchBox.tsx` を新規作成して、**この全文**を貼り付けてください。ボタンを押すとカーソルが入力欄に飛びます。
-
-```tsx title="src/components/SearchBox/SearchBox.tsx（新規作成・全文）"
+```tsx title="src/components/SearchBox/SearchBox.tsx"
 import { useRef } from 'react'
 
 export function SearchBox() {
+  // 本物の input 要素を入れる、空の箱を作る。
+  // 初回描画の今この瞬間は、中身は null。
   const inputRef = useRef<HTMLInputElement>(null)
 
   return (
     <div>
-      <input ref={inputRef} placeholder="検索" />
-      <button type="button" onClick={() => inputRef.current?.focus()}>
-        入力欄にフォーカス
+      {/* `ref={inputRef}` は React への指示：この要素を作ってページに
+          入れたら、inputRef.current に置いてください。 */}
+      <input ref={inputRef} type="search" placeholder="商品を検索" />
+
+      <button
+        type="button"
+        // `?.` は「箱が空なら、落ちる代わりに何もしない」という意味。
+        // .focus() はただのブラウザのメソッドで、React は関与しない。
+        onClick={() => inputRef.current?.focus()}
+      >
+        検索欄へ移動
       </button>
     </div>
   )
 }
 ```
 
-## 保存すると何が起きるか {#result}
+```tsx
+const inputRef = useRef<HTMLInputElement>(null)
+//    ↑                                    ↑
+//    │                                    └─ ② 箱の初期の中身。初回描画の時点では
+//    │                                       要素がまだ存在しないので null
+//    └─ ① { current: ... } という形のオブジェクト。毎回の描画で同じもの
 
-ボタンを押すと入力欄にカーソルが入ります。このとき**何も再描画されていない**ことに注目してください。state は 1 つも変わっていません。実物の要素に「フォーカスして」と直接頼んだだけ——これが ref の仕事です。
+<input ref={inputRef} />
+//     ↑ ③「React さん、この要素を document に入れたら inputRef.current に置いて」
+```
 
-## 実際の動き {#demo}
+`inputRef.current?.focus()` の `?.` は用心のためではありません。React が要素を作るまで `current` は本当に `null` で、TypeScript もそれを守らせます。
 
-左半分は上のフォーカスボタンです。右半分がもう 1 つの仕事——数を持つ ref と、数を持つ state を並べたもの。**`ref +1` を何回か押して、画面が動かないことを確かめてください。**
+## 動かして確認 {#demo}
 
-<Demo title="DOM のための ref と、値のための ref">
+DOM を指す ref と、値を持つ ref を並べました。**ref +1** は何度押しても画面が動きません。書き込んでも描き直されないからです。そのあと **state +1** を押すと、ref の数字が急に追いつきます——*そこで*再描画が起き、箱を読み直したからです。
+
+<Demo title="DOM の ref と 値の ref">
   <RefBasicsDemo />
 </Demo>
 
-## ref を更新しても画面は描き直されない {#no-render}
+## シナリオ：モーダルが開いたら入力欄にフォーカス {#focus}
 
-違いはここに尽きます。じっくり見る価値のある一点です。
+<Callout type="note">
 
-```tsx
-const count = useRef(0)
+**まず自分で書いてみる。**開いたらキーボードフォーカスを入力欄に移し、閉じたら元の場所へ戻す検索モーダルを作ってください。目指すのは次の 3 つです。
 
-function handleClick() {
-  count.current += 1 // 値は本当に増えている……
-  console.log(count.current) // 1, 2, 3 — コンソールが証拠
+1. モーダルが現れた瞬間に入力欄へフォーカスが入る。
+2. 閉じたら、訪問者が直前にいた場所へフォーカスが戻る。
+3. 閉じているあいだは何も起きない。
+
+ヒント：ref が **2 つ**必要で、しかも種類が違います——片方は要素を指し、もう片方はただ値を覚えるだけです。フォーカスを当てられるのは描画中でしょうか、それともあとでしょうか。そして直前に何がフォーカスされていたかは、どう調べますか（`document.activeElement`）。
+
+</Callout>
+
+```tsx title="src/components/SearchModal/SearchModal.tsx"
+import { useEffect, useRef } from 'react'
+
+interface SearchModalProps {
+  open: boolean
+  onClose: () => void
 }
 
-return <p>{count.current}</p> // ……でも画面は 0 のまま
+export function SearchModal({ open, onClose }: SearchModalProps) {
+  // ref その 1：検索欄へのハンドル。.focus() を呼ぶために要る。
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // ref その 2：DOM のハンドルではなく、ただ覚えておきたい値。画面のどこにも
+  // 出ないので、state にすると無駄な描き直しを買うだけ。
+  const returnFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    // 閉じているなら何もしない。React はこの回のクリーンアップを記録しない。
+    if (!open) return
+
+    // 奪う前に、キーボードフォーカスがどこにあったかを覚えておく。
+    // activeElement はより一般的な Element 型なので `as` が要る。
+    returnFocusRef.current = document.activeElement as HTMLElement | null
+
+    // 検索欄にフォーカスを移す。エフェクトは React が input をページに
+    // 入れた「あと」に走るので、ここなら安全。
+    inputRef.current?.focus()
+
+    // モーダルが閉じる（または消える）ときにフォーカスを返す。
+    return () => returnFocusRef.current?.focus()
+  }, [open]) // 開閉のたびに再実行する
+
+  // 閉じているあいだは何も描かない。
+  if (!open) return null
+
+  return (
+    // role と aria-modal で、支援技術に「ページを覆うダイアログ」だと伝える。
+    <div role="dialog" aria-modal="true" aria-label="検索">
+      <input ref={inputRef} type="search" placeholder="商品を検索" />
+
+      <button type="button" onClick={onClose}>
+        閉じる
+      </button>
+    </div>
+  )
+}
 ```
 
-`count.current` の数字は確かに増えています。ただ、それが画面に伝わりません。**React に描き直しを伝えるのは state の更新だけ**だからです。デモでも、`state +1` を押すまで ref の数字は止まったまま——押した瞬間に、ずっと持っていた値まで一気に追いつきます。
+1 行ずつ。
 
-| | `useState` | `useRef` |
-| --- | --- | --- |
-| 変えると画面が描き直される | **される** | **されない** |
-| 更新のしかた | `setCount(1)` | `ref.current = 1` |
-| 再描画をまたいで残る | 残る | 残る |
-| 使いどころ | 表示するものすべて | DOM 要素・タイマー id・フラグ |
+1. **ref が 2 つ、役割も 2 つ。**`inputRef` は*要素へのハンドル*で、埋めるのは React です。`returnFocusRef` は*覚えておく値*で、埋めるのはあなたです。フックは同じで、「画面に出ないなら ref」という原則が両方をカバーします。
+2. **`inputRef.current?.focus()` はエフェクトの中で、描画本体ではない。**描画の時点では要素が存在せず、`inputRef.current` はまだ `null` です。エフェクトは React が要素をページに入れたあとに走るので、そこでちょうどフォーカスが効きます。
+3. **`returnFocusRef.current = document.activeElement` をセットアップで捕まえる**——フォーカスを移す前に、です。クリーンアップ時に読むと、それはモーダル自身の入力欄になってしまい、訪問者が来た場所ではありません。
+4. **`if (!open) return`** をすべての上に置いているので、閉じている状態のコストはゼロです。
 
-**目安：画面に出るなら state。出ないなら ref でよい。**
+## シナリオ：セクションへスクロールし、寸法を測る {#scroll}
 
-## 値を持つ：止められるタイマー {#value}
+<Callout type="note">
 
-もう 1 つの仕事を実務で使う形にします。ストップウォッチは、あとで `clearInterval` するために `setInterval` が返した id を覚えておく必要があります。この id は表示しないので、state には置きません。
+**まず自分で書いてみる。**「料金を見る」ボタンで料金セクションまでなめらかにスクロールし、別のボタンでそのセクションの高さを測って画面に出してください。目指すのは次の 2 つです。
 
-```tsx
-const timerRef = useRef<number | null>(null)
+1. `document.querySelector` を一切使わずにスクロールする。
+2. 測った高さがページ上に表示される。
 
-function start() {
-  if (timerRef.current !== null) return // すでに動いている
-  timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000)
-}
+ヒント：このシナリオはわざと ref と state の**両方**が必要になっています。見る前に、どちらがどちらか考えてください。要素までスクロールするブラウザのメソッドは `scrollIntoView`、寸法を測るのは `getBoundingClientRect` です。
 
-function stop() {
-  if (timerRef.current === null) return
-  clearInterval(timerRef.current)
-  timerRef.current = null
+</Callout>
+
+```tsx title="src/components/PricingLink/PricingLink.tsx"
+import { useRef, useState } from 'react'
+
+export function PricingLink() {
+  // 料金 section へのハンドル。section には専用の型がないので HTMLElement。
+  const pricingRef = useRef<HTMLElement>(null)
+
+  // 測った高さ。これは「表示する」ので、ref ではなく state。
+  const [height, setHeight] = useState(0)
+
+  const scrollToPricing = () => {
+    // scrollIntoView は要素自身が持つ、ただのブラウザのメソッド。
+    // `behavior: 'smooth'` でアニメーション、`block: 'start'` で上端に揃える。
+    pricingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const measure = () => {
+    // getBoundingClientRect は、その要素の今の大きさと画面上の位置を返す。
+    // ref が空なら `?.` のおかげで undefined になる。
+    const rect = pricingRef.current?.getBoundingClientRect()
+
+    // 実際に測れたときだけ保存する。
+    if (rect) setHeight(Math.round(rect.height))
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={scrollToPricing}>
+        料金を見る
+      </button>
+
+      <button type="button" onClick={measure}>
+        {/* state がここに出る。だからこれは ref にはできない。 */}
+        高さを測る（{height}px）
+      </button>
+
+      <section ref={pricingRef} id="pricing">
+        <h2>料金</h2>
+        <p>3 プラン、初期費用なし。</p>
+      </section>
+    </div>
+  )
 }
 ```
 
-`seconds` は state（画面に出る）。タイマー id は ref（出ない）。id を state に入れると、誰も見ない数字のためにコンポーネント全体が描き直されます。
+1 行ずつ。
 
-## わざと壊す：ref を表示してみる {#break-display}
+1. **分担そのものが教材です。****要素**は ref——画面上の何もそれに依存しないから。**測定値**は state——画面に出る数字が依存するから。
+2. **イベントハンドラの中で測るのは問題ありません。**クリックが起きる頃には要素はとっくに存在します。描画中に測るのはだめ（要素が `null`）で、`useEffect` で測ると 1 フレームだけ古いレイアウトが見えます——それを避けたいときが `useLayoutEffect` です。
+3. **`useRef<HTMLElement>`** … `section` `header` `footer` `main` には専用のインターフェースがないので、一般的な `HTMLElement` を使います。
 
-デモの右パネルを、ref だけで動かそうとしてみます。
+## シナリオ：タイマー ID でデバウンスする {#timer}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**入力が 300ms 止まってから初めて `onSearch` を呼ぶ検索欄を作ってください。目指すのは次の 2 つです。
+
+1. 1 打鍵ごとに、待機中だった前の検索を打ち消す。
+2. 待機中にコンポーネントが消えても、タイマーが残らない。
+
+ヒント：打鍵と打鍵のあいだ、タイマーの ID をどこかに持つ必要があります。まずコンポーネント内の素の `let` で試して、なぜ失敗するかを確かめてください。そのうえで `useState` が適切か、そのコストは何かを考えます。
+
+</Callout>
+
+```tsx title="src/components/DebouncedSearch/DebouncedSearch.tsx"
+import type { ChangeEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+interface DebouncedSearchProps {
+  onSearch: (query: string) => void
+}
+
+export function DebouncedSearch({ onSearch }: DebouncedSearchProps) {
+  // 入力欄の文字列。表示するので state。
+  const [text, setText] = useState('')
+
+  // 待機中のタイマーの ID。表示しないし、描き直しを起こしてもいけないので
+  // ref。`ReturnType<typeof setTimeout>` はブラウザ（数値）でも
+  // Node（オブジェクト）でも通る書き方。
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    // セットアップなし、クリーンアップだけ：検索を待っている最中に
+    // コンポーネントが消えたら、空振りしないよう打ち消す。
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current)
+    }
+  }, []) // 空：このクリーンアップはアンマウントのためだけのもの
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    // 非同期の処理が入る前に、打たれた文字列を取り出しておく。
+    const next = event.target.value
+
+    // 見えている入力欄はすぐ更新する。ユーザーを待たせない。
+    setText(next)
+
+    // 前の打鍵で予約された検索を打ち消す。
+    if (timerRef.current !== null) clearTimeout(timerRef.current)
+
+    // 新しく予約し、次の打鍵が打ち消せるように ID を保存する。
+    timerRef.current = setTimeout(() => onSearch(next), 300)
+  }
+
+  return <input value={text} onChange={handleChange} placeholder="商品を検索" />
+}
+```
+
+1 行ずつ、そして他の選択肢が使えない理由。
+
+1. **コンポーネント内の素の `let timerId` は失敗します。**1 打鍵ごとに関数全体が走り直すので、変数は `undefined` に作り直され、前のタイマーを打ち消せません。
+2. **`useState` は動きますが不適切です。**ID は残りますが、保存するたびに、誰も見ない数値のために 1 打鍵ごとの描画が増えます——そしてその描画で、結局この関数がまた走ります。
+3. **残り、かつ黙っているのは ref だけ。**この組み合わせこそ、DOM 以外の値に `useRef` が存在する理由そのものです。
+4. **クリーンアップだけのエフェクト**は、検索を予約したままコンポーネントが消えた場合をカバーします。今の React ではこれがなくても落ちませんが、コールバックが無意味に走ります。
+
+## シナリオ：ライブラリのインスタンスを持つ {#instance}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**短い音を鳴らすボタンを作ってください。`Audio` オブジェクトは、何回描画されようと何回押されようと、一度だけ作られるようにします。目指すのは次の 2 つです。
+
+1. コンポーネントの一生で `Audio` はちょうど 1 個。
+2. コンポーネントが消えるときに停止し、解放される。
+
+ヒント：`useRef(new Audio('/pop.mp3'))` の何がまずいでしょうか。その行が何回走るか考えてください。`useState` にはこのための遅延初期化がありますが、`useRef` にはあるでしょうか。
+
+</Callout>
+
+```tsx title="src/components/SoundButton/SoundButton.tsx"
+import { useEffect, useRef } from 'react'
+
+export function SoundButton() {
+  // Audio を入れる箱。最初は空——初回の使用時に作る。今ここで作ると
+  // 毎回の描画で作ることになって無駄だから。
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    // React はこれを片付けてくれないので、自分でやる。
+    return () => {
+      audioRef.current?.pause()
+      audioRef.current = null
+    }
+  }, []) // 空：アンマウントのためだけ
+
+  const play = () => {
+    // 遅延生成のガード：必要になった最初の 1 回だけ作る。以降は箱が
+    // null ではなくなるので、二度と作られない。
+    if (audioRef.current === null) {
+      audioRef.current = new Audio('/sounds/pop.mp3')
+    }
+
+    // 頭に巻き戻す。連打しても毎回鳴り直すように。
+    audioRef.current.currentTime = 0
+
+    // .play() は Promise を返す。`void` は「あえて無視する」の意思表示。
+    void audioRef.current.play()
+  }
+
+  return (
+    <button type="button" onClick={play}>
+      音を鳴らす
+    </button>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`useRef(new Audio(...))` がバグの正体です。**引数は**毎回の描画で**評価されるので、React は毎回 `Audio` を作り、初回以外は捨てます。`useState` のような遅延初期化の引数は `useRef` にはありません。
+2. **`if (current === null)` が、その足りない遅延初期化**を手で書いたものです。ref に入れる `new` されたもの全般で使う定石です。
+3. **クリーンアップは重要です。**ref はコンポーネントがマウントされている間ずっと中身を生かし続けますが、React は中に `Audio` が入っていることを知りません。
+
+GSAP のタイムラインも同じ形ですが、GSAP に関しては [useGSAP](/libraries/gsap/usegsap) が ref の管理とクリーンアップを引き受けてくれます。
+
+## シナリオ：直前の値を覚えておく {#previous}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**下にスクロールすると隠れ、上に戻すと現れるヘッダーを作ってください。ただし、ページ上部から 120px 以上下にいるときだけ隠れます。目指すのは次の 2 つです。
+
+1. 今のスクロール位置と直前の位置を比べる。
+2. 描き直しが起きるのは「隠すかどうか」のフラグだけ。
+
+ヒント：数値が 2 つ要ります——今どこか、そして前回どこだったか。表示されるのはそのうち片方だけです。どちらをどこに置きますか。
+
+</Callout>
+
+```tsx title="src/components/AutoHideHeader/AutoHideHeader.tsx"
+import { useEffect, useRef, useState } from 'react'
+
+export function AutoHideHeader() {
+  // いまヘッダーが隠れているかどうか。CSS がこれに依存するので state。
+  const [hidden, setHidden] = useState(false)
+
+  // 前回のスクロールイベント時点のページ位置。表示されないうえ、
+  // スクロールのたびに更新されるので、描き直しを起こしてはいけない。
+  const lastYRef = useRef(0)
+
+  useEffect(() => {
+    const onScroll = () => {
+      // いまページのどこまで下がっているか。
+      const y = window.scrollY
+
+      // 前回より「下へ」動き、かつ 120px より下にいるときだけ隠す。
+      // ページ最上部でヘッダーが消えないようにするための条件。
+      setHidden(y > lastYRef.current && y > 120)
+
+      // 次のイベントのために今の位置を覚える。ref への書き込みは
+      // ただのプロパティ代入で、何も予約しない。
+      lastYRef.current = y
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, []) // 空：一度だけ張る
+
+  return (
+    <header data-hidden={hidden}>
+      <p>Logo</p>
+    </header>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`hidden` は state、`lastYRef` は ref。**前者にはクラスが依存し、後者には何も依存しません。この 1 つの問いで両方が決まりました。
+2. **`lastYRef` が state だったら、スクロールのたびに描き直しが予約されます**——毎秒何十回も、ヘッダーが実際に変わるかどうかに関係なく。`setHidden` は値が変わらなければタダ（React が `Object.is` で比べて打ち切る）なので、本当に変わったときだけコストが発生します。
+3. **ハンドラの中の `lastYRef.current = y` は安全です。**ハンドラは描画の外で走ります。`.current` に触るなという原則は、描画本体だけの話です。
+
+## 呼び出し方のすべて {#signatures}
+
+**値の ref と DOM の ref。**フックは同じで、違いは「そのオブジェクトを `ref` 属性に渡すかどうか」だけです。
 
 ```tsx
-const count = useRef(0)
+// これを埋めるのは自分だけ。タイマー・フラグ・直前の値などに使う。
+const countRef = useRef(0)
+
+// こちらは下で ref 属性に渡すので、React が埋めてくれる。
+const boxRef = useRef<HTMLDivElement>(null)
+```
+
+**コールバック ref。**オブジェクトの代わりに関数を渡します。要素が付いたとき React がその関数を呼び、**React 19** では、要素が外れたときに呼ばれるクリーンアップ関数を返せます。
+
+```tsx
+<div
+  ref={(node) => {
+    // 要素が現れたとき、React がそれを引数にこれを呼ぶ。
+    if (!node) return
+
+    // 本物の要素が要る準備をここでする。
+    const observer = new ResizeObserver(([entry]) => {
+      console.log('幅が変わりました:', entry.contentRect.width)
+    })
+    observer.observe(node)
+
+    // React 19：関数を返すとそれがクリーンアップになり、
+    // この要素が消える／差し替わるときに実行される。
+    return () => observer.disconnect()
+  }}
+>
+  サイズを見張る
+</div>
+```
+
+要素が現れた瞬間に何かを**する**必要があるときに使います。クリーンアップを返せるようになったことで安全になりました——React 19 より前は、React が `null` を引数に再度呼んでくるのを自分で捌く必要がありました。
+
+**複数の要素をまとめて持つ。**`Map` を入れた ref を 1 つ用意し、コールバック ref で埋めるのが定石です。
+
+```tsx title="src/components/SectionNav/SectionNav.tsx"
+import { useRef } from 'react'
+
+// コンポーネントの外に置いた素の配列。モジュールにつき一度だけ作られる。
+const SECTIONS = ['about', 'pricing', 'faq']
+
+export function SectionNav() {
+  // セクション id から DOM 要素への Map を 1 つの ref に持つ。名前で
+  // 引きたいので Map。
+  const nodesRef = useRef(new Map<string, HTMLElement>())
+
+  const scrollTo = (id: string) => {
+    // `.get(id)` は undefined を返しうるので `?.` が要る。
+    nodesRef.current.get(id)?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  return (
+    <div>
+      {SECTIONS.map((id) => (
+        <button key={id} type="button" onClick={() => scrollTo(id)}>
+          {id}
+        </button>
+      ))}
+
+      {SECTIONS.map((id) => (
+        <section
+          key={id}
+          ref={(node) => {
+            // 要素がなければ入れるものがない。
+            if (!node) return
+
+            // この要素を、自分の id をキーに Map へ入れる。
+            nodesRef.current.set(id, node)
+
+            // React 19 のクリーンアップ：要素が消えたら Map からも
+            // 取り除き、ページにない要素を持ち続けないようにする。
+            return () => {
+              nodesRef.current.delete(id)
+            }
+          }}
+        >
+          <h2>{id}</h2>
+        </section>
+      ))}
+    </div>
+  )
+}
+```
+
+**自作コンポーネントに ref を渡す。**React 19 では `ref` はただの props です——`forwardRef` はもう要りません。
+
+```tsx title="src/components/TextField/TextField.tsx"
+// `Ref<T>` は、オブジェクトの ref もコールバック ref も受け付ける型。
+import type { Ref } from 'react'
+
+interface TextFieldProps {
+  label: string
+  // `?` で任意にしておくと、要素が要らない呼び出し側は省略できる。
+  ref?: Ref<HTMLInputElement>
+}
+
+export function TextField({ label, ref }: TextFieldProps) {
+  return (
+    <label>
+      {label}
+      {/* 親から来た ref を、そのまま本物の input に渡す。 */}
+      <input ref={ref} type="text" />
+    </label>
+  )
+}
+```
+
+親は `<TextField label="メール" ref={inputRef} />` と書くだけで、本物の `input` 要素を受け取れます。要素そのものではなく `play()` のようなメソッドだけを公開したい場合は、`useImperativeHandle` の出番です。
+
+**重い値の遅延生成。**`useRef(expensive())` は毎回の描画で `expensive()` を実行し、初回以外の結果を捨てます。[useState](/guide/state/use-state/basics) のような遅延初期化の引数はないので、ガードは自分で書きます。
+
+```tsx
+// 何も作らず、空から始める。
+const observerRef = useRef<IntersectionObserver | null>(null)
+
+const getObserver = () => {
+  // 最初に誰かが求めたときに作る。そのときだけ。
+  if (observerRef.current === null) {
+    observerRef.current = new IntersectionObserver(() => {})
+  }
+
+  // 2 回目以降は、すでにあるものを返す。
+  return observerRef.current
+}
+```
+
+**ref オブジェクトは同一性が変わりません。**だから依存配列に入れる必要はなく、`[myRef]` はノイズです（`react-hooks/exhaustive-deps` も要求しません）。
+
+## わざと壊す：ref を画面に出す {#break-display}
+
+これを作り、読み進める前にボタンを押してください。ref と state の違いを体で理解する最短の方法です。
+
+```tsx title="src/components/Broken/Broken.tsx（わざと間違えたコード）"
+import { useRef, useState } from 'react'
+
+export function Broken() {
+  // 数値を持つ ref と……
+  const refCount = useRef(0)
+
+  // ……比較のための、数値を持つ state。
+  const [stateCount, setStateCount] = useState(0)
+
+  return (
+    <div>
+      {/* 2 つの数字を並べて表示する。 */}
+      <p>
+        ref: {refCount.current} / state: {stateCount}
+      </p>
+
+      <button
+        type="button"
+        onClick={() => {
+          refCount.current += 1
+          console.log('いまの ref:', refCount.current)
+        }}
+      >
+        ref +1
+      </button>
+
+      <button type="button" onClick={() => setStateCount((c) => c + 1)}>
+        state +1
+      </button>
+    </div>
+  )
+}
+```
+
+**ref +1** を 5 回押します。コンソールは 5 まで数え、**画面は 0 のままです。**
+
+そのあと **state +1 を 1 回**押します。ref の数字が 0 から一気に 5 へ飛びます。
+
+この 2 つの現象は、どちらもよく味わう価値があります。ref はずっと更新され*ていました*——`.current` への代入はただのプロパティ書き込みで、失われたものは何もありません。ただ、画面が古くなったと React に伝えるものがなかったので、何も描き直されなかっただけです。state の変更でようやく描画が起きると、コンポーネント関数がもう一度走り、`refCount.current` を読み直し、ずっと持っていた数字を表示しました。
+
+実験 1 つで言い切れます。**ref は覚えるが、知らせない。**値が JSX に現れた瞬間、それは [useState](/guide/state/use-state/basics) の担当です。
+
+## 書き方カタログ：実際に書く形 {#catalog}
+
+```tsx
+// DOM 要素を指す — React が作るまでは null
+const inputRef = useRef<HTMLInputElement>(null)
+<input ref={inputRef} />
+inputRef.current?.focus()
+inputRef.current?.scrollIntoView({ behavior: 'smooth' })
+inputRef.current?.getBoundingClientRect()
+
+// 画面に出ない値を持つ
+const lastYRef = useRef(0) // 直前のスクロール位置
+const firedRef = useRef(false) //「もう実行したか」
+const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null) // タイマー ID
+
+// 待機中のタイマーを打ち消す
+if (timerRef.current !== null) clearTimeout(timerRef.current)
+timerRef.current = setTimeout(fn, 300)
+
+// 重いものを、初回の使用時に一度だけ作る
+const obsRef = useRef<IntersectionObserver | null>(null)
+if (obsRef.current === null) obsRef.current = new IntersectionObserver(fn)
+
+// エフェクトの中で安全に読む
+useEffect(() => {
+  const el = boxRef.current
+  if (!el) return
+  el.focus()
+}, [])
+
+// コールバック ref と、React 19 のクリーンアップ
+<div
+  ref={(node) => {
+    if (!node) return
+    const io = new ResizeObserver(fn)
+    io.observe(node)
+    return () => io.disconnect()
+  }}
+/>
+
+// ref を props で受け取る — React 19、forwardRef 不要
+interface Props { ref?: Ref<HTMLInputElement> }
+```
+
+## 使うとき・使わないとき {#when}
+
+ref を使うのは、メソッドを呼びたい DOM 要素（`focus` `scrollIntoView` `play` `getBoundingClientRect`）、タイマーや `requestAnimationFrame` の ID、`new` で作ったインスタンス、直前の値、「もう実行したか」のフラグです。
+
+次には使いません。
+
+- **画面に出るもの。**ref に書いても描き直されないので、画面は最後の描画時の値のままです。それは [useState](/guide/state/use-state/basics) の仕事です。
+- **入力欄を制御せずに値だけ読む用途。**`inputRef.current.value` を送信時に読むこと自体は*できます*し、大きなフォームでは [react-hook-form](/libraries/react-hook-form) が内部でまさにそれをやっています。ただし、リアルタイムのバリデーションや、入力に応じて変わる `disabled` は失われます。項目が少数なら制御されたコンポーネントのほうが単純です。
+- **「再描画が多すぎる」と感じたときの回避策。**state を ref に移してもアプリは速くなりません。画面が間違うだけです。描画が本当に問題なら、まず計測してから [useMemo と memo](/guide/state/use-memo/basics) を検討します。
+- **コンポーネント間で値を共有する。**ref はインスタンスの私物です。親に持ち上げるか、`useContext` を使います。
+- **描画中の読み書き。**禁止です——次の「よくある間違い」で扱います。
+
+## よくある間違い {#mistakes}
+
+**`ref.current` を画面に表示する。**
+
+```tsx
+// ✗ 画面の数字が一向に動かない。
+const countRef = useRef(0)
 
 return (
-  <button type="button" onClick={() => { count.current += 1 }}>
-    {count.current} 回クリック
+  // クリックで箱の中身はちゃんと増えるが……
+  <button type="button" onClick={() => (countRef.current += 1)}>
+    {/* ……描き直されないので、ここは最後の描画時の値を出し続ける。 */}
+    {countRef.current} 回クリック
   </button>
 )
 ```
 
-保存してクリックすると、表示は**いつまでも 0 のまま**です。エラーも警告も出ません——何も教えてくれないという意味で、いちばんタチの悪いバグです。直し方は「もっと良い ref」ではなく **`useState`**。この数字は画面に出るからです。
+そして*別の* state 変更でたまたま再描画されたとき、数字が一気に飛びます。[上のデモ](#demo)で起きているのがこれです。
 
-## 書き方カタログ：実際に使う 4 つの形 {#catalog}
+<Diff
+  bad="const countRef = useRef(0) … そして {countRef.current} を描画する"
+  good="const [count, setCount] = useState(0)"
+  note="画面に出る値なら state。ref への書き込みは絶対に描き直しを起こさない。"
+/>
+
+**描画中に `.current` を読む・書く。**
 
 ```tsx
-// ① 要素にフォーカスする
-const inputRef = useRef<HTMLInputElement>(null)
-inputRef.current?.focus()
+// ✗ 純粋でない。React は 1 回の更新でこの関数を複数回呼ぶことがあるので、
+//   数字は予測できず、開発と本番で違う値になる。
+function Component() {
+  const renderCount = useRef(0)
+  renderCount.current += 1
+  return <p>{renderCount.current} 回描画されました</p>
+}
+```
 
-// ② 要素までスクロールする
-const topRef = useRef<HTMLDivElement>(null)
-topRef.current?.scrollIntoView({ behavior: 'smooth' })
+描画は props と state から決まる純粋な関数でなければなりません。React は 1 回の更新のためにコンポーネントを複数回呼ぶ権利を持っています——開発時の StrictMode はまさにそれをやります。ref の読み書きはエフェクトとイベントハンドラの中だけ。`react-hooks/refs` の lint ルールがこれを見張っています。
 
-// ③ タイマー id を持って、あとで止める
-const timerRef = useRef<number | null>(null)
-timerRef.current = window.setInterval(tick, 1000)
+**描画の時点で要素があると思ってしまう。**
 
-// ④ 要素を測る（描画後なので useEffect の中で）
+```tsx
+// ✗ 初回描画では要素が存在しないので、これは必ず 0。
 const boxRef = useRef<HTMLDivElement>(null)
+const width = boxRef.current?.offsetWidth ?? 0
+
+// ○ React が要素を入れたあとで読み、画面に出せるよう state に入れる。
 useEffect(() => {
-  console.log(boxRef.current?.getBoundingClientRect().height)
+  setWidth(boxRef.current?.offsetWidth ?? 0)
 }, [])
 ```
 
-①〜③ は[レシピ集](/recipes/modal)のあちこちに出てきます——モーダルは閉じるボタンにフォーカスし、「トップへ戻る」はスクロールし、トーストはタイマー id を持ちます。
-
-<Together
-  task="モーダルがあります。開いたときにカーソルを閉じるボタンに置きたい。ref と useEffect を書いてください（open は boolean の props とします）。"
-  hint="ボタンに ref を付けて、[open] を依存配列にした useEffect でフォーカスします。"
->
+**`useRef` ではなく `createRef` を使う。**
 
 ```tsx
-const closeRef = useRef<HTMLButtonElement>(null)
+// ✗ createRef は描画のたびに空の ref を新しく作るので、読む頃には React が
+//   別のオブジェクトを埋めている。いつも null。
+const inputRef = createRef<HTMLInputElement>()
 
-useEffect(() => {
-  if (open) closeRef.current?.focus()
-}, [open])
-
-return <button ref={closeRef} type="button" onClick={onClose}>閉じる</button>
+// ○ useRef はコンポーネントが生きている間、同じオブジェクトを返す。
+const inputRef = useRef<HTMLInputElement>(null)
 ```
 
-DOM に触るのは副作用なので `useEffect` に置きます。しかもボタンが**描画されたあと**でなければ触れません——effect が動くのはまさにそのタイミングです。依存配列 `[open]` で、モーダルが開くたびに実行されます。
+`createRef` はクラスコンポーネントのためのものです。関数コンポーネントでは記憶が残りません。
 
-</Together>
+**コールバック ref を省略形のアロー関数で書く。**
 
-## よくある間違い {#mistakes}
+```tsx
+// ✗ 波括弧のないアロー関数は式の結果——ここでは要素——を返す。
+//   React 19 は返された値をクリーンアップ関数として扱う。
+<li ref={(node) => (map.current[id] = node)} />
 
-<Diff
-  bad="JSX に出す数値を const count = useRef(0) で持つ"
-  good="const [count, setCount] = useState(0)"
-  note="ref は描き直しを起こしません。画面に出るものは state に置きます。"
+// ○ 波括弧の本体は何も返さない。クリーンアップを意図的に渡す場合を除き、
+//   React が期待しているのはこちら。
+<li
+  ref={(node) => {
+    map.current[id] = node
+  }}
 />
+```
 
-<Diff
-  bad="inputRef.focus()"
-  good="inputRef.current?.focus()"
-  note="要素は .current の中にあり、React が繋ぐまでは null です。必ず .current と ?. を通します。"
-/>
+**ref が持っているものを片付け忘れる。**ref はコンポーネントがマウントされている間ずっと中身を生かし続けます。オブザーバーもタイマーも `Audio` も、React は勝手に止めてくれません。入れたものは `useEffect` の `return` で片付けます。
 
-<Diff
-  bad="描画中（JSX の本体）で inputRef.current を読む"
-  good="イベントハンドラや useEffect の中で読む"
-  note="初回描画の時点ではまだ null です。描画のあとに読みます。"
-/>
-
-## 私たちの標準 {#standard}
+## うちの標準 {#standard}
 
 <Std
-  decision="DOM 要素と、表示しない値には useRef を使う。画面に出るものはすべて useState に置く"
-  alt="「再描画させたくないから ref にしたい、でも表示はする」と思ったときは、その値が state であるべきで、別のところに直すべき問題があるサインです。ref は本当に見えない値のときだけ使います。"
+  decision="ref は DOM のハンドルと、画面に出ない可変の値のために使う。.current に触るのはエフェクトとイベントハンドラの中だけ——描画中には触らない"
+  alt="ref で非制御の入力欄を読むのは、大きなフォームでは正当なパターンで、フォームライブラリが内部でやっていることでもあります。制御されたフォームの再描画コストが実測で問題になってから採用してください。そして自作するより react-hook-form を入れるほうが早いはずです。"
 >
 
-`useRef` は `.current` 経由で読み書きする箱です。要素に `ref={...}` を付ければ DOM に触れ（フォーカス・スクロール・計測）、`useRef(値)` なら再描画をまたいで覚えておけます（タイマー id、フラグ）。`.current` への書き込みは決して描き直しを起こしません——それが利点であり、同時に罠でもあります。
+判断は 1 つの問いだけです。「この値が変わったとき、画面も変わらなければならないか？」——はいなら state、いいえなら ref。`ref.current` を JSX の中に書こうとしている自分に気づいたら、その問いに間違って答えています。
 
 </Std>
 
+## 内部で起きていること {#internals}
+
+`useRef(initial)` は `{ current: initial }` というただのオブジェクトを一度だけ作り、このコンポーネントインスタンスのフックのスロットに保存し、以後の描画では**同じオブジェクト**を返します。オブジェクト自体に魔法は一切ありません。魔法は「毎回同じものを返してくれる」という一点だけです。
+
+DOM の ref については、タイミングが重要です。
+
+1. React が描画し、DOM の変更内容を確定します。
+2. 変更を適用し、そのあと **ref を接続**します——`ref.current` に要素を入れるか、コールバック ref を呼びます。
+3. レイアウトエフェクト → ブラウザのペイント → エフェクト、の順に進みます。
+
+つまり `ref.current` は初回描画の間は `null` で、エフェクトが走る頃には入っています。要素が取り除かれる（あるいは差し替わる）とき、React は切断します——コールバック ref が返したクリーンアップを呼ぶか、`ref.current` を `null` に戻します。
+
+`.current` を購読しているものは何もありません。差し替えるセッターも、比較も、キューもなく、代入はただの JavaScript のプロパティ書き込みです。だからコストがゼロで、だから何も描き直せません。
+
+<Deeper title="描画中に ref を読むと、具体的に何が困るの？">
+
+React はあなたのコンポーネントを「投機的に呼んでよい関数」として扱います。開発時の StrictMode では 2 回呼びますし、将来は開始した描画を破棄する可能性もあります。関数の出力が `ref.current` に依存していると、同じ props・同じ state で 2 回呼んだのに違う JSX が出てくることになり、React にはどちらが正しいか知る手段がありません。
+
+実際の壊れ方はクラッシュより地味です。描画回数を数える ref は開発と本番で違う数字を出しますし、描画中に書き換えた ref は、React が捨てた描画の分まで増えていることがあります。ref を描画の経路から外しておけば、出力は props と state の純粋な関数のままです——React の他のすべてが、その前提の上に建っています。
+
+</Deeper>
+
+## TypeScript メモ {#typescript}
+
+**DOM の ref は null 許容で、それが正しい姿です。**`useRef<HTMLInputElement>(null)` の `.current` は `HTMLInputElement | null` なので、アクセスのたびに `?.` かガードが要ります。
+
+```tsx
+// ○ オプショナルチェーン：null なら式ごと飛ばされる。
+inputRef.current?.focus()
+
+// ✗ ! は「絶対 null じゃない、信じて」の意味。通るが、本当に null の
+//   描画で落ちる。
+inputRef.current!.focus()
+```
+
+エフェクトの中では、ローカルの const に写すと絞り込みがブロック全体で効きます。
+
+```tsx
+useEffect(() => {
+  // 1 回だけ読んで、ローカル変数に入れる。
+  const el = inputRef.current
+
+  // このチェックで「この行より下の `el` は確実に HTMLInputElement」だと
+  // TypeScript に伝わる——以降 ?. は要らない。
+  if (!el) return
+
+  el.focus()
+  el.select()
+}, [])
+```
+
+**値の ref は初期値から型が決まります。**
+
+```tsx
+// 0 から始まるので .current は number。null にはならない。
+const countRef = useRef(0)
+
+// 明示的に「文字列、またはまだ何もない」。
+const nameRef = useRef<string | null>(null)
+
+// 引数を渡さないので .current は number | undefined。
+const idRef = useRef<number>()
+```
+
+**要素の型はタグに合わせます。**合っていないと `ref` 属性が受け付けません。
+
+```tsx
+const wrongRef = useRef<HTMLDivElement>(null)
+// ✗ input が作るのは HTMLInputElement で、HTMLDivElement ではない。
+<input ref={wrongRef} />
+```
+
+よく使うのは `HTMLInputElement` `HTMLTextAreaElement` `HTMLButtonElement` `HTMLDivElement` `HTMLUListElement` `HTMLAudioElement` `HTMLVideoElement` `HTMLCanvasElement`、そして `section` や `header` には `HTMLElement` です。
+
+**タイマー ID は `number` ではありません。**`setTimeout` はブラウザでは `number`、Node では `Timeout` オブジェクトを返し、エディタがどちらを見ているかは環境次第です。
+
+```tsx
+// 「この環境で setTimeout が返す型、または null」。
+const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+```
+
+**ref を props で受け取る。**React 19 なので `forwardRef` も型のこねくり回しも不要です。`Ref<T>` はオブジェクトの ref とコールバック ref の両方を受け付けます。
+
+```tsx
+import type { Ref } from 'react'
+
+interface TextFieldProps {
+  label: string
+  ref?: Ref<HTMLInputElement>
+}
+```
+
+**コールバック ref は、クリーンアップ関数を返すか、何も返さないかのどちらかです。**`ref={(node) => (something = node)}` と書きそうになったら、波括弧の本体にしてください。省略形は代入の結果を返してしまい、React 19 はそれをクリーンアップとして呼ぼうとします。
+
 ## うまくいかないとき {#trouble}
 
-- **`Cannot read properties of null (reading 'focus')`** … React が要素を繋ぐ前に `.current` を読んでいます。`?.` を付け、描画中ではなくイベントハンドラか `useEffect` で読みます。
-- **数字が画面で変わらない** … ref に入っています。`useState` に移します。
-- **`Property 'focus' does not exist on type ...`** … 型引数が違います。要素に合わせてください（`<input>` なら `useRef<HTMLInputElement>(null)`）。
+- **画面の数字が動かず、あるとき一気に飛ぶ** … `ref.current` を表示しています。その値は `useState` の担当です——[わざと壊す](#break-display)を参照。
+- **`Cannot read properties of null`** … 描画中、または React が要素を入れる前に `.current` に触っています。`useEffect` かイベントハンドラに移します。
+- **エフェクトの中でも `.current` が常に `null`** … 要素に `ref={…}` を付け忘れているか、その要素が条件付きで今は存在しないかのどちらかです。両方確認します。
+- **セットアップでは取れたのに、クリーンアップでは `null`** … React はクリーンアップの前に ref を空にします。エフェクトの冒頭でローカルの `const` に写します。
+- **描画回数が開発と本番で違う** … 描画中に ref を増やしています。純粋でない処理で、`StrictMode` はそれを暴くためにわざと 2 回描画します。
+- **`Type 'HTMLInputElement' is not assignable to type 'HTMLDivElement'`** … 型引数がタグと一致していません。`input` なら `useRef<HTMLInputElement>` です。
+- **`Object is possibly 'null'`** … 想定どおりです。`?.` を使うか、ローカルに写して `if (!el) return` で守ります。`!` に逃げると後で落ちます。
+- **`new Something()` が延々と作られている** … `useRef(new Thing())` は毎回の描画で評価されます。`if (ref.current === null) ref.current = new Thing()` で守ります。
+- **`createRef` を使っていて全部 `null`** … `createRef` は描画のたびに新しい ref を作ります。関数コンポーネントでは必ず `useRef` です。
 
 ## まとめと練習 {#summary}
 
-<Exercise answer="ref。id は表示しないうえ、state に入れるとタイマーが変わるたびに意味なく再描画が起きます。ref は「再描画をまたいで残るが、画面には出ない値」のためのものです。">
+<Exercise answer="ref への書き込みは描き直しを起こさないので、画面は最後の描画で読んだ値のままです。別の state 変更で再描画が起きたときに初めて「追いつき」ます。表示する値なのだから、useState にすべきです。">
 
-あとでタイマーを止めるために `setInterval` が返した id を覚えておきたい。state と ref のどちらにしますか。理由も答えてください。
+クリック数を `useRef(0)` に持ち、`{countRef.current}` を描画しています。クリックしても見た目は変わらないのに、無関係なボタンを押すと数字が一気に 5 増えました。この 2 つの現象を説明してください。
 
 </Exercise>
 
-<Exercise answer="ref.current への書き込みは React に描き直しを伝えないので、JSX は前回の描画時の値を出し続けます。表示するものは useState にします。（別の state が変わった次の描画で値が反映されるため、あとから「追いついた」ように見えます。）">
+<Exercise answer="両方です。<video> 要素は ref（play() や pause() を呼ぶ必要があるため）、playing は useState（ボタンのラベルとアイコンが依存するため）。要素はハンドル、フラグは表示物、という切り分けです。">
 
-`onClick` で `count.current += 1` と書き、JSX に `{count.current}` を出しましたが、画面が変わりません。なぜですか。
+`video` に再生／一時停止ボタンを付け、さらに「再生中」「停止中」も表示したいとします。どこが ref で、どこが state ですか。
+
+</Exercise>
+
+<Exercise answer="useRef(new IntersectionObserver(...)) は毎回の描画で新しいオブザーバーを作り、初回以外を捨てます。ガードします：if (ref.current === null) ref.current = new IntersectionObserver(...)。あるいは useEffect の中で作り、クリーンアップで disconnect します。">
+
+`const observerRef = useRef(new IntersectionObserver(callback))` の何が問題で、代わりにどう書きますか。
 
 </Exercise>
 
 <SummaryBox>
 
-- `useRef` は `.current` で読み書きする箱。要素に `ref={...}` を付けると実物の DOM に触れる
-- `.current` への書き込みは画面を**描き直さない**。表示するものは `useState` に置く
-- 典型的な用途はフォーカス・スクロール・計測と、タイマー id やフラグの保持
+- ref は再描画をまたいで残り、再描画を起こさない箱。値が画面に出るなら state を使う
+- `useRef<T>(null)` ＋ `ref={myRef}` で DOM 要素が手に入る。描画中は `null`、エフェクトの頃には入っている
+- `.current` に触るのはエフェクトとイベントハンドラの中だけ。React 19 では `ref` は普通の props で、コールバック ref はクリーンアップを返せる
 
 </SummaryBox>

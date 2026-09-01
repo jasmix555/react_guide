@@ -1,9 +1,9 @@
 ---
-title: Values that don't redraw the screen (useRef)
-minutes: 10
+title: 'useRef: reaching the DOM and remembering values'
+minutes: 31
 slug: use-ref-basics
 section: state
-description: "useRef has two jobs: pointing at a DOM element (focus, scroll) and holding a value across renders without re-rendering. Break down the syntax, compare it with useState in a table, and see why a ref shown in JSX doesn't update."
+description: "The complete useRef reference: what a ref is and how it differs from state, the minimal typed example, five real scenarios you attempt before reading the answer (focus a modal, scroll and measure, debounce timer, library instance, previous scroll position), callback refs and ref-as-a-prop in React 19, when not to use it, the classic bugs, and the TypeScript traps."
 level: beginner
 prerequisites: ['state/use-effect/basics']
 ---
@@ -12,238 +12,866 @@ import { RefBasicsDemo } from '@/demos/RefBasics'
 
 <LearnBox>
 
-- `useRef`'s two jobs: **pointing at a DOM element** and **holding a value**
-- How it differs from `useState` (updating a ref does **not** redraw the screen)
-- The trap of showing `ref.current` in JSX, and the cheat sheet
+- What a ref is, and the one line that separates it from state
+- Five scenarios you try yourself before reading the answer: focus on open, scroll and measure, debounce, library instance, previous scroll position
+- Callback refs with cleanup and `ref` as a plain prop (both React 19), plus the bugs and the TypeScript traps
 
 </LearnBox>
 
-## Sometimes you need to touch the real element {#why}
+## What a ref actually is {#what}
 
-With `useState` you say "what to show" and React draws it. But some jobs can't be expressed that way — **focus this input, scroll to this element, measure this box's height**. For these you need **the actual DOM element on screen**, and the way to hold on to it is **`useRef`**.
+**A ref is a box React keeps for your component, whose contents React never looks at.** You can read it and rewrite it at any time, and nothing happens — no redraw, no notification, nothing.
 
-`useRef` also has a second job: **holding a value that survives re-renders but doesn't cause one** (a timer id, a "have I run this already?" flag). Same tool, two uses.
+That sounds useless until you notice it does two jobs no other hook does:
+
+1. **It hands you a real DOM node.** On a landing page you wrote `document.querySelector('.hero')` whenever you needed an element. In React you don't go looking for nodes — you ask React to hand you the one it created, and `ref` is how you ask.
+2. **It remembers a value across renders without causing one.** A local `let` is wiped every render. State survives but redraws. A ref survives and stays silent.
 
 <Callout type="analogy">
 
-`useState` is a whiteboard on the wall — write on it and everyone in the room looks up. `useRef` is a sticky note in your pocket. It's still there next time you look, but writing on it doesn't make anyone turn around.
+State is what you write on the whiteboard React reads before every render. A ref is a sticky note on the inside of the component: it survives, you can change it whenever you like, and React never once looks at it.
 
 </Callout>
 
-## Break down the useRef syntax {#anatomy}
+The two genuinely overlap, so the difference is worth pinning down:
 
-```tsx
-const inputRef = useRef<HTMLInputElement>(null)
-//    ↑                 ↑                  ↑
-//    │                 │                  └─ ② the starting value (null until React attaches it)
-//    │                 └─ ① the type of element it will point at
-//    └─ a box with one drawer: read and write it as inputRef.current
+| | `useState` | `useRef` |
+| --- | --- | --- |
+| Changing it redraws the screen | Yes | **No** |
+| How you change it | `setValue(next)` | `ref.current = next` |
+| Safe to read while rendering | Yes | **No** |
+| Survives re-renders | Yes | Yes |
+| Thrown away on unmount | Yes | Yes |
+| What it is for | Anything the screen shows | Anything the screen does not show |
 
-<input ref={inputRef} />
-//     ↑ ③ hand the box to React, and it puts the real element into .current
+The one-line test: **if the screen has to change when this value changes, it is state. Otherwise it is a ref.**
 
-inputRef.current?.focus() // ④ use it (?. because it is null before it is attached)
-```
+## The smallest working example {#minimal}
 
-- **① The type** … `HTMLInputElement` for an `<input>`, `HTMLDivElement` for a `<div>`. Your editor then knows which methods exist.
-- **② The starting value `null`** … The element doesn't exist yet on the first render. It's filled in after the screen is drawn.
-- **③ `ref={inputRef}`** … The one place you connect them. React writes the real element into `.current`.
-- **④ `.current`** … Always through `.current`. And always with `?.`, because it can be `null`.
-
-## Write a focus button in full {#build}
-
-Create `src/components/SearchBox/SearchBox.tsx` and paste in **this full file**. Press the button and the cursor jumps into the input.
-
-```tsx title="src/components/SearchBox/SearchBox.tsx (new file, full)"
+```tsx title="src/components/SearchBox/SearchBox.tsx"
 import { useRef } from 'react'
 
 export function SearchBox() {
+  // Make an empty box that will hold the real <input> element.
+  // Right now, during the first render, it contains null.
   const inputRef = useRef<HTMLInputElement>(null)
 
   return (
     <div>
-      <input ref={inputRef} placeholder="Search" />
-      <button type="button" onClick={() => inputRef.current?.focus()}>
-        Focus the input
+      {/* `ref={inputRef}` tells React: once you have created this element and
+          put it in the page, drop it into inputRef.current. */}
+      <input ref={inputRef} type="search" placeholder="Search products" />
+
+      <button
+        type="button"
+        // `?.` means "if the box is empty, do nothing instead of crashing".
+        // .focus() is a plain browser method — React is not involved.
+        onClick={() => inputRef.current?.focus()}
+      >
+        Jump to search
       </button>
     </div>
   )
 }
 ```
 
-## What happens when you save {#result}
+```tsx
+const inputRef = useRef<HTMLInputElement>(null)
+//    ↑                                    ↑
+//    │                                    └─ ② the starting contents — null, because
+//    │                                       the node does not exist on the first render
+//    └─ ① an object shaped { current: ... }, the same object on every render
 
-Click the button and the input gets the cursor. Notice that **nothing was redrawn** — no state changed. You reached out and told the real element "focus yourself", which is exactly what a ref is for.
+<input ref={inputRef} />
+//     ↑ ③ "React, put this node in inputRef.current once it is in the document"
+```
 
-## See it in action {#demo}
+The `?.` in `inputRef.current?.focus()` is not defensive habit — `current` really is `null` until React has created the node, and TypeScript will hold you to it.
 
-The left half is the focus button above. The right half shows the other job — a ref holding a number, next to state holding a number. **Press `ref +1` a few times and watch the screen do nothing.**
+## See it running {#demo}
 
-<Demo title="A ref for the DOM, and a ref for a value">
+Two refs side by side: one pointing at a DOM node, one holding a number. Press **ref +1** as often as you like — nothing moves, because writing to a ref does not redraw. Then press **state +1** and the ref's number suddenly catches up, because *now* the component re-rendered and read the box again.
+
+<Demo title="A DOM ref and a value ref">
   <RefBasicsDemo />
 </Demo>
 
-## Updating a ref does not redraw the screen {#no-render}
+## Scenario: focus an input when a modal opens {#focus}
 
-That's the whole difference, and it's worth staring at.
+<Callout type="note">
 
-```tsx
-const count = useRef(0)
+**Try it first.** Build a search modal that moves keyboard focus into its input when it opens, and puts focus back where it was when it closes. Aim for:
 
-function handleClick() {
-  count.current += 1 // the value really does go up...
-  console.log(count.current) // 1, 2, 3 — the console proves it
+1. The input focused as soon as the modal appears.
+2. Focus returned to whatever the visitor was on before, when it closes.
+3. Nothing happening at all while it is closed.
+
+Hints: you need **two** refs, and they are two different kinds — one points at an element, the other just remembers a value. Where can you focus something: during render, or after? And how do you find out what had focus before? (`document.activeElement`.)
+
+</Callout>
+
+```tsx title="src/components/SearchModal/SearchModal.tsx"
+import { useEffect, useRef } from 'react'
+
+interface SearchModalProps {
+  open: boolean
+  onClose: () => void
 }
 
-return <p>{count.current}</p> // ...but this stays 0 on screen
+export function SearchModal({ open, onClose }: SearchModalProps) {
+  // Ref #1: a handle to the search input, so we can call .focus() on it.
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Ref #2: not a DOM handle — just a value we want to remember. Nothing on
+  // screen shows it, so making it state would cost a redraw for nothing.
+  const returnFocusRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    // Closed? Do nothing. React records no cleanup for this run.
+    if (!open) return
+
+    // Remember whatever had keyboard focus before we stole it. `as` is needed
+    // because activeElement is typed as the more general Element.
+    returnFocusRef.current = document.activeElement as HTMLElement | null
+
+    // Move focus into the search field. Safe here because the effect runs
+    // AFTER React has put the input in the page.
+    inputRef.current?.focus()
+
+    // When the modal closes (or is removed), hand focus back.
+    return () => returnFocusRef.current?.focus()
+  }, [open]) // re-run whenever the modal opens or closes
+
+  // Render nothing at all while closed.
+  if (!open) return null
+
+  return (
+    // role and aria-modal tell assistive technology this is a dialog that
+    // has taken over the page.
+    <div role="dialog" aria-modal="true" aria-label="Search">
+      <input ref={inputRef} type="search" placeholder="Search products" />
+
+      <button type="button" onClick={onClose}>
+        Close
+      </button>
+    </div>
+  )
+}
 ```
 
-The number in `count.current` genuinely increases. The screen just never hears about it, because **only a state update tells React to redraw**. In the demo, the ref number sits still until you press `state +1` — and then it jumps to the value it had been at all along.
+Line by line:
 
-| | `useState` | `useRef` |
-| --- | --- | --- |
-| Changing it redraws the screen | **Yes** | **No** |
-| How you update it | `setCount(1)` | `ref.current = 1` |
-| Survives re-renders | Yes | Yes |
-| Use it for | anything you display | DOM elements, timer ids, flags |
+1. **Two refs, two different jobs.** `inputRef` is a *handle to a node*: React fills it in. `returnFocusRef` is a *remembered value*: you fill it in. Same hook, and the page-wide rule "if it is not displayed, it is a ref" covers both.
+2. **`inputRef.current?.focus()` inside the effect, not the render body.** During render the element does not exist yet and `inputRef.current` is still `null`. Effects run after React has put it in the page, which is exactly when focusing works.
+3. **`returnFocusRef.current = document.activeElement`** captured at setup — before focus moves. Read it at cleanup time and it would be the modal's own input, which is not where the visitor came from.
+4. **The `if (!open) return`** sits above everything, so the closed state costs nothing at all.
 
-**Rule of thumb: if it appears on screen, it's state. If it doesn't, a ref is fine.**
+## Scenario: scroll to a section and measure it {#scroll}
 
-## Holding a value: a timer you can stop {#value}
+<Callout type="note">
 
-The second job, in practice. A stopwatch has to remember the id `setInterval` gave it, so `clearInterval` can stop it later. That id is never displayed, so it doesn't belong in state.
+**Try it first.** Build a "See pricing" button that smooth-scrolls down to a pricing section, plus a button that measures that section's height and shows the number on screen. Aim for:
 
-```tsx
-const timerRef = useRef<number | null>(null)
+1. Scrolling handled entirely without `document.querySelector`.
+2. The measured height appearing on the page.
 
-function start() {
-  if (timerRef.current !== null) return // already running
-  timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000)
-}
+Hints: this scenario deliberately needs **both** a ref and a state — work out which is which before you look. The browser method for scrolling an element into view is `scrollIntoView`, and the one for measuring is `getBoundingClientRect`.
 
-function stop() {
-  if (timerRef.current === null) return
-  clearInterval(timerRef.current)
-  timerRef.current = null
+</Callout>
+
+```tsx title="src/components/PricingLink/PricingLink.tsx"
+import { useRef, useState } from 'react'
+
+export function PricingLink() {
+  // A handle to the pricing <section>. HTMLElement because <section> has no
+  // more specific type of its own.
+  const pricingRef = useRef<HTMLElement>(null)
+
+  // The measured height. This one IS displayed, so it is state, not a ref.
+  const [height, setHeight] = useState(0)
+
+  const scrollToPricing = () => {
+    // scrollIntoView is a plain browser method on the element itself.
+    // `behavior: 'smooth'` animates; `block: 'start'` aligns it to the top.
+    pricingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const measure = () => {
+    // getBoundingClientRect returns the element's size and position on
+    // screen right now. `?.` gives undefined if the ref is somehow empty.
+    const rect = pricingRef.current?.getBoundingClientRect()
+
+    // Only store it if we actually got a measurement.
+    if (rect) setHeight(Math.round(rect.height))
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={scrollToPricing}>
+        See pricing
+      </button>
+
+      <button type="button" onClick={measure}>
+        {/* The state appears here, which is why it cannot be a ref. */}
+        Measure ({height}px)
+      </button>
+
+      <section ref={pricingRef} id="pricing">
+        <h2>Pricing</h2>
+        <p>Three plans, no setup fee.</p>
+      </section>
+    </div>
+  )
 }
 ```
 
-`seconds` is state (it's on screen). The timer id is a ref (it isn't). Putting the id in state would redraw the whole component for a number nobody ever sees.
+Line by line:
 
-## Break it on purpose: display a ref {#break-display}
+1. **The split is the lesson.** The **node** goes in a ref, because nothing on screen depends on it. The **measurement** goes in state, because a number on screen does.
+2. **Measuring in an event handler is fine.** By the time a click happens, the element has long existed. Measuring during render is not fine (the node is `null`), and measuring in a `useEffect` shows one frame of the old layout first — for that, `useLayoutEffect`.
+3. **`useRef<HTMLElement>`** — `section`, `header`, `footer` and `main` have no dedicated interface, so they use the general `HTMLElement`.
 
-Take the demo's right panel and try to make it work with a ref alone.
+## Scenario: debouncing with a timer id {#timer}
+
+<Callout type="note">
+
+**Try it first.** Build a search field that only calls `onSearch` once the visitor has stopped typing for 300ms. Aim for:
+
+1. Each keystroke cancelling the previous pending search.
+2. No leftover timer if the component is removed mid-wait.
+
+Hints: you need to hold the timer's id somewhere between keystrokes. Try it with a plain `let` inside the component first and work out why it fails — then ask whether `useState` would be right, and what it would cost.
+
+</Callout>
+
+```tsx title="src/components/DebouncedSearch/DebouncedSearch.tsx"
+import type { ChangeEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+interface DebouncedSearchProps {
+  onSearch: (query: string) => void
+}
+
+export function DebouncedSearch({ onSearch }: DebouncedSearchProps) {
+  // The text in the box. Displayed, so it is state.
+  const [text, setText] = useState('')
+
+  // The id of the pending timer. NOT displayed, and it must not cause a
+  // redraw, so it is a ref. `ReturnType<typeof setTimeout>` works in both
+  // the browser (a number) and Node (an object).
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    // Only a cleanup, no setup: if the component is removed while a search
+    // is still pending, cancel it so it cannot fire into nothing.
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current)
+    }
+  }, []) // empty: this cleanup is only about unmounting
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    // Grab what was typed before anything async happens.
+    const next = event.target.value
+
+    // Update the visible field immediately — no delay for the user.
+    setText(next)
+
+    // Cancel the search that was queued by the previous keystroke.
+    if (timerRef.current !== null) clearTimeout(timerRef.current)
+
+    // Queue a new one, and store its id so the next keystroke can cancel it.
+    timerRef.current = setTimeout(() => onSearch(next), 300)
+  }
+
+  return <input value={text} onChange={handleChange} placeholder="Search products" />
+}
+```
+
+Line by line, and why none of the alternatives work:
+
+1. **A plain `let timerId` inside the component fails** because the whole function runs again on every keystroke, so the variable is recreated as `undefined` and the previous timer can never be cancelled.
+2. **`useState` would work but is wrong.** The id would survive, but storing it triggers an extra render per keystroke for a number nobody sees — and that render would run this function again anyway.
+3. **A ref is the only thing that both survives and stays quiet.** That combination is the entire reason `useRef` exists for non-DOM values.
+4. **The cleanup-only effect** covers the case where the component is removed with a search still queued. Nothing crashes without it in modern React, but the callback would fire pointlessly.
+
+## Scenario: holding a library instance {#instance}
+
+<Callout type="note">
+
+**Try it first.** Add a button that plays a short sound. The `Audio` object should be created only once, no matter how many times the component renders or how many times the button is pressed. Aim for:
+
+1. Exactly one `Audio` instance for the life of the component.
+2. It stops and is released when the component goes away.
+
+Hints: what is wrong with `useRef(new Audio('/pop.mp3'))`? Think about how many times that line runs. `useState` has a lazy initializer for this — does `useRef`?
+
+</Callout>
+
+```tsx title="src/components/SoundButton/SoundButton.tsx"
+import { useEffect, useRef } from 'react'
+
+export function SoundButton() {
+  // A box for the Audio object. Starts empty — we build it on first use,
+  // not now, because building it on every render would be wasteful.
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    // React will not tear this down for us, so we do it ourselves.
+    return () => {
+      audioRef.current?.pause()
+      audioRef.current = null
+    }
+  }, []) // empty: only about unmounting
+
+  const play = () => {
+    // The lazy-creation guard: build it the first time it is needed, and
+    // never again, because after this the box is no longer null.
+    if (audioRef.current === null) {
+      audioRef.current = new Audio('/sounds/pop.mp3')
+    }
+
+    // Rewind to the start so rapid presses restart the sound.
+    audioRef.current.currentTime = 0
+
+    // .play() returns a promise; `void` says we deliberately ignore it.
+    void audioRef.current.play()
+  }
+
+  return (
+    <button type="button" onClick={play}>
+      Play sound
+    </button>
+  )
+}
+```
+
+Line by line:
+
+1. **`useRef(new Audio(...))` would be the bug.** The argument is evaluated on **every render**, so React constructs a new `Audio` every time and throws away all but the first. `useRef` has no lazy-initializer argument the way `useState` does.
+2. **`if (current === null)` is that missing lazy initializer**, written by hand. It is the standard pattern for any `new`-ed thing in a ref.
+3. **The cleanup matters.** A ref holds its contents for as long as the component is mounted, and React has no idea an `Audio` is in there.
+
+The same shape holds for a GSAP timeline — though for GSAP specifically, [useGSAP](/libraries/gsap/usegsap) does the ref bookkeeping and cleanup for you.
+
+## Scenario: remembering the previous value {#previous}
+
+<Callout type="note">
+
+**Try it first.** Build a header that hides when the visitor scrolls down and reappears when they scroll up — but only once they are more than 120px down the page. Aim for:
+
+1. Comparing the current scroll position with the previous one.
+2. Only the "hidden or not" flag causing redraws.
+
+Hints: you need two numbers — where the page is now, and where it was last time. Only one of them is ever displayed. Which one goes where?
+
+</Callout>
+
+```tsx title="src/components/AutoHideHeader/AutoHideHeader.tsx"
+import { useEffect, useRef, useState } from 'react'
+
+export function AutoHideHeader() {
+  // Whether the header is currently hidden. A CSS rule depends on this,
+  // so it is state.
+  const [hidden, setHidden] = useState(false)
+
+  // Where the page was on the previous scroll event. Never displayed, and it
+  // updates on every single scroll tick — so it must not cause redraws.
+  const lastYRef = useRef(0)
+
+  useEffect(() => {
+    const onScroll = () => {
+      // How far down the page we are right now.
+      const y = window.scrollY
+
+      // Hide only if we moved DOWN since last time AND we are past 120px,
+      // so the header does not vanish at the very top of the page.
+      setHidden(y > lastYRef.current && y > 120)
+
+      // Remember this position for the next event. Writing to a ref is a
+      // plain property assignment — it schedules nothing.
+      lastYRef.current = y
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, []) // empty: attach once
+
+  return (
+    <header data-hidden={hidden}>
+      <p>Logo</p>
+    </header>
+  )
+}
+```
+
+Line by line:
+
+1. **`hidden` is state; `lastYRef` is a ref.** A class depends on the first, nothing depends on the second. That single question decided both.
+2. **If `lastYRef` were state, every scroll event would queue a redraw** — dozens per second — whether or not the header actually changed. `setHidden` with an unchanged value is free (React compares with `Object.is` and bails), so only genuine changes cost anything.
+3. **`lastYRef.current = y` inside the handler** is safe. Handlers run outside rendering; the rule against touching `.current` applies to the render body only.
+
+## Every way to call it {#signatures}
+
+**Value ref vs. DOM ref.** Same hook, and the only difference is whether you hand the object to a `ref` attribute.
 
 ```tsx
-const count = useRef(0)
+// Nobody fills this in but you. Useful for timers, flags, previous values.
+const countRef = useRef(0)
+
+// React fills this one in, because it is handed to a ref attribute below.
+const boxRef = useRef<HTMLDivElement>(null)
+```
+
+**Callback refs.** Instead of a ref object, pass a function. React calls it with the node when it attaches — and in **React 19** the function may return a cleanup that React calls when the node detaches.
+
+```tsx
+<div
+  ref={(node) => {
+    // React calls this with the element when it appears.
+    if (!node) return
+
+    // Set up something that needs the real element.
+    const observer = new ResizeObserver(([entry]) => {
+      console.log('width is now', entry.contentRect.width)
+    })
+    observer.observe(node)
+
+    // React 19: returning a function makes it the cleanup, run when this
+    // element is removed or replaced.
+    return () => observer.disconnect()
+  }}
+>
+  Watch my size
+</div>
+```
+
+Use a callback ref when you need to *do* something the moment a node appears. The cleanup return is what makes them safe — before React 19 you had to handle React calling your callback again with `null`.
+
+**A list of nodes.** One ref holding a `Map`, filled by a callback ref, is the standard shape.
+
+```tsx title="src/components/SectionNav/SectionNav.tsx"
+import { useRef } from 'react'
+
+// A plain array outside the component, so it is created once for the module.
+const SECTIONS = ['about', 'pricing', 'faq']
+
+export function SectionNav() {
+  // One ref holding a Map from section id to its DOM element. A Map because
+  // we look elements up by name.
+  const nodesRef = useRef(new Map<string, HTMLElement>())
+
+  const scrollTo = (id: string) => {
+    // `.get(id)` may return undefined, hence the `?.`.
+    nodesRef.current.get(id)?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  return (
+    <div>
+      {SECTIONS.map((id) => (
+        <button key={id} type="button" onClick={() => scrollTo(id)}>
+          {id}
+        </button>
+      ))}
+
+      {SECTIONS.map((id) => (
+        <section
+          key={id}
+          ref={(node) => {
+            // Nothing to store if there is no node.
+            if (!node) return
+
+            // Put this element into the Map under its own id.
+            nodesRef.current.set(id, node)
+
+            // React 19 cleanup: take it back out when the element is removed,
+            // so the Map never holds elements that are gone from the page.
+            return () => {
+              nodesRef.current.delete(id)
+            }
+          }}
+        >
+          <h2>{id}</h2>
+        </section>
+      ))}
+    </div>
+  )
+}
+```
+
+**Passing a ref to your own component.** In React 19 `ref` is an ordinary prop — `forwardRef` is no longer needed.
+
+```tsx title="src/components/TextField/TextField.tsx"
+// `Ref<T>` is the type that accepts both a ref object and a callback ref.
+import type { Ref } from 'react'
+
+interface TextFieldProps {
+  label: string
+  // The `?` makes it optional — a caller that does not need the node
+  // can leave it off entirely.
+  ref?: Ref<HTMLInputElement>
+}
+
+export function TextField({ label, ref }: TextFieldProps) {
+  return (
+    <label>
+      {label}
+      {/* Hand the parent's ref straight through to the real input. */}
+      <input ref={ref} type="text" />
+    </label>
+  )
+}
+```
+
+The parent then writes `<TextField label="Email" ref={inputRef} />` and gets the real `<input>` node. If you need to expose something other than the node — a `play()` method, say — that is `useImperativeHandle`.
+
+**Lazy creation for an expensive value.** `useRef(expensive())` runs `expensive()` on every render and discards all but the first result. There is no lazy-initializer argument like [useState](/guide/state/use-state/basics) has, so write the guard yourself:
+
+```tsx
+// Start empty rather than constructing anything.
+const observerRef = useRef<IntersectionObserver | null>(null)
+
+const getObserver = () => {
+  // Build it the first time someone asks, and only then.
+  if (observerRef.current === null) {
+    observerRef.current = new IntersectionObserver(() => {})
+  }
+
+  // From the second call onwards, this returns the existing one.
+  return observerRef.current
+}
+```
+
+**The ref object never changes identity**, so it never belongs in a dependency array — `[myRef]` is noise, and `react-hooks/exhaustive-deps` will not ask for it.
+
+## Break it on purpose: put a ref on the screen {#break-display}
+
+Build this and click the buttons before reading on. It is the fastest way to feel the difference between a ref and state.
+
+```tsx title="src/components/Broken/Broken.tsx (deliberately wrong)"
+import { useRef, useState } from 'react'
+
+export function Broken() {
+  // A ref holding a number…
+  const refCount = useRef(0)
+
+  // …and a state holding a number, for comparison.
+  const [stateCount, setStateCount] = useState(0)
+
+  return (
+    <div>
+      {/* Both numbers are displayed, side by side. */}
+      <p>
+        ref: {refCount.current} / state: {stateCount}
+      </p>
+
+      <button
+        type="button"
+        onClick={() => {
+          refCount.current += 1
+          console.log('the ref is now', refCount.current)
+        }}
+      >
+        ref +1
+      </button>
+
+      <button type="button" onClick={() => setStateCount((c) => c + 1)}>
+        state +1
+      </button>
+    </div>
+  )
+}
+```
+
+Press **ref +1** five times. The console counts up to 5 and **the screen stays at 0**.
+
+Now press **state +1 once**. The ref's number jumps straight from 0 to 5.
+
+Both halves of that are worth sitting with. The ref *was* being updated all along — writing to `.current` is a plain property assignment and nothing was ever lost. But nothing told React the screen was out of date, so nothing redrew. When the state change finally forced a render, your component function ran again, read `refCount.current` afresh, and printed the number it had been holding the whole time.
+
+That is the rule in one experiment: **a ref remembers, but it does not announce.** The moment a value appears in your JSX, it belongs in [useState](/guide/state/use-state/basics) instead.
+
+## Cheat sheet: the shapes you will actually write {#catalog}
+
+```tsx
+// Pointing at a DOM node — null until React has created it
+const inputRef = useRef<HTMLInputElement>(null)
+<input ref={inputRef} />
+inputRef.current?.focus()
+inputRef.current?.scrollIntoView({ behavior: 'smooth' })
+inputRef.current?.getBoundingClientRect()
+
+// Holding a value the screen never shows
+const lastYRef = useRef(0) // previous scroll position
+const firedRef = useRef(false) // "has this already happened"
+const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null) // timer id
+
+// Cancelling a pending timer
+if (timerRef.current !== null) clearTimeout(timerRef.current)
+timerRef.current = setTimeout(fn, 300)
+
+// Building something expensive once, on first use
+const obsRef = useRef<IntersectionObserver | null>(null)
+if (obsRef.current === null) obsRef.current = new IntersectionObserver(fn)
+
+// Reading it safely inside an effect
+useEffect(() => {
+  const el = boxRef.current
+  if (!el) return
+  el.focus()
+}, [])
+
+// A callback ref, with a React 19 cleanup
+<div
+  ref={(node) => {
+    if (!node) return
+    const io = new ResizeObserver(fn)
+    io.observe(node)
+    return () => io.disconnect()
+  }}
+/>
+
+// Accepting a ref as a prop — React 19, no forwardRef
+interface Props { ref?: Ref<HTMLInputElement> }
+```
+
+## When to use it — and when not to {#when}
+
+Use a ref for: DOM nodes you need to call methods on (`focus`, `scrollIntoView`, `play`, `getBoundingClientRect`), timer and animation frame ids, instances you built with `new`, the previous value of something, and "has this already happened" flags.
+
+Do not use one for these:
+
+- **Anything the screen shows.** Writing to a ref does not redraw, so the number on screen stays at whatever it was during the last render. That is [useState](/guide/state/use-state/basics).
+- **Reading form values instead of controlling them.** You *can* read `inputRef.current.value` on submit, and for a big form that is exactly what [react-hook-form](/libraries/react-hook-form) does under the hood. But you lose live validation and a `disabled` button that reacts as you type. For a handful of fields, controlled state is simpler.
+- **Avoiding re-renders you think are too many.** Moving state into a ref does not make the app faster, it makes the screen wrong. If renders are genuinely the problem, measure first and reach for [useMemo and memo](/guide/state/use-memo/basics).
+- **Sharing a value between components.** A ref is private to one instance. Lift the value into a parent, or use `useContext`.
+- **Reading or writing during render.** Not allowed — see the mistakes below.
+
+## Common mistakes {#mistakes}
+
+**Displaying `ref.current`.**
+
+```tsx
+// ✗ The number on screen never moves.
+const countRef = useRef(0)
 
 return (
-  <button type="button" onClick={() => { count.current += 1 }}>
-    Clicked {count.current} times
+  // The click really does add one to the box…
+  <button type="button" onClick={() => (countRef.current += 1)}>
+    {/* …but nothing redraws, so this keeps printing the value from the
+        last render. */}
+    Clicked {countRef.current} times
   </button>
 )
 ```
 
-Save and click. The label **stays at 0 forever**. No error, no warning — the worst kind of bug, because nothing tells you anything is wrong. The fix is not a better ref; it's **`useState`**, because this number is on screen.
+Then some *other* state change happens to redraw the component, and the number jumps by several at once. That is exactly the effect in the [demo above](#demo).
 
-## Cheat sheet: the 4 shapes you will actually use {#catalog}
+<Diff
+  bad="const countRef = useRef(0) — then rendering {countRef.current}"
+  good="const [count, setCount] = useState(0)"
+  note="If the value appears on screen, it is state. Writing to a ref never triggers a redraw."
+/>
+
+**Reading or writing `.current` while rendering.**
 
 ```tsx
-// ① focus an element
-const inputRef = useRef<HTMLInputElement>(null)
-inputRef.current?.focus()
+// ✗ Impure. React may call this function more than once per update, so the
+//   number is unpredictable and differs between development and production.
+function Component() {
+  const renderCount = useRef(0)
+  renderCount.current += 1
+  return <p>rendered {renderCount.current} times</p>
+}
+```
 
-// ② scroll to an element
-const topRef = useRef<HTMLDivElement>(null)
-topRef.current?.scrollIntoView({ behavior: 'smooth' })
+Rendering must be a pure function of props and state. React reserves the right to call your component more than once for a single update — StrictMode does exactly that in development. Read and write refs in effects and event handlers only; the `react-hooks/refs` lint rule enforces it.
 
-// ③ hold a timer id so you can stop it
-const timerRef = useRef<number | null>(null)
-timerRef.current = window.setInterval(tick, 1000)
+**Expecting the node during render.**
 
-// ④ measure an element (inside useEffect, after it is drawn)
+```tsx
+// ✗ On the first render the element does not exist, so this is always 0.
 const boxRef = useRef<HTMLDivElement>(null)
+const width = boxRef.current?.offsetWidth ?? 0
+
+// ○ Read it after React has attached it, and put the result in state so
+//   the screen can show it.
 useEffect(() => {
-  console.log(boxRef.current?.getBoundingClientRect().height)
+  setWidth(boxRef.current?.offsetWidth ?? 0)
 }, [])
 ```
 
-Shapes ①–③ show up all over [the recipes](/recipes/modal) — modals focus their close button, "back to top" scrolls, toasts hold a timer id.
-
-<Together
-  task="You have a modal. When it opens you want the cursor to land on the close button. Write the ref and the useEffect. (Assume open is a boolean prop.)"
-  hint="Point a ref at the button, then focus it in a useEffect that depends on [open]."
->
+**Using `createRef` instead of `useRef`.**
 
 ```tsx
-const closeRef = useRef<HTMLButtonElement>(null)
+// ✗ createRef makes a brand-new empty ref every render, so by the time you
+//   read it, React has already filled in a different object. Always null.
+const inputRef = createRef<HTMLInputElement>()
 
-useEffect(() => {
-  if (open) closeRef.current?.focus()
-}, [open])
-
-return <button ref={closeRef} type="button" onClick={onClose}>Close</button>
+// ○ useRef hands back the same object for the life of the component.
+const inputRef = useRef<HTMLInputElement>(null)
 ```
 
-Touching the DOM is a side effect, so it goes in `useEffect` — and it has to run **after** the button is drawn, which is exactly when an effect runs. The dependency array `[open]` re-runs it every time the modal opens.
+`createRef` exists for class components. In a function component it has no memory.
 
-</Together>
+**A concise arrow as a callback ref.**
 
-## Common mistakes {#mistakes}
+```tsx
+// ✗ An arrow with no braces returns the result of the expression — here, the
+//   node. React 19 treats a returned value as a cleanup function.
+<li ref={(node) => (map.current[id] = node)} />
 
-<Diff
-  bad="const count = useRef(0) for a number shown in JSX"
-  good="const [count, setCount] = useState(0)"
-  note="Refs don't redraw. Anything on screen belongs in state."
+// ○ A block body returns nothing, which is what React expects unless you
+//   are deliberately supplying a cleanup.
+<li
+  ref={(node) => {
+    map.current[id] = node
+  }}
 />
+```
 
-<Diff
-  bad="inputRef.focus()"
-  good="inputRef.current?.focus()"
-  note="The element lives in .current, and it is null until React attaches it. Always go through .current with ?."
-/>
-
-<Diff
-  bad="reading inputRef.current during render (in the JSX body)"
-  good="reading it in an event handler or inside useEffect"
-  note="During the first render it is still null. Read it after the screen is drawn."
-/>
+**Forgetting to clean up what the ref holds.** A ref keeps its contents alive as long as the component is mounted, and React will not tear down an observer, a timer, or an audio element for you. Whatever you put in, clean up in a `useEffect` return.
 
 ## Our standard {#standard}
 
 <Std
-  decision="Use useRef for DOM elements and for values that are never displayed. Everything that appears on screen stays in useState"
-  alt="If you find yourself wanting a ref so a value won't cause a re-render, but you do display it, that's a sign the value should be state and something else needs fixing. Reach for a ref only when the value is genuinely invisible."
+  decision="Use a ref for DOM handles and for mutable values the screen never displays. Touch .current only inside effects and event handlers — never while rendering"
+  alt="Uncontrolled inputs read through refs are a legitimate pattern for large forms, and it is what form libraries do internally. Reach for it when the re-render cost of a controlled form is measurable, not before — and prefer adopting react-hook-form over hand-rolling it."
 >
 
-`useRef` is a box you reach through `.current`. `ref={...}` on an element to touch the DOM (focus, scroll, measure), or a plain `useRef(value)` to remember something across renders (timer ids, flags). Writing to `.current` never redraws — that's the point, and also the trap.
+The decision procedure is one question: does the screen have to change when this value changes? Yes means state. No means a ref. When you catch yourself putting `ref.current` into JSX, you have answered the question wrong.
 
 </Std>
 
+## What React is doing under the hood {#internals}
+
+`useRef(initial)` creates the plain object `{ current: initial }` once, stores it in this component instance's hook slot, and returns **the same object** on every later render. There is no magic in the object at all — the magic is only that React hands you the same one each time.
+
+For DOM refs, the timing is the part worth knowing:
+
+1. React renders and works out the DOM changes.
+2. React applies them, then **attaches refs** — setting `ref.current` to the node, or calling your callback ref.
+3. Layout effects run, then the browser paints, then effects run.
+
+So `ref.current` is `null` during the first render and populated by the time any effect runs. When a node is removed (or replaced), React detaches: it calls the cleanup returned by a callback ref, or sets `ref.current` back to `null`.
+
+Nothing subscribes to `.current`. There is no setter to intercept, no comparison, no queue — assigning to it is a plain JavaScript property write, which is exactly why it is free and exactly why it cannot redraw anything.
+
+<Deeper title="Why is reading a ref during render actually a problem?">
+
+React treats your component as a function it may call speculatively: twice in development under StrictMode, and in the future potentially discarding a render it started. If the function's output depends on `ref.current`, two calls with identical props and state can produce different JSX — and React has no way to know which one is right.
+
+The practical failure is subtler than a crash. A render-counting ref shows different numbers in development and production; a ref written during render can be incremented by a render React threw away. Keeping refs out of the render path means the output stays a pure function of props and state, which is the assumption everything else in React is built on.
+
+</Deeper>
+
+## TypeScript notes {#typescript}
+
+**A DOM ref is nullable, and that is the point.** `useRef<HTMLInputElement>(null)` gives `.current` the type `HTMLInputElement | null`, so every access needs `?.` or a guard.
+
+```tsx
+// ○ Optional chaining: if it is null, the whole expression is skipped.
+inputRef.current?.focus()
+
+// ✗ The ! says "trust me, this is never null". It compiles, and then crashes
+//   on the render where it genuinely is null.
+inputRef.current!.focus()
+```
+
+Inside an effect, copy it to a local const so the narrowing sticks for the whole block:
+
+```tsx
+useEffect(() => {
+  // One read, into a local variable.
+  const el = inputRef.current
+
+  // This check tells TypeScript that below this line, `el` is definitely
+  // an HTMLInputElement — no more ?. needed.
+  if (!el) return
+
+  el.focus()
+  el.select()
+}, [])
+```
+
+**A value ref takes its type from the initial value.**
+
+```tsx
+// Starts at 0, so .current is a number and can never be null.
+const countRef = useRef(0)
+
+// Explicitly "a string, or nothing yet".
+const nameRef = useRef<string | null>(null)
+
+// No argument at all, so .current is number | undefined.
+const idRef = useRef<number>()
+```
+
+**Match the element type to the tag**, or the `ref` attribute will not accept it:
+
+```tsx
+const wrongRef = useRef<HTMLDivElement>(null)
+// ✗ An <input> produces an HTMLInputElement, which is not an HTMLDivElement.
+<input ref={wrongRef} />
+```
+
+The ones you will use: `HTMLInputElement`, `HTMLTextAreaElement`, `HTMLButtonElement`, `HTMLDivElement`, `HTMLUListElement`, `HTMLAudioElement`, `HTMLVideoElement`, `HTMLCanvasElement`, and `HTMLElement` for `section`, `header` and friends.
+
+**Timer ids are not `number`.** `setTimeout` returns a `number` in browsers and a `Timeout` object in Node, and your editor may be looking at either:
+
+```tsx
+// "Whatever setTimeout returns in this environment, or null."
+const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+```
+
+**Accepting a ref as a prop** — React 19, so no `forwardRef` and no generics gymnastics. `Ref<T>` accepts both a ref object and a callback ref:
+
+```tsx
+import type { Ref } from 'react'
+
+interface TextFieldProps {
+  label: string
+  ref?: Ref<HTMLInputElement>
+}
+```
+
+**A callback ref must return a cleanup function or nothing.** If you find yourself writing `ref={(node) => (something = node)}`, give it a block body — the concise form returns the assignment, and React 19 will try to call it as a cleanup.
+
 ## When things go wrong {#trouble}
 
-- **`Cannot read properties of null (reading 'focus')`** … You read `.current` before React attached the element. Use `?.`, and do it in an event handler or `useEffect`, not during render.
-- **The number doesn't change on screen** … It's in a ref. Move it to `useState`.
-- **`Property 'focus' does not exist on type ...`** … The type argument is wrong. Match the element: `useRef<HTMLInputElement>(null)` for an `<input>`.
+- **The number on screen never changes, then jumps by several at once** … You are displaying `ref.current`. That value belongs in `useState` — see [break it on purpose](#break-display).
+- **`Cannot read properties of null`** … You touched `.current` during render, or before React attached the node. Move it into a `useEffect` or an event handler.
+- **`.current` is always `null`, even in an effect** … Either the `ref={…}` attribute is missing from the element, or the element is conditionally rendered and currently absent. Check both.
+- **`.current` is `null` in the cleanup, but was fine in the setup** … React clears it before cleanup runs. Copy it to a local `const` at the top of the effect.
+- **The render count is different in development and production** … You are incrementing a ref during render. That is impure; `StrictMode` renders twice on purpose to surface it.
+- **`Type 'HTMLInputElement' is not assignable to type 'HTMLDivElement'`** … The type argument does not match the tag. `useRef<HTMLInputElement>` for an `input`.
+- **`Object is possibly 'null'`** … Expected. Use `?.`, or copy to a local and guard with `if (!el) return`. Reaching for `!` will crash later.
+- **A `new Something()` is being created constantly** … `useRef(new Thing())` evaluates on every render. Guard it: `if (ref.current === null) ref.current = new Thing()`.
+- **Everything is `null` and I used `createRef`** … `createRef` makes a fresh ref every render. In a function component, always `useRef`.
 
 ## Summary & practice {#summary}
 
-<Exercise answer="A ref: the id is never displayed, and putting it in state would redraw the component every time the timer changes for no visible reason. Refs are for values that survive re-renders but don't appear on screen.">
+<Exercise answer="Writing to a ref does not trigger a redraw, so the screen keeps showing the value captured by the last render. It only 'catches up' when some other state change causes a re-render. Since the count is displayed, it should be useState.">
 
-You need to remember the id returned by `setInterval` so you can stop the timer later. State or a ref? Why?
+You store a click count in `useRef(0)` and render `{countRef.current}`. Clicking does nothing visible, but pressing an unrelated button makes the number jump by five at once. Explain both halves of that behavior.
 
 </Exercise>
 
-<Exercise answer="Writing to ref.current doesn't tell React to redraw, so the JSX keeps showing the value from the last render. Use useState for anything displayed. (It updates on screen the next time some state changes — which is why it looks like it 'catches up'.)">
+<Exercise answer="Both. The <video> node goes in a ref (you need to call play() and pause() on it), and `playing` goes in useState because the button label and icon depend on it. The rule: the node is a handle, the flag is displayed.">
 
-You wrote `count.current += 1` in an `onClick` and showed `{count.current}` in the JSX, but the screen never changes. Why?
+You want a play/pause button for a `<video>` that also shows "Playing" or "Paused". Which parts are refs and which are state?
+
+</Exercise>
+
+<Exercise answer="useRef(new IntersectionObserver(...)) constructs a new observer on every single render and throws all but the first away. Guard it: if (ref.current === null) ref.current = new IntersectionObserver(...) — or create it inside a useEffect and disconnect it in the cleanup.">
+
+What is wrong with `const observerRef = useRef(new IntersectionObserver(callback))`, and what do you write instead?
 
 </Exercise>
 
 <SummaryBox>
 
-- `useRef` gives you a box you read and write as `.current`. Put it on an element with `ref={...}` to touch the real DOM
-- Writing to `.current` does **not** redraw the screen. Anything you display belongs in `useState`
-- Typical uses: focus, scroll, measure, and holding timer ids or flags
+- A ref is a box that survives re-renders and never causes one. If the screen shows the value, it is state instead
+- `useRef<T>(null)` plus `ref={myRef}` gets you the DOM node — `null` during render, ready by the time effects run
+- Touch `.current` only in effects and event handlers. In React 19, `ref` is a plain prop and callback refs can return a cleanup
 
 </SummaryBox>
