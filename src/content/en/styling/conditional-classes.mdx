@@ -116,6 +116,17 @@ import styles from './ProductCard.module.scss'
   note="String concatenation easily introduces whitespace or a stray false. clsx drops false and joins safely."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Combine class names with clsx. Keep the conditions in the JSX and the appearance in the .module.scss"
+  alt="For a single class with no condition, `className={styles.card}` needs no helper at all. Template literals are only worth it when you are interpolating a value that is not a class name."
+>
+
+A template literal that joins class names has to handle `undefined`, `false` and empty strings by hand, and a missed one leaves a stray `"undefined"` in the DOM. `clsx` drops every falsy value for you, so `clsx(styles.card, isOpen && styles.open)` reads as the condition it is. Keep the branching to which class is applied — never build a class name from a string at runtime, because the build step cannot rewrite what it cannot see.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **`false` or extra whitespace ends up in the class** … Stop concatenating strings and use `clsx`. It throws away the unwanted values.

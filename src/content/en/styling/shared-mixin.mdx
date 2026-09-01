@@ -165,6 +165,17 @@ Once `@use` is at the top, you can write `getVw` and `@include mq` with the same
   note="Modern Sass uses @use. @import is deprecated. as * lets you use getVw / mq with no namespace."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Load the shared _mixin.scss with @use in every .module.scss that needs it, and keep using getVw and mq exactly as you do on LP work"
+  alt="On a project that is app-like rather than page-like — a dashboard, an admin screen — fixed rem sizing with ordinary media queries usually beats vw scaling, because text that shrinks with the viewport is harder to read at length. Keep getVw for marketing pages."
+>
+
+The point of this page is that nothing about your existing styling knowledge is thrown away. `getVw` and `mq` behave identically inside SCSS Modules, so the mental model you already have for LP layout carries straight over. Load the file per module with `@use` rather than injecting it globally: the explicit import is what makes it obvious where a mixin came from six months later.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **`Undefined function getVw` / `no mixin named mq`** … Check that you wrote `@use '.../mixin' as *;` at the top of that `.module.scss` (it's needed in every file).

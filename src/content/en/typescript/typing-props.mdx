@@ -131,6 +131,17 @@ function Panel({ title, count = 0, onClose, children }: Props) {
   note="Without a type, props become any, so a missing or wrong-typed prop slips through. Always give it a shape."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Give every component a named Props interface, declared just above it, and destructure the props in the signature"
+  alt="For a tiny local component with one or two props that no other file imports, an inline type ({ name }: { name: string }) is fine. The moment a third prop arrives, or the component is exported, split it out."
+>
+
+Naming the interface `ProductCardProps` and putting it directly above `ProductCard` means the contract is the first thing anyone reads. Destructuring in the signature then shows which of those props the component actually uses — the two together let a reader answer "what does this need, and what does it do with it" without scrolling. Mark optional props with `?` and give them a default in the destructuring; pairing those two is what keeps `undefined` out of the body.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **`Property 'x' is missing`** … You forgot to pass a required prop. Pass it, or make it `x?` in the `interface`.

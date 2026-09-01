@@ -115,6 +115,17 @@ function onChange(e: ChangeEvent<HTMLInputElement>) {
   note="An empty array can't infer its contents and becomes never[]. Make the element type explicit with <>."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Let useState infer from its initial value. Annotate only an empty array, a value that starts null, or a union you want kept narrow"
+  alt="When a handler is written inline in the JSX, its event parameter is inferred and needs no annotation at all. Only handlers defined separately, where TypeScript has no surrounding context, need the explicit React event type."
+>
+
+These three cases are the only ones where inference produces something you do not want: `[]` becomes `never[]`, `null` becomes the type `null`, and `'idle'` widens to `string`. Everywhere else `useState(0)` and `useState('')` already say everything an annotation would. Knowing which three they are is what stops the reflex of typing every hook.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **`Argument of type 'X' is not assignable to parameter of type 'null'`** … This is `useState(null)` inference. Change it to `useState<X | null>(null)`.

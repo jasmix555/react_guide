@@ -107,6 +107,17 @@ async function load(url) {
   note="What fetch returns is a Response. Get the contents by awaiting .json() one more time."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Check res.ok before reading the body, every time. Wrap the request in a named function so the check cannot be skipped by accident"
+  alt="axios throws on a non-2xx response by itself, which removes this particular trap — that is a fair reason to reach for it on a project with many endpoints. Learn the fetch version first, because the check it forces you to write is the thing axios is doing for you."
+>
+
+This is the single most surprising thing about `fetch`: a 404 or a 500 is a successful promise. Only a network-level failure rejects. Skip the `res.ok` check and your error page gets parsed as if it were data, so the bug surfaces later, somewhere else, as a shape that makes no sense. Putting the request in one function means the check lives in one place rather than at every call site.
+
+</Std>
+
 ## When it doesn't work {#trouble}
 
 - **`res` isn't the product data** … the return value of `fetch` is a Response. Pull out the contents with `await res.json()`.

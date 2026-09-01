@@ -116,6 +116,17 @@ import styles from './ProductCard.module.scss'
   note="文字列連結は空白や false 混入が起きやすい。clsx は false を捨てて安全につなぐ。"
 />
 
+## うちの標準 {#standard}
+
+<Std
+  decision="クラス名の連結は clsx で行う。条件は JSX に、見た目は .module.scss に置く"
+  alt="条件のない単一クラスなら `className={styles.card}` で十分で、ヘルパーは要りません。テンプレートリテラルが有利なのは、クラス名ではない値を埋め込むときだけです。"
+>
+
+テンプレートリテラルでクラス名をつなぐと、`undefined` や `false`、空文字を自分で処理する必要があり、1 つ漏らすと DOM に `"undefined"` が残ります。`clsx` は偽値を落としてくれるので、`clsx(styles.card, isOpen && styles.open)` はそのまま条件として読めます。分岐は「どのクラスを当てるか」にとどめ、実行時に文字列からクラス名を組み立てないでください。ビルド側は見えないものを書き換えられません。
+
+</Std>
+
 ## うまくいかないとき {#trouble}
 
 - **クラスに `false` や余計な空白が入る** … 文字列連結をやめて `clsx` にします。`clsx` が不要な値を捨てます。

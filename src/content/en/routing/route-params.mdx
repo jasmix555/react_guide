@@ -133,6 +133,17 @@ Embed the id into `to` with a template literal. Tapping it navigates to a URL li
   note="find returns undefined when nothing matches. Without the check you get a type error, and a crash at runtime."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Read URL params with useParams, and always handle the case where nothing matches before rendering"
+  alt="When the data comes from a server rather than a local array, a route loader moves the fetch and the not-found decision out of the component entirely. That is the better shape once you have a backend; the in-component version here is the one to learn first."
+>
+
+A param is a string that came from the address bar, which means a user can type anything into it. Treating the lookup as guaranteed is how you get `Cannot read properties of undefined` on a URL somebody pasted wrong. Look the record up, check it exists, and render a not-found state — that check is not defensive padding, it is the only thing standing between a typo and a blank screen.
+
+</Std>
+
 ## When things don't work {#trouble}
 
 - **The `useParams` name doesn't match** … Make the route's `:id` and the name in `const { id }` match. For `:productId`, use `const { productId }`.

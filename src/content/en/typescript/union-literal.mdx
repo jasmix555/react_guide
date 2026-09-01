@@ -104,6 +104,17 @@ function f(x: string | null) {
   note="With string, typos slip through. A literal union fixes the choices and even enables autocomplete."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Model a fixed set of choices as a union of string literals, and narrow it with if or switch before use"
+  alt="A TypeScript enum produces a real runtime object and a value you must import wherever the type is used. Unions disappear at build time and compare as plain strings, which is why they are the default here. Reach for an enum only when you genuinely need the runtime object."
+>
+
+A union of literals is the cheapest way to make an illegal state impossible to write: `'idle' | 'loading' | 'error' | 'done'` rejects a typo at the point you make it, with no runtime cost and nothing to import. It also makes exhaustiveness checkable — a `switch` that misses a case can be caught by the compiler, which no set of booleans can offer.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **`'X' is possibly 'null'`** … You're using the contents of `X | null` without a `null` check. Narrow it with `if (x === null)` first.

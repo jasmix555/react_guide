@@ -110,6 +110,17 @@ Forget even one required property and it turns red, and writing anything other t
   note="With string, category typos slip through. A union locks it to just the allowed values."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Define each shared data shape once, in its own file under src/types, and import it everywhere it is needed"
+  alt="A type used by exactly one component can live in that component’s file. Move it out the moment a second file needs it — a duplicated shape that drifts is worse than no type at all."
+>
+
+The `Product` type describes the data, not any one screen, so it should not belong to `ProductCard`. Giving it its own file means the list, the detail page, the cart and the fetch layer all agree by construction, and a change to the shape produces errors in exactly the places that need updating. That last property is the whole return on writing types.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **`products[0].name` becomes `any` / autocomplete doesn't work** … Check that you added the type with `as Product[]`.

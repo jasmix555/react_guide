@@ -98,6 +98,17 @@ The nav shows up, but **each page's content appears nowhere**. There's no error,
   note="The shared frame belongs on the parent of the nested routes. Each page goes in children and slots into the Outlet."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Share a header, footer and nav through a layout route with an <Outlet>, not by importing them into every page component"
+  alt="A wrapper component is still the right answer when the shared chrome applies to only two or three pages that are not siblings in the route tree. Layout routes are for chrome that belongs to a whole branch of the app."
+>
+
+A layout route says the structure once, in the place that already describes the app’s structure. Importing `<Header />` into eight page components says it eight times, and the ninth page is the one somebody forgets. The `<Outlet>` is the hole the matched child renders into, so the layout stays mounted across navigations — which also means state inside it, like an open menu, survives the move.
+
+</Std>
+
 ## When it doesn't work {#trouble}
 
 - **The nav shows but no content** … You forgot to put `<Outlet />` in the parent's `element`.

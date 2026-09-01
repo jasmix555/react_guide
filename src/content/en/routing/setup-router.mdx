@@ -108,6 +108,17 @@ const router = createBrowserRouter([
   note="Routing goes at the app's outermost level, once. The screen contents belong to each page you registered as a route."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Define the routes with createBrowserRouter in one file, and render nothing but <RouterProvider> at the top of main.tsx"
+  alt="The older <BrowserRouter> with nested <Routes> is still supported and is what most existing tutorials show. Prefer the data router for new work — route loaders, actions and error elements are only available on that side."
+>
+
+Keeping the route table in one place means the answer to "what pages does this app have" is one file, not a search across components. And because `RouterProvider` is the only thing `main.tsx` renders, there is exactly one place the router lives — a second router mounted lower down is the cause of most "Link does nothing" reports.
+
+</Std>
+
 ## When things don't work {#trouble}
 
 - **`useHref() may be used only in the context of a <Router>`** … You're using `<Link>` or similar outside `RouterProvider`. Wrap at the outermost level.

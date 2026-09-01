@@ -85,6 +85,17 @@ One more thing: why "SCSS" instead of "CSS"? SCSS is your usual CSS plus **nesti
   note="Global naming breaks down the more components you have. Modules keep the scope closed."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Style every component with its own co-located .module.scss. Keep global CSS for the reset and the design tokens only"
+  alt="A utility-first framework such as Tailwind is a legitimate alternative, but it replaces this whole approach rather than mixing with it — pick one per project and stay with it. Genuinely document-wide rules (the reset, @font-face, the :root token block) still belong in a global stylesheet."
+>
+
+The class names you write in a `.module.scss` are rewritten at build time, so `.card` in one component can never collide with `.card` in another. That removes the single biggest source of CSS bugs on a large LP: two files quietly fighting over the same name. Put the stylesheet in the component’s own folder so deleting the component deletes its styles too.
+
+</Std>
+
 ## When things don't work {#trouble}
 
 - **Other components' styles bleed in** … Check that you aren't using global CSS. Keep each component's styles scoped inside its `.module.scss`.

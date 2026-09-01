@@ -105,6 +105,17 @@ The request repeats endlessly, and the browser's network tab fills up with reque
   note="setState in the body means an infinite loop of re-render → re-run. Fetch once with useEffect + an empty array."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Fetch in a useEffect with a dependency array, and guard the response with an ignore flag in the cleanup. Never fetch in the render body"
+  alt="On a real project, a router loader or a data library (TanStack Query, SWR) is the production answer — you get caching, deduping, refetching and race handling without writing any of it. Every one of them is this code with a cache on top, which is why it is worth writing once by hand."
+>
+
+Rendering must be a pure function of props and state, and a fetch is neither pure nor instant — starting one in the body means starting a new one on every render, which sets state, which renders again. The `ignore` flag exists because the component can leave while a request is still in flight; without it a slow response from a screen the user already closed writes into state that no longer matters.
+
+</Std>
+
 ## When it doesn't work {#trouble}
 
 - **It's requesting `products.json` endlessly** … you're calling `fetch` in the body. Wrap it in `useEffect(..., [])`.

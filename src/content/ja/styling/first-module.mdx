@@ -132,6 +132,17 @@ export function ProductCard({ name, price, imageUrl }: ProductCardProps) {
   note=".module が無いとグローバル CSS 扱いになり、衝突しないスコープ化が働かない。"
 />
 
+## うちの標準 {#standard}
+
+<Std
+  decision="コンポーネント 1 つにつき .module.scss を 1 つ、同じフォルダに置き、styles として import して className={styles.card} で当てる"
+  alt="どうしてもハイフンを含むクラス名が必要なら `styles['card-body']` で書けますが、`styles.cardBody` のように素直なプロパティアクセスで済むよう、1 単語かキャメルケースを優先してください。"
+>
+
+ファイル名はコンポーネントに合わせ（`ProductCard.module.scss`）、`ProductCard.tsx` の隣に置きます。`styles` はただのオブジェクトなので、`styles.crad` のような打ち間違いはエラーにならず `undefined` になるだけです——スタイルが当たらないときに思い出す価値があります。
+
+</Std>
+
 ## うまくいかないとき {#trouble}
 
 - **`styles.card` が `undefined`** … ファイル名が `.module.scss` で終わっているか、クラス名の綴りが合っているか確認します。

@@ -84,6 +84,17 @@ When you click it, the screen **flashes blank for a moment** and then reloads (a
   note="Using <a> for in-app navigation reloads everything and wipes state. Internal links use <Link>."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Navigate inside the app with Link, and use NavLink only where the current page needs to be marked. Keep <a> for external URLs"
+  alt="An <a> is still correct for anything that genuinely leaves the app — an external site, a mailto:, a file download — and for a link that should open in a new tab."
+>
+
+The difference is not cosmetic: `<a>` throws the whole page away and reloads the bundle, so every piece of state in the app is lost and the user watches a white flash. `Link` swaps the view in place. `NavLink` is the same thing plus an active state, so use it for navigation that has to show where you are, and plain `Link` everywhere else — the extra work it does is wasted on a link that never highlights.
+
+</Std>
+
 ## When things don't work {#trouble}
 
 - **The screen flashes blank on click** … You're using `<a href>`. Change it to `<Link to>`.
