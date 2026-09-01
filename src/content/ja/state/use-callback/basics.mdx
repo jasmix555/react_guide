@@ -1,0 +1,793 @@
+---
+title: 'useCallback：関数を「同じ関数」のままにする'
+minutes: 30
+slug: use-callback-basics
+section: state
+description: useCallback の総合リファレンス。毎回新しい関数が memo() と依存配列を壊す理由・最小の型付き例・memo の解説・実案件の4シナリオ（memo した行 / エフェクトの依存 / イベントリスナー / カスタムフック）・useMemo との比較・使わない判断・定番のバグ・TypeScript メモ。
+level: intermediate
+prerequisites: ['state/use-memo/basics', 'javascript/functions-as-values']
+---
+
+import { CallbackMemoDemo } from '@/demos/CallbackMemo'
+
+<LearnBox>
+
+- 中身がまったく同じ 2 つの関数が、React にとって「同じ関数」ではない理由
+- `memo()`、そして `memo()` なしの `useCallback` がほぼ無意味である理由
+- 同一性が効く 4 シナリオ：memo した行・エフェクトの依存・イベントリスナー・カスタムフック
+
+</LearnBox>
+
+## useCallback の正体 {#what}
+
+**`useCallback` は、描画をまたいで毎回新しい関数を作る代わりに、同じ関数オブジェクトを返します。**
+
+なぜそれが大事なのかは、React とは関係のない JavaScript の事実から始まります。
+
+```js
+// 1 文字たがわず同じコードの関数を 2 つ。
+const a = () => console.log('hi')
+const b = () => console.log('hi')
+
+// それでも JavaScript は「別の値」だと言う。
+console.log(a === b) // false
+```
+
+コードが走るたびに `() => {}` は**まったく新しい関数オブジェクトを作ります**。振る舞いは同じでも、同じ物ではありません——`[1, 2] === [1, 2]` が `false` になるのと同じです（[参照とコピー](/guide/javascript/reference-vs-copy)）。
+
+これをコンポーネントの中に置きます。React は更新のたびにコンポーネント本体を丸ごと走らせ直すので、定義したハンドラも毎回作り直されます。
+
+```tsx
+// コンポーネントを定義する。React は更新のたびにこの関数を呼び直す。
+export function Parent() {
+  // 画面に出す数値を持つ。
+  const [count, setCount] = useState(0)
+
+  // ↓ 毎回の描画で「新しい」関数オブジェクト。コードは同じ、同一性は別物。
+  const handleSave = () => save(count)
+
+  // 子は、厳密には毎回違う props を受け取ることになる。
+  return <Child onSave={handleSave} />
+}
+```
+
+この時点ではまだ何も壊れていません——ボタンはちゃんと動きます。問題になるのは、その関数を**前回のものと比較する**何かが現れた瞬間です。比較は必ず失敗するからです。それをやるものが 3 つあります——`memo()`、依存配列、そして `addEventListener` / `removeEventListener` です。
+
+<Callout type="analogy">
+
+同じ形の合鍵は 2 本ともドアを開けますが、金属としては別の物体です。「これは前に見たのと*同じ鍵*か？」を確認する仕組みの前では、同じ形の新品は不合格になります。`useCallback` は、毎回まったく同じ 1 本を返してくれる仕組みです。
+
+</Callout>
+
+## 最小の動く例 {#minimal}
+
+```tsx title="src/components/Parent/Parent.tsx"
+// `useCallback` は関数を安定させ、`useState` は画面に出す値を持つ。
+import { useCallback, useState } from 'react'
+
+export function Parent() {
+  // 画面に出す数値。`setCount` が書き換えて再描画を起こす。
+  const [count, setCount] = useState(0)
+
+  // 関数を包むと、次の描画でも React が「同じ関数オブジェクト」を返してくれる。
+  const handleReset = useCallback(() => {
+    // 実行されたら、カウンターをゼロに戻す。
+    setCount(0)
+  }, []) // ← 空配列：この関数は作り直す必要がまったくない
+
+  return (
+    <div>
+      {/* 今の数値を表示する。 */}
+      <p>{count}</p>
+
+      {/* 1 増やす。誰も比較しないので、インラインで書いてよい。 */}
+      <button type="button" onClick={() => setCount((previous) => previous + 1)}>
+        1 増やす
+      </button>
+
+      {/* 安定した関数を下に渡す。同一性が毎回の描画を生き延びる。 */}
+      <ResetButton onReset={handleReset} />
+    </div>
+  )
+}
+```
+
+形は `useMemo` と同じで、渡すものだけが違います。
+
+```tsx
+const handleReset = useCallback(() => {
+//    ↑                          ↑
+//    │                          └─ ① 保管してほしい関数。useCallback はこれを
+//    │                             「呼びません」。保管するだけ
+//    └─ ③ 返ってくる関数：② が一致していれば、前回と同じオブジェクト
+  setCount(0)
+}, [])
+// ↑ ② 依存配列：ここの値が変わったときだけ関数を作り直す
+```
+
+`useMemo` は関数を実行して**結果**をキャッシュします。`useCallback` は実行せず、**関数そのもの**をキャッシュします。
+
+## memo：もう半分の話 {#memo}
+
+`useCallback` 単体では何の役にも立ちません。効くのは、関数の同一性を確認する何かがあるときだけで、その代表が `memo()` です。
+
+`memo()` はコンポーネントを包んで React にこう伝えます——*このコンポーネントの props がすべて変わっていなければ、再描画を丸ごと飛ばしてよい*。
+
+```tsx title="src/components/ResetButton/ResetButton.tsx"
+// `memo` は、React が再描画を飛ばせるようにするためのラッパー。
+import { memo } from 'react'
+
+// このコンポーネントが受け取るものを書く。
+interface ResetButtonProps {
+  onReset: () => void
+}
+
+// memo(...) は包まれた版のコンポーネントを返す。React は新旧の props を
+// 比べ、すべて一致していれば描画を飛ばす。
+export const ResetButton = memo(function ResetButton({ onReset }: ResetButtonProps) {
+  // ここが描くのに重い部分木だと想像してください。
+  return (
+    <button type="button" onClick={onReset}>
+      リセット
+    </button>
+  )
+})
+```
+
+肝心なのは*比較の仕方*です。**props ごとに、`Object.is` で、浅く**比べます。文字列や数値は値で比べるので `title="セール"` は `title="セール"` と一致します。関数・オブジェクト・配列は同一性で比べるので、作り直された関数は毎回不一致になります。
+
+ここから、両方のフックの意味が通る 1 つの原則が出ます。
+
+> 子に `memo()`、関数の props に `useCallback`、オブジェクト・配列の props に `useMemo`。3 つのどれか 1 つでも欠けると、最適化は静かに何もしなくなります。
+
+## 自分の目で確かめる {#demo}
+
+下の子コンポーネントは `memo()` で包まれていて、自分が何回描画されたかを表示します。**useCallback あり**で無関係なカウンターを押しても、子の数字は動きません。**なし**にすると、押すたびに増えます——毎回違う関数を受け取るからです。
+
+<Demo title="memo と useCallback あり・なし">
+  <CallbackMemoDemo />
+</Demo>
+
+## シナリオ：memo した行に渡すコールバック {#row}
+
+一番効く場面です。50 行あって、それぞれに削除ボタンがある。安定したコールバックがないと、無関係な検索欄に 1 文字打つだけで 50 行すべてが再描画されます。
+
+<Callout type="note">
+
+**まず自分で書いてみる。**検索欄と、行ごとに削除ボタンを持つ商品テーブルを作ってください。目指すのは次の 2 つです。
+
+1. 検索欄に打っても、全行が再描画されない。
+2. 削除ハンドラは行ごとではなく、全行で 1 つを共有する。
+
+ヒント：これが効くには 3 つの部品が揃う必要があります。コードを書く前に 3 つとも挙げてください。ハンドラの依存配列は空にできるでしょうか。空にしてよいために `setProducts` の呼び方が満たすべき条件は何でしょう。そして行ごとの `() => onRemove(id)` はどこに置くべきでしょう——親の `map` の中か、行の中か。
+
+</Callout>
+
+```tsx title="src/components/ProductTable/ProductTable.tsx"
+// memo が子の描画を飛ばし、useCallback がハンドラの同一性を安定させる。
+import { memo, useCallback, useState } from 'react'
+
+// 商品 1 件のデータ。
+interface Product {
+  id: number
+  name: string
+}
+
+// 1 行が受け取るもの。
+interface RowProps {
+  product: Product
+  onRemove: (id: number) => void
+}
+
+// 自分の props が変わったときだけ再描画されるよう、行を包む。
+const Row = memo(function Row({ product, onRemove }: RowProps) {
+  return (
+    <li>
+      {/* 商品名を表示する。 */}
+      {product.name}
+
+      {/* 押されたら、この行の id を付けて onRemove を呼ぶ。このアロー関数は
+          行の内側で作られるので、親の props には影響しない。 */}
+      <button type="button" onClick={() => onRemove(product.id)}>
+        削除
+      </button>
+    </li>
+  )
+})
+
+export function ProductTable({ initial }: { initial: Product[] }) {
+  // いま表示している商品の一覧。
+  const [products, setProducts] = useState(initial)
+
+  // 検索欄の文字列。これが変わると ProductTable は再描画される。
+  const [query, setQuery] = useState('')
+
+  // 全行が共有する、1 つの安定した削除ハンドラ。
+  const handleRemove = useCallback((id: number) => {
+    // 削除後の新しい配列を作る。元の配列は絶対に書き換えない。
+    setProducts((previous) => previous.filter((product) => product.id !== id))
+  }, []) // 空：関数形なので、この関数は外側から何も読んでいない
+
+  return (
+    <div>
+      {/* ここに打つと 1 打鍵ごとに親が再描画されるが…… */}
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+
+      <ul>
+        {/* ……各 Row は自分の描画を飛ばせる。props が両方とも変わっていない
+            からだ——`product` は同じオブジェクト、`onRemove` は同じ関数。
+            実際に変わった商品の行だけが描き直される。 */}
+        {products
+          .filter((product) => product.name.includes(query))
+          .map((product) => (
+            <Row key={product.id} product={product} onRemove={handleRemove} />
+          ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`memo(function Row(...))`** … 部品その 1。これがないとこのページの他は全部無意味です。包まれていない子は、親が再描画されれば必ず再描画されるからです。
+2. **`useCallback(..., [])`** … 部品その 2。空配列にできるのは、`setProducts` が[関数形](/guide/state/use-state/basics)（`previous => ...`）だからで、ハンドラは今回の描画から `products` を読んでいません。`products` を直接読む形に書き換えると配列は `[products]` になり、一覧が変わるたびに新しい関数になります。
+3. **`product` が同じオブジェクトであること** … 部品その 3、そして忘れられがちなものです。`memo` が飛ばすには props が「全部」変わっていない必要があります。安定した `onRemove` の隣で `product` が作り直されていれば、やはり再描画されます。
+4. **`() => onRemove(product.id)` は `Row` の内側** … 行ごとのアロー関数は子の中に置きます。そこなら誰も比較しないので作り直しはタダです。親の `map` の中に書くと、毎回の描画で各行に新しい関数を渡すことになり、上の 3 つが全部台無しになります。
+
+## シナリオ：useEffect の依存配列に入る関数 {#effect-dep}
+
+ここでの帰結は「描画が遅い」ではなく、無限ループです。
+
+<Callout type="note">
+
+**まず自分で書いてみる。**`category` prop の検索結果を取得してください。取得処理は `load` という関数にまとめ、エフェクトからも、将来の「再読み込み」ボタンからも呼べるようにします。目指すのは次の 2 つです。
+
+1. `category` が変わったら取り直す。
+2. 無限に取得し続けない。
+
+ヒント：エフェクトが `load` を呼ぶので、`load` は依存配列に入ります。ここから追ってください——毎回の描画で `load` の同一性はどうなり、エフェクトはそれを見てどうし、その fetch は state に何をしますか。この円を一周たどれば、バグが自分から名乗ります。
+
+</Callout>
+
+```tsx title="src/components/SearchResults/SearchResults.tsx"
+import { useCallback, useEffect, useState } from 'react'
+
+interface Product {
+  id: number
+  name: string
+}
+
+export function SearchResults({ category }: { category: string }) {
+  // サーバーから取得した結果。
+  const [products, setProducts] = useState<Product[]>([])
+
+  // いまリクエストが飛んでいるかどうか。
+  const [loading, setLoading] = useState(false)
+
+  // 安定した取得関数。useCallback がないと毎回の描画で新しい関数になり、
+  // 下のエフェクトは依存が変わったと判断してまた取得し、state が更新され、
+  // 再描画され……と永遠に続く。
+  const load = useCallback(async () => {
+    // リクエスト開始前に、読み込み中の表示にする。
+    setLoading(true)
+
+    // このカテゴリの商品をサーバーに問い合わせる。
+    const response = await fetch(`/api/products?category=${category}`)
+
+    // レスポンスの本文を商品の配列に変換する。
+    const data = (await response.json()) as Product[]
+
+    // 結果を保存する。これで一覧が描き直される。
+    setProducts(data)
+
+    // 読み込み中の表示を消す。
+    setLoading(false)
+  }, [category]) // カテゴリが変わったときだけ作り直す
+
+  useEffect(() => {
+    // 取得を開始する。`void` は「Promise が返るのは承知のうえで、
+    // あえて await しない」の意味。エフェクト自体は async にできない。
+    void load()
+  }, [load]) // `load` が本当に別の関数になったときだけ再実行する
+
+  // リクエスト中は、空の一覧ではなくプレースホルダを出す。
+  if (loading) return <p>読み込み中…</p>
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **たどってもらったループ**：`useCallback` がないと `load` は毎回新しい関数 → エフェクトは依存が変わったと見る → fetch する → `setProducts` が走る → 再描画される → `load` がまた新しい → 永遠に。`load` を包むと、最初の一歩で円が切れます。
+2. **コールバック側の `}, [category])`** … `load` は `category` を読むので必ず並べます。カテゴリが変われば `load` は本当に別の関数になり、エフェクトの依存も本当に変わり、取り直しが起きます——それが正しい動作です。
+3. **エフェクト側の `}, [load])`** … `[category]` ではありません。関数に依存させることで「仕事そのものが変わったときに再実行する」という、正直な記述になります。
+4. **`void load()`** … エフェクト本体は `async` にできないので、非同期関数を呼び、無視する Promise に `void` を付けます。
+
+<Callout type="warn">
+
+ここでの `useCallback` は「回避策」ではなく正しい解です。関数が本当に共有されているからです——エフェクトが呼び、「再読み込み」ボタンからも呼べます。もし**エフェクトだけ**が使うなら、関数ごとエフェクトの中に移してフックを消すほうが単純です。正しく配線された依存の連鎖より、部品が少ないほうが勝ちます。
+
+</Callout>
+
+## シナリオ：addEventListener に渡す安定したハンドラ {#listener}
+
+`removeEventListener` は、**追加したときとまったく同じ関数**を渡さないとリスナーを外しません。作り直された関数を渡すと、何も外れないまま静かに失敗し、リスナーが積み上がります。
+
+<Callout type="note">
+
+**まず自分で書いてみる。**ページのどこで Escape キーが押されてもコールバックを実行する、再利用できる `useEscapeKey(onEscape)` フックを書いてください。目指すのは次の 2 つです。
+
+1. リスナーを一度だけ張り、描画のたびに張り直さない。
+2. コンポーネントが消えるとき、本当に外れる。
+
+ヒント：`removeEventListener` は何を基準に比較しますか——関数の中身のコードでしょうか、関数オブジェクトそのものでしょうか。そして 1 段外を見てください。ここであなたが実際に左右されているのは「誰の」関数の同一性で、それはこのフックを呼ぶ人に何を要求しますか。
+
+</Callout>
+
+```tsx title="src/hooks/useEscapeKey.ts"
+import { useCallback, useEffect } from 'react'
+
+// 再利用できるフック：Escape キーが押されたら `onEscape` を実行する。
+export function useEscapeKey(onEscape: () => void) {
+  // リスナーを包み、同一性が変わるのは `onEscape` が変わったときだけにする。
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      // Escape 以外のキーは無視する。
+      if (event.key !== 'Escape') return
+      // 呼び出し側がやりたい処理を実行する。
+      onEscape()
+    },
+    [onEscape], // 呼び出し側が別の関数を渡したときだけ作り直す
+  )
+
+  useEffect(() => {
+    // ページ全体のキー入力を監視し始める。
+    window.addEventListener('keydown', handleKeyDown)
+
+    // 監視をやめる——上で追加したのと「同じ関数オブジェクト」を渡す。
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown]) // ハンドラが本当に変わったときだけ付け直す
+}
+```
+
+1 行ずつ。
+
+1. **`removeEventListener` は中身のコードではなく同一性で比較します。**本体が同じでもオブジェクトが違えば、何も外れません——エラーも出ず、静かに。リスナーは張られたまま残り、次のマウントでもう 1 つ追加されます。
+2. **`useCallback(..., [onEscape])`** … `handleKeyDown` は呼び出し側の関数が変わったときだけ変わるので、エフェクトの `[handleKeyDown]` は呼び出し側が安定している限り安定します。
+3. **最初の `if (event.key !== 'Escape') return`** … リスナーはページ上のすべてのキーで発火するので、関係のないキーは即座に抜けます。
+4. **2 つめのヒントの答え**：これは負担を呼び出し側に移します。`useEscapeKey(() => setOpen(false))` は毎回新しい関数を渡すので、結局リスナーは毎回の描画で外して付け直されます。呼び出し側も包む必要があります——あるいはフック側が最新のコールバックを [ref](/guide/state/use-ref/basics) に持って問題ごと回避します。実運用のフックライブラリはそうしています。
+
+## シナリオ：カスタムフックが返す関数 {#custom-hook}
+
+カスタムフックが返すものは、誰かの props や依存配列になります。不安定な関数を返すと、使う側全員が回避策を書く羽目になります。
+
+<Callout type="note">
+
+**まず自分で書いてみる。**現在の `items` と、`add` / `remove` の操作を返す `useCart()` フックを書いてください。目指すのは次の 3 つです。
+
+1. 使う側が `add` と `remove` を `memo()` した子にそのまま渡しても壊れない。
+2. `add` は、すでにカートにある商品なら行を増やさず数量を増やす。
+3. 依存配列が空で、しかも正しい。
+
+ヒント：このフックを誰が使うかは見えません——それは、このページの他の場所と比べて「既定」をどうすべきだと示唆しますか。そして依存配列を正当に空にするには、すべての `setItems` の呼び方が何を満たしている必要がありますか。
+
+</Callout>
+
+```tsx title="src/hooks/useCart.ts"
+import { useCallback, useState } from 'react'
+
+interface CartItem {
+  id: number
+  quantity: number
+}
+
+// どのコンポーネントからでも使える、小さなカート。
+export function useCart() {
+  // いまカートに入っているもの。
+  const [items, setItems] = useState<CartItem[]>([])
+
+  // 商品を 1 つ追加する。安定しているので memo した子にも渡せる。
+  const add = useCallback((id: number) => {
+    setItems((previous) => {
+      // すでにカートにあるか探す。
+      const existing = previous.find((item) => item.id === id)
+
+      // なければ、数量 1 で末尾に足した新しい配列を返す。
+      if (!existing) return [...previous, { id, quantity: 1 }]
+
+      // あれば、その 1 件だけ数量を増やした新しい配列を作る。
+      return previous.map((item) =>
+        item.id === id ? { ...item, quantity: item.quantity + 1 } : item,
+      )
+    })
+  }, []) // 空：関数形なので、今回の描画から何も読んでいない
+
+  // 商品をまるごと取り除く。これも安定させる。
+  const remove = useCallback((id: number) => {
+    setItems((previous) => previous.filter((item) => item.id !== id))
+  }, [])
+
+  // state と、安定した 2 つの操作を返す。
+  return { items, add, remove }
+}
+```
+
+1 行ずつ。
+
+1. **どちらの依存配列も空で、しかも正しい。**理由は両方とも同じです——すべての `setItems` が関数形なので、どちらの関数も今回の描画から `items` を読んでいません。2 つめのヒントが指していたのはこの性質で、一度でも破れば配列は `[items]` に膨らみ、2 つの操作は不安定になります。
+2. **`add` が読むのは `previous` だけ。**探す・足す・写像する、をすべて更新関数の内側で完結させています。外側のスコープからは何も漏れ込みません。
+3. **`previous.map(item => item.id === id ? { ...item, quantity: ... } : item)`** … 新しい配列で、変わった 1 行だけが新しいオブジェクト、他の行は元のオブジェクトのままです。変わらなかった行は同一性を保つので、`memo()` した行は描画を飛ばせます。
+4. **1 つめのヒントの答え**：ここは、計測を待たずに既定で `useCallback` を使ってよい唯一の場所です。共有フックは、使う側がメモ化しているかどうかを知りようがありませんし、不安定な戻り値は相手が自力で気づくしかない罠になります。
+
+## 呼び出し方のすべて {#signatures}
+
+**依存配列の 3 パターン。**
+
+```tsx
+// ① 空 — 関数は二度と作り直されない。props や state を何も読んでいない
+//    ときだけ正しい（たいていは関数形がその条件を満たしてくれる）。
+const reset = useCallback(() => setCount(0), [])
+
+// ② 値を並べる — 読んでいる値が変わったら作り直す。これが普通。
+const search = useCallback(() => runSearch(query), [query])
+
+// ③ 省略 — 毎回作り直される。つまりフックなしと同じ。
+//    何もしない useCallback。書いてはいけない。
+const search = useCallback(() => runSearch(query))
+```
+
+**中身は「関数を返す useMemo」です。**次の 2 行は完全に等価で、これを知っているのが `useCallback` を覚える一番の近道です。
+
+```tsx
+// useCallback は、渡した関数そのものを保管する。
+const fn = useCallback(() => doThing(a), [a])
+
+// useMemo は「返ってきたもの」を保管する——だから関数を返す。
+const fn = useMemo(() => () => doThing(a), [a])
+```
+
+**引数を取って構いません。**引数は依存ではありません。
+
+```tsx
+// `id` は呼ばれたときに渡ってくるので、依存配列には入れない。
+const remove = useCallback((id: number) => {
+  setItems((previous) => previous.filter((item) => item.id !== id))
+}, [])
+```
+
+**配列を空にできるのは関数形のおかげです。**2 つを見比べてください。
+
+```tsx
+// 今回の描画の `count` を読むので `count` を並べる必要がある。
+// つまり、変わるたびに新しい関数になる。
+const increment = useCallback(() => setCount(count + 1), [count])
+
+// 今回の描画から何も読まないので配列を空にでき、
+// 関数はコンポーネントの一生で 1 回だけ作られる。
+const increment = useCallback(() => setCount((previous) => previous + 1), [])
+```
+
+**`useState` の更新関数はもとから安定しています。**React は `setCount` の同一性が変わらないことを保証しているので、包む必要も並べる必要もありません。
+
+**JSX にインラインで書くハンドラには不要です。**素の `<button>` の `onClick={() => setOpen(true)}` はこのままで永久に問題ありません——DOM 要素は props を比較しません。
+
+## わざと壊す：アロー関数を map の中に移す {#break-inline}
+
+[上のデモ](#demo)を開き、**useCallback あり**にして、無関係なカウンターを何回か押してください。子の描画回数は動きません。すべて正しく効いています。
+
+では、同じくらい正しく見えて、実は効いていない版です。[行のシナリオ](#row)の動くコードから、アロー関数を 1 つだけ移します。
+
+```tsx title="わざと間違えたコード"
+// Row は memo() のまま。handleRemove も useCallback のまま。
+// 変えたのは「行ごとのアロー関数をどこに書くか」だけ。
+<ul>
+  {products.map((product) => (
+    <Row
+      key={product.id}
+      product={product}
+      // ✗ 行ごと・描画ごとに、新しい関数オブジェクト。
+      onRemove={() => handleRemove(product.id)}
+    />
+  ))}
+</ul>
+```
+
+検索欄に 1 文字打ってください。**全行が再描画されます。**`memo()` も `useCallback` も、まるで書かなかったかのようです。
+
+子については何も変えていません。`Row` はメモ化されたままですし、`handleRemove` も安定したままです。しかし `memo` が比べるのは「実際に受け取った props」で、`onRemove` はいま `map` の中で作られた新品のアロー——行ごと、描画ごとに別のオブジェクトです。比較は毎回、全行で失敗します。
+
+直し方は、アロー関数を 1 段下、子の中へ移すことです。
+
+```tsx
+// 親：安定した関数をそのまま渡す。
+<Row key={product.id} product={product} onRemove={handleRemove} />
+
+// Row：行ごとのアロー関数はここで作る。ここでは誰も比較しない。
+<button type="button" onClick={() => onRemove(product.id)}>削除</button>
+```
+
+このバグを超えて一般化できます。**`useCallback` が守るのは「包んだ関数」であって、「実際に渡した props」ではありません。**作った値ではなく、メモ化された子に届く値を追ってください。
+
+## 書き方カタログ：実際に書く形 {#catalog}
+
+```tsx
+// 3 つの部品。そろって初めて効く
+const Row = memo(function Row({ item, onPick }: RowProps) { … }) // ① 子を memo
+const onPick = useCallback((id: number) => setPicked(id), []) // ② 安定した関数
+const items = useMemo(() => raw.map(toItem), [raw]) // ③ 安定した配列・オブジェクト
+
+// 空の依存 — 関数形なので今回の描画から何も読んでいない
+const add = useCallback(() => setCount((prev) => prev + 1), [])
+const remove = useCallback((id: number) => {
+  setItems((prev) => prev.filter((i) => i.id !== id))
+}, [])
+
+// 値を並べる依存 — 変わりうる値を読んでいる
+const search = useCallback(() => runSearch(query), [query])
+
+// ネイティブのイベントリスナー。外せるかどうかを同一性が決める
+const onKey = useCallback((e: KeyboardEvent) => {
+  if (e.key === 'Escape') close()
+}, [close])
+useEffect(() => {
+  window.addEventListener('keydown', onKey)
+  return () => window.removeEventListener('keydown', onKey)
+}, [onKey])
+
+// カスタムフックから返す — ここは既定で包む
+return { items, add, remove }
+
+// ✗ 不要：素の DOM 要素のハンドラ
+<button onClick={useCallback(() => setOpen(true), [])}>開く</button>
+
+// ○ インラインで書けばよい
+<button onClick={() => setOpen(true)}>開く</button>
+
+// ✗ 不要：useState の更新関数はもとから安定している
+const set = useCallback((v: boolean) => setOpen(v), [])
+
+// ○ そのまま渡す
+onToggle={setOpen}
+```
+
+## useMemo と useCallback、どちら？ {#vs}
+
+同じ機械に違う荷物を載せたものです。だからこそ混同されます。
+
+| | `useMemo` | `useCallback` |
+| --- | --- | --- |
+| 渡すもの | 計算 | 保管してほしい関数 |
+| React は実行する？ | する。戻り値を保管 | **しない**。保管するだけ |
+| 返ってくるもの | 計算された値 | 関数そのもの |
+| 何を節約する？ | 計算にかかる時間 | 関数の同一性 |
+| 典型的な用途 | 一覧の絞り込み、`Intl` フォーマッタ | `memo()` した子への props、エフェクトの依存 |
+
+一行でいえば、**`useMemo` は答えをキャッシュし、`useCallback` は問いをキャッシュします。**
+
+## 使うとき・使わないとき {#when}
+
+`useCallback` を使うのは、関数の**同一性**が何かに確認されるときです。
+
+- `memo()` で包んだコンポーネントの props である。
+- `useEffect` / `useMemo` / `useCallback` の依存配列に入る。
+- `addEventListener`、オブザーバーなど、「外すのに同じ参照が要る」API に渡す。
+- カスタムフックから返す（誰が使うか見えない）。
+
+次には使いません。
+
+- **素の DOM 要素のハンドラ。**`<button onClick={...}>` は props を比較しません。包んでもコストが増えるだけです。
+- **`memo()` していない子。**メモ化していない子は、props が安定していようと親と一緒に再描画されます。`useCallback` 単体では文字どおり何も得られません。
+- **反射的にすべての関数を包む。**`useCallback` ごとに配列を保存し、毎回比較します。メモ化した子がないコンポーネントに 20 個書けば、何も速くしないまま比較を 20 回足しただけです。
+- **古いクロージャを消すため。**ハンドラが古い値を読んでいるなら、直すのは依存配列か関数形であって、フックを外して祈ることではありません。
+
+## よくある間違い {#mistakes}
+
+**子が `memo()` されていないのに `useCallback` を使う。**
+
+```tsx
+// ✗ Child はメモ化されていないので、いずれにせよ親と一緒に再描画される。
+//   この useCallback はオーバーヘッドだけ。
+const handleClick = useCallback(() => doThing(), [])
+return <Child onClick={handleClick} />
+```
+
+<Diff
+  bad="const fn = useCallback(...) を、包んでいない <Child /> に渡す"
+  good="const Child = memo(function Child(...)) — そうして初めて useCallback が効く"
+  note="メモ化していない子は親が再描画されるたびに再描画される。memo() が比較していない限り、props を安定させても何も変わらない。"
+/>
+
+**依存の書き忘れによる、古いクロージャ。**
+
+```tsx
+// ✗ `query` は初回描画時に捕まえたまま更新されない。ユーザーが何を打っても
+//    常に空文字で検索する。
+const search = useCallback(() => {
+  runSearch(query)
+}, []) // ← 上で query を読んでいるのに並べていない
+```
+
+関数は本当に作り直されません——それこそ指定したとおりです。だから作られた瞬間の `query` を永久に持ち続けます。`query` を並べるか、その値を読まない形に組み直します。
+
+<Diff
+  bad="useCallback(() => runSearch(query), [])"
+  good="useCallback(() => runSearch(query), [query])"
+  note="空配列は「作り直さない」＝「新しい値を見ない」でもある。関数が読むものはすべて並べる。"
+/>
+
+**`map` の中のインラインアローが、memo した行を台無しにする。**
+
+```tsx
+// ✗ 行ごと・描画ごとに新しい関数 — 毎回すべての Row が再描画される
+{products.map((product) => (
+  <Row key={product.id} onRemove={() => handleRemove(product.id)} />
+))}
+
+// ○ 安定したハンドラをそのまま渡し、行ごとのアローは Row の中で作る
+{products.map((product) => (
+  <Row key={product.id} product={product} onRemove={handleRemove} />
+))}
+```
+
+**`useState` の更新関数を包む。**
+
+<Diff
+  bad="const setOpenStable = useCallback((v: boolean) => setOpen(v), [])"
+  good="setOpen"
+  note="React は setState 系の関数の同一性が変わらないことを保証している。そのまま渡せばよい。"
+/>
+
+**そのコンポーネント自身の再描画が止まると思う。**止まりません。`useCallback` が影響するのは*子*と*エフェクト*が見るものだけで、書いたコンポーネント自体はこれまでどおり再描画されます。
+
+**条件付きで呼ぶ。**
+
+```tsx
+// ✗ エラー：フックは毎回同じ順序で呼ばなければならない
+if (editable) {
+  const handleSave = useCallback(() => save(), [])
+}
+```
+
+## うちの標準 {#standard}
+
+<Std
+  decision="関数を比較する相手がいるとき——memo() した子、依存配列、イベントリスナー——に useCallback を足す。既定で足すのはカスタムフックの中だけ"
+  alt="React Compiler を有効にすると、手書きの useCallback はほとんど不要になります。コンパイラ自身がメモ化を挿入するからです。このガイドでは、練習が手元で見えるように意図的にオフにしています。有効なプロジェクトでは、手書きのコールバックは残さず削除してください。"
+>
+
+3 つの部品は揃って初めて働きます——子に `memo()`、関数の props に `useCallback`、オブジェクト・配列の props に `useMemo`。1 つだけ足すのは、労力を使って何も変えない一番よくあるやり方です。まず子を `memo()` で包み、それから渡している props を全部確認してください。毎回作り直されるものが 1 つでもあれば、その memo は何もしていません。
+
+</Std>
+
+## 内部で起きていること {#internals}
+
+`useCallback(fn, deps)` は `useMemo(() => fn, deps)` であり、React の実装もほぼそのままです。フックのスロットに **前回の依存配列** と **関数オブジェクト** が保存されます。
+
+毎回の描画で、こうなります。
+
+1. あなたが書いたアロー関数 `() => ...` は**やはり作られます**。この生成は必ず起きます——`useCallback` は、書いた関数を JavaScript が作るのを止められません。
+2. React が新しい依存配列を、保存済みのものと位置ごとに `Object.is` で比べます。
+3. すべて等しい → **保存済みの**関数を返し、いま作られたほうを捨てます。
+4. 1 つでも違う → 新しい関数を保存して、それを返します。
+
+1 番目のステップがあるので「とりあえず全部 `useCallback`」はタダではありません。関数の生成コストに加えて、配列の保存と比較まで払っています。このフックは関数の生成を避けるのではなく、*新しいものを配るのを*避けているのです。
+
+`memo()` はその反対側にいます。描画中にメモ化されたコンポーネントに到達すると、React は新旧の props を `Object.is` で——同じ浅い比較で——歩き、すべて一致していれば前回の出力を再利用し、コンポーネント関数を呼びさえしません。
+
+<Deeper title="念のため全部包んでおけばいいのでは？">
+
+「念のため」には測れるコストがあり、確認する相手がいなければ得るものはゼロだからです。
+
+`useCallback` ごとにフックのスロット、保存する配列、そして毎回の比較が増えます。メモ化した子がいないコンポーネントでは、これは純粋なオーバーヘッドです——誰も確認していない最適化と引き換えに、毎回の描画をわずかに遅くしただけです。
+
+さらにバグを隠します。過剰にメモ化したハンドラの中の古いクロージャは、素直に書いた同じ関数よりずっと見つけにくくなります。素直な版は常に新しい値を持っているからです。まず素直に書き、比較する相手が現れたら包んでください。
+
+</Deeper>
+
+## TypeScript メモ {#typescript}
+
+`useCallback` は渡した関数から型を推論しますが、他の多くのフックと違い、**引数には注釈が要ります**。推論の手がかりになる文脈が周りにないからです。
+
+```tsx
+// ✗ `id` が暗黙の any になる — TypeScript には推論材料がない
+const remove = useCallback((id) => setItems((p) => p.filter((i) => i.id !== id)), [])
+
+// ○ 引数に型を書く
+const remove = useCallback((id: number) => {
+  setItems((previous) => previous.filter((item) => item.id !== id))
+}, [])
+```
+
+**イベントハンドラの引数**には React のイベント型が要ります。別途定義したハンドラと同じです。
+
+```tsx
+import type { ChangeEvent, MouseEvent } from 'react'
+
+// テキスト入力の変更ハンドラ。
+const onInput = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+  setText(event.target.value)
+}, [])
+
+// ボタンのクリックハンドラ。
+const onPress = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+  event.currentTarget.blur()
+}, [])
+```
+
+**ネイティブの DOM リスナーには DOM 側のイベント型**を使います。React の型ではありません——`KeyboardEvent` であって `React.KeyboardEvent` ではない。別の型なので、混ぜるとよくエラーになります。
+
+```tsx
+// window.addEventListener が渡してくるのは DOM のイベントなので、DOM の型を使う。
+const onKeyDown = useCallback((event: KeyboardEvent) => {
+  if (event.key === 'Escape') close()
+}, [close])
+```
+
+**受け取る側の props の型**でつまずくことが一番多いです。`Function` ではなく、シグネチャを書きます。
+
+```tsx
+interface RowProps {
+  onRemove: (id: number) => void // ○ 何を取って何を返すかが正確に分かる
+  onSelect: Function // ✗ 何でも受け取り、何も検査しない
+}
+```
+
+**型引数の明示**は、フックから返す関数のシグネチャを定義側で見せたいときにたまに役立ちます。
+
+```tsx
+const add = useCallback<(id: number) => void>((id) => {
+  // 型引数があるので `id` は推論される — 注釈は不要。
+  setItems((previous) => [...previous, { id, quantity: 1 }])
+}, [])
+```
+
+## うまくいかないとき {#trouble}
+
+- **memo した子が、親の描画のたびに再描画される** … props のどれかが毎回作り直されています。関数だけでなく全部の props を確認してください。`map` の中のインラインアローが定番です——[わざと壊す](#break-inline)を参照。
+- **`useCallback` を足したのに速くならない** … その関数を比較している相手がいません。子が `memo()` されていないか、素の DOM 要素（props を比較しない）かのどちらかです。
+- **ハンドラが古い値を使う** … 依存の書き忘れです。空配列は「作り直さない」＝「新しい値を見ない」でもあります。読むものを並べるか、値を引数で受け取る形にします。
+- **`useEffect` が無限ループになる** … その依存配列に入っている関数が毎回作り直されています。包むか、関数をエフェクトの中に移して配列から外します。
+- **`removeEventListener` が何も外してくれない** … 追加したときと違う関数オブジェクトを渡しています。ハンドラを 1 つ定義して包み、追加と削除で同じ参照を使います。
+- **`Parameter 'id' implicitly has an 'any' type`** … 多くのフックと違い、`useCallback` の引数には推論の手がかりがありません。`(id: number) => …` と注釈します。
+- **コンポーネント自体は再描画され続ける** … それは常にそうです。`useCallback` が影響するのは子とエフェクトが見るものだけです。
+- **全部包んだら少し遅くなった** … `useCallback` はアロー関数の生成に加えて、配列の保存と比較を上乗せします。相手のいないものを外してください。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="何も得られません。メモ化していない子は、props が変わったかどうかに関係なく親と一緒に再描画されるので、安定した関数は何とも比較されません。子を memo() で包むか、useCallback をやめるかです。">
+
+ハンドラを `useCallback` で包み、`memo()` で**包んでいない**子に渡しました。この `useCallback` で何が得られますか。
+
+</Exercise>
+
+<Exercise answer="空配列なので関数は作り直されず、初回描画時の `query`（空文字）を永久に持ち続けます。並べる（}, [query])）か、query を読まずに引数で受け取る形に組み直します。">
+
+`const search = useCallback(() => runSearch(query), [])` が、ユーザーが何を打っても常に空文字で検索してしまいます。なぜでしょう。
+
+</Exercise>
+
+<Exercise answer="map の中のアロー関数が、描画ごと・行ごとに新しい関数を作るので、各 Row の onRemove が毎回違い、memo は一度も描画を飛ばせません。安定した handleRemove をそのまま渡し、行ごとのアローは比較されない Row の内側で作ります。">
+
+行は `memo()` で包まれていて、親の `map` の中から `onRemove={() => handleRemove(product.id)}` を受け取っています。それでも全行が再描画されます。なぜで、どう直しますか。
+
+</Exercise>
+
+<SummaryBox>
+
+- 毎回の描画で新しい関数オブジェクトが作られる。`useCallback` は依存が変わっていなければ前回のものを返す
+- 効くのは同一性を比較する相手がいるときだけ——`memo()` した子、依存配列、`removeEventListener`
+- 子に `memo()`、関数の props に `useCallback`、オブジェクトの props に `useMemo`。3 つ揃わなければ、どれも効かない
+
+</SummaryBox>

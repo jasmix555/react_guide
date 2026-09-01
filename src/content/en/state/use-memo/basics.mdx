@@ -1,236 +1,739 @@
 ---
-title: Skipping wasted work (useMemo / useCallback / memo)
-minutes: 13
+title: 'useMemo: caching a calculated value'
+minutes: 31
 slug: use-memo-basics
 section: state
-description: "Every state update re-runs the whole component body. Measure that waste in a live demo, then remove it with useMemo, useCallback and memo. The dependency array works exactly like useEffect's. Includes when NOT to reach for them."
+description: "The complete useMemo reference: what memoisation is, the minimal typed example, four real scenarios (filtering a list, a prop for a memo'd child, a stable dependency, expensive formatting), every signature, the measure-first rule for when not to use it, the classic bugs, how the cache works, and the TypeScript notes."
 level: intermediate
-prerequisites: ['state/use-ref/basics']
+prerequisites: ['state/use-state/basics', 'javascript/reference-vs-copy']
 ---
 
 import { MemoizeDemo } from '@/demos/Memoize'
 
 <LearnBox>
 
-- Why **the whole component body runs again** on every state update
-- `useMemo` to remember a result, `useCallback` to remember a function, `memo` to skip a child
-- The rule for **when not to use them** (this matters more than the syntax)
+- Why a component re-runs *every line* of its body on every update, and what that costs
+- Four scenarios worth caching: filtering a list, a prop for a memoised child, a stable dependency, expensive formatting
+- The measure-first rule, the classic bugs, and how the cache actually works
 
 </LearnBox>
 
-## Every update re-runs the whole function {#why}
+## What useMemo actually is {#what}
 
-A component is a function. When state changes, React **calls that function again from the top** — every line, every calculation, every arrow function you wrote inline.
+**`useMemo` remembers the result of a calculation, and only redoes it when the inputs change.**
+
+To see why that matters, you need one fact about React: when anything in a component updates, React **runs the entire component function again, top to bottom**. Not just the part that changed — all of it.
 
 ```tsx
-function ProductList({ products }: { products: Product[] }) {
-  const [query, setQuery] = useState('')
-  const [dark, setDark] = useState(false) // nothing to do with the list
+// Bring in the useState tool from the React library.
+import { useState } from 'react'
 
-  const sorted = [...products].sort((a, b) => a.price - b.price) // runs every render
-  ...
+// Define a component. React calls this function again on EVERY update.
+export function Shop() {
+  // Hold a number that the screen shows. `count` reads it, `setCount` changes it.
+  const [count, setCount] = useState(0)
+
+  // ↓ This line runs again every single time `count` changes — even though
+  //   sorting has nothing at all to do with the counter.
+  const sorted = [...products].sort((a, b) => a.price - b.price)
+
+  // Describe what the screen should look like right now.
+  return (
+    <div>
+      {/* Show the number, and add one to it when the button is pressed. */}
+      <button type="button" onClick={() => setCount(count + 1)}>
+        {count}
+      </button>
+      {/* Show the first product from the sorted list. */}
+      <p>{sorted[0].name}</p>
+    </div>
+  )
 }
 ```
 
-Toggle `dark` and `sorted` is computed again — a full copy and sort of the list — even though `products` didn't change and the result is identical. With 12 products nobody notices. With 5,000, the toggle starts to feel sticky.
+Press the button and the list gets sorted again, for nothing. With ten products that is invisible. With five thousand, every click stutters. `useMemo` is how you tell React: *keep the previous answer unless one of these inputs changed*.
 
-<Callout type="note">
+<Callout type="analogy">
 
-**Most of the time this is fine.** React is fast, and re-running a `filter` over a small array costs nothing. This page is about the cases where it isn't fine, and how to prove you're in one.
+Think of a receipt taped to a drawer. Someone asks "how much is in here?" — you count it once and write the total on the receipt. Next time they ask, you read the receipt instead of recounting. You only recount when someone actually puts money in or takes it out. `useMemo` is the receipt; the dependency array is the list of things that count as "someone touched the drawer".
 
 </Callout>
 
-## See the waste first {#demo}
+## The smallest working example {#minimal}
 
-Below is a deliberately expensive calculation (20 million additions) plus a counter that has **nothing to do with it**. The demo prints how long each render took.
+```tsx title="src/components/PriceList/PriceList.tsx"
+// `useMemo` caches a value; `useState` holds a value the screen depends on.
+import { useMemo, useState } from 'react'
 
-Press "Unrelated count" with the checkbox **on**, then turn it **off** and press it again.
+// Describe the shape of one product, so TypeScript can check our code.
+interface Product {
+  id: number
+  name: string
+  price: number
+}
 
-<Demo title="The same click, with and without useMemo">
+// Describe what this component expects to be given from outside.
+interface PriceListProps {
+  products: Product[]
+}
+
+// Define the component. `{ products }` pulls the products list out of the props.
+export function PriceList({ products }: PriceListProps) {
+  // A counter that has nothing to do with the products. Changing it re-runs
+  // this whole function, which is exactly the problem useMemo solves.
+  const [clicks, setClicks] = useState(0)
+
+  // Add up every price — but only when `products` actually changes.
+  const total = useMemo(() => {
+    // This function is the calculation. React runs it and keeps the result.
+    return products.reduce((sum, product) => sum + product.price, 0)
+  }, [products]) // ← the dependency array: redo the sum only if `products` changed
+
+  return (
+    <div>
+      {/* Show the cached total, formatted with thousands separators. */}
+      <p>Total: {total.toLocaleString()} yen</p>
+
+      {/* Pressing this re-renders the component, but the sum is NOT redone. */}
+      <button type="button" onClick={() => setClicks(clicks + 1)}>
+        Clicked {clicks} times
+      </button>
+    </div>
+  )
+}
+```
+
+Three parts, exactly like `useEffect`:
+
+```tsx
+const total = useMemo(() => {
+//    ↑              ↑
+//    │              └─ ① the calculation. React runs it and keeps what it returns
+//    │
+//    └─ ③ the value that comes back — the cached result, not the function
+  return products.reduce((sum, product) => sum + product.price, 0)
+}, [products])
+// ↑ ② the dependency array: if every value in here is unchanged since last render,
+//     React skips step ① and hands you the previous result
+```
+
+## See the waste for yourself {#demo}
+
+The demo below runs a deliberately slow calculation. Press the unrelated counter with **useMemo on** and the render costs roughly nothing. Turn it **off** and every single press pays the full price again.
+
+<Demo title="With and without useMemo">
   <MemoizeDemo />
 </Demo>
 
-With `useMemo` on, the unrelated click costs about **0 ms** — the calculation is skipped and the old result reused. With it off, every single click pays the full cost, for an answer that never changed.
+## Scenario: filtering and sorting a product list {#filter}
 
-## Break down the useMemo syntax {#anatomy}
+The most common real use. A search box re-renders on every keystroke, and you do not want to re-sort five thousand rows because someone toggled an unrelated checkbox.
 
-If you know `useEffect`, you already know 80% of this — same second argument, same rules.
+<Callout type="note">
 
-```tsx
-const sorted = useMemo(() => {
-  return [...products].sort((a, b) => a.price - b.price) // ① the calculation
-}, [products])
-//  ↑
-//  └─ ② dependency array: redo the calculation only when a value in here changes
-```
+**Try it first.** Build a product browser: a search box, an "in stock only" checkbox, and the matching products listed cheapest first. Aim for:
 
-- **① The calculation** … a function that **returns** the value you want. `useMemo` gives you back what it returns.
-- **② The dependency array** … "when to recalculate". `[products]` means: while `products` is the same, hand back the value from last time.
+1. Both controls working, with the list updating as you type.
+2. The filtering and sorting skipped entirely on any render where neither the products nor the two controls changed.
+3. The original `products` array left untouched.
 
-The difference from `useEffect` is what it's for: `useEffect` **does** something after rendering, `useMemo` **returns** a value during rendering.
-
-<Diff
-  bad="const sorted = useMemo(expensiveSort(products), [products])"
-  good="const sorted = useMemo(() => expensiveSort(products), [products])"
-  note="Pass a function, not the result of calling one. Without the arrow, the work happens every render before useMemo ever sees it."
-/>
-
-## useCallback: the same idea, for a function {#usecallback}
-
-Every render also creates **brand new function objects**. Usually harmless — but a new function is a *changed prop*, and a changed prop can force a child to redraw.
-
-```tsx
-const handleSelect = useCallback((id: string) => {
-  setSelected(id)
-}, []) // no dependencies: this function never needs to change
-```
-
-`useCallback(fn, deps)` is just `useMemo(() => fn, deps)` with nicer syntax. It hands back **the same function object** until a dependency changes.
-
-On its own it does nothing useful. It only pays off next to `memo`.
-
-## memo: let a child skip its own redraw {#memo}
-
-By default, when a parent redraws, **all of its children redraw too**. `memo` wraps a component and says: "if my props are the same as last time, don't bother."
-
-```tsx title="src/components/ProductRow/ProductRow.tsx"
-import { memo } from 'react'
-
-export const ProductRow = memo(function ProductRow({ product, onSelect }: ProductRowProps) {
-  return <li onClick={() => onSelect(product.id)}>{product.name}</li>
-})
-```
-
-Now `ProductRow` only redraws when `product` or `onSelect` actually changes. **And this is why `useCallback` exists**: without it, `onSelect` would be a new function on every parent render, `memo` would see a changed prop every time, and all 5,000 rows would redraw anyway. The three tools work as one:
-
-```tsx
-const rows = useMemo(() => sortRows(products), [products]) // ① don't redo the work
-const handleSelect = useCallback((id: string) => setSelected(id), []) // ② keep the prop stable
-// ③ ProductRow is wrapped in memo, so it skips redrawing when neither changed
-```
-
-`memo` compares props **shallowly** — same rules as `===` on objects from [reference vs copy](/guide/javascript/reference-vs-copy). A fresh `{}`, `[]`, or arrow function passed inline is always "different", which is why inline object props quietly defeat `memo`.
-
-## Break it on purpose: leave a value out of the deps {#break-deps}
-
-A wrong dependency array is worse than none at all.
-
-```tsx
-const [tax, setTax] = useState(0.1)
-
-const total = useMemo(() => price * (1 + tax), [price]) // tax is missing
-```
-
-Change the tax rate and the total **doesn't move**. `useMemo` was told "only `price` matters", so it keeps handing back the stale answer. No error, no warning in the browser — just a wrong number on screen.
-
-The fix is `[price, tax]`. ESLint's `react-hooks/exhaustive-deps` rule catches this for you as a warning in your editor — **don't silence it**.
-
-## When NOT to use them {#when-not}
-
-This is the part people skip, and it's the important one. Memoizing isn't free: React has to store the old value and compare the dependencies on every render. For cheap work, **the bookkeeping costs more than the work you saved**, and the code gets harder to read.
-
-- **Default to writing it plainly.** `const visible = products.filter(...)` over a normal list is genuinely fine.
-- **Reach for `useMemo` when** the calculation is heavy (sorting or filtering thousands of items), or when the value is a prop for a `memo`-wrapped child and must stay stable.
-- **Reach for `useCallback` when** the function is a prop for a `memo`-wrapped child, or a dependency of a `useEffect`.
-- **Reach for `memo` when** a child is expensive and its props rarely change.
-- **Measure first.** If you can't feel the lag and the Profiler doesn't show it, you're paying complexity for nothing.
-
-<Callout type="warn">
-
-Wrapping everything "just in case" is a real anti-pattern. It's more code, more dependency arrays to get wrong, and usually slightly slower. Write it plain, and optimize the spot that actually hurts.
+Hints: which values does the calculation actually read? Those, and only those, are the dependencies. `.sort()` rewrites the array it is given rather than returning a new one — what do you do before calling it? And should `query` itself be memoised, or is it something else?
 
 </Callout>
 
-## Cheat sheet {#catalog}
+```tsx title="src/components/ProductBrowser/ProductBrowser.tsx"
+// useMemo caches the filtered list; useState holds the things the user changes.
+import { useMemo, useState } from 'react'
 
-```tsx
-// ① remember a value
-const sorted = useMemo(() => [...items].sort(byPrice), [items])
+// One product record.
+interface Product {
+  id: number
+  name: string
+  price: number
+  inStock: boolean
+}
 
-// ② remember a function (for a memo child or an effect dependency)
-const handleClick = useCallback(() => setOpen(true), [])
+// What this component receives from its parent.
+interface ProductBrowserProps {
+  products: Product[]
+}
 
-// ③ keep an object/array prop stable, so memo can do its job
-const style = useMemo(() => ({ width: size }), [size])
+export function ProductBrowser({ products }: ProductBrowserProps) {
+  // The text typed into the search box. Starts empty.
+  const [query, setQuery] = useState('')
 
-// ④ let a child skip redrawing when its props are unchanged
-const Row = memo(function Row({ item }: RowProps) {
-  return <li>{item.name}</li>
+  // Whether the "in stock only" checkbox is ticked. Starts off.
+  const [stockOnly, setStockOnly] = useState(false)
+
+  // Build the list the user should see. This whole block is skipped on any
+  // render where products, query and stockOnly are all unchanged.
+  const visible = useMemo(() => {
+    // Lower-case the query once, instead of once per product inside the loop.
+    const needle = query.trim().toLowerCase()
+
+    return products
+      // Keep only products whose name contains the search text.
+      .filter((product) => product.name.toLowerCase().includes(needle))
+      // If the checkbox is on, also drop anything out of stock.
+      .filter((product) => (stockOnly ? product.inStock : true))
+      // Copy before sorting, because .sort() rewrites the array it is given.
+      .slice()
+      // Cheapest first.
+      .sort((a, b) => a.price - b.price)
+  }, [products, query, stockOnly]) // redo only when one of these three changes
+
+  return (
+    <div>
+      {/* A controlled input: state holds the text, typing updates the state. */}
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Search products"
+      />
+
+      {/* A controlled checkbox: `checked` reads state, clicking flips it. */}
+      <label>
+        <input
+          type="checkbox"
+          checked={stockOnly}
+          onChange={() => setStockOnly((previous) => !previous)}
+        />
+        In stock only
+      </label>
+
+      {/* Turn each product in the cached list into a list item. */}
+      <ul>
+        {visible.map((product) => (
+          <li key={product.id}>
+            {product.name} — {product.price.toLocaleString()} yen
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+Line by line:
+
+1. **`[products, query, stockOnly]`** — exactly the three values the calculation reads, and nothing else. Miss one and the list silently stops updating; add an extra and the cache stops hitting.
+2. **`.slice()` before `.sort()`** — `sort` rewrites the array it is called on. `filter` already returned a new array here so it would technically be safe, but making the copy explicit means the line survives someone later removing the filters.
+3. **`const needle` computed once**, above the loop, rather than calling `.toLowerCase()` on the query inside every single comparison.
+4. **What is *not* memoised** is as deliberate as what is: `query` and `stockOnly` are plain state, and the JSX is rebuilt every render as usual. Only the one genuinely expensive step is cached.
+
+## Scenario: a value you pass to a memoised child {#child-prop}
+
+This is the case people miss, and it has nothing to do with the calculation being slow.
+
+`memo()` wraps a component so it skips re-rendering when its props are unchanged. But it compares props with `Object.is`, and **a fresh array or object is never equal to the previous one** — even with identical contents. So an un-memoised array prop silently defeats the whole thing.
+
+<Callout type="note">
+
+**Try it first.** You have a `Dashboard` with a menu toggle and an expensive `Chart` child that receives an array of points built from a `sales` prop. Make opening the menu stop redrawing the chart. Aim for:
+
+1. `Chart` wrapped so React can skip it.
+2. Opening and closing the menu leaving the chart completely alone.
+
+Hints: wrapping the child is necessary but not sufficient — try it and watch it keep redrawing. What exactly does the wrapper compare, and how does that comparison treat an array that the parent rebuilds in its own body every render?
+
+</Callout>
+
+```tsx title="src/components/Dashboard/Dashboard.tsx"
+// `memo` wraps a component so it can skip re-rendering; useMemo keeps a value stable.
+import { memo, useMemo, useState } from 'react'
+
+// One row of chart data.
+interface Point {
+  label: string
+  value: number
+}
+
+// A deliberately heavy child, wrapped in memo so it only redraws when needed.
+const Chart = memo(function Chart({ points }: { points: Point[] }) {
+  // Pretend this draws an expensive SVG. It should run as rarely as possible.
+  return (
+    <ul>
+      {points.map((point) => (
+        <li key={point.label}>
+          {point.label}: {point.value}
+        </li>
+      ))}
+    </ul>
+  )
 })
+
+export function Dashboard({ sales }: { sales: number[] }) {
+  // Unrelated UI state — opening a menu must not redraw the chart.
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  // ✗ Without useMemo this array is rebuilt on every render, so `memo` sees a
+  //    different prop every time and the Chart redraws even when nothing changed.
+  // ○ With useMemo the SAME array object comes back, so memo's check passes.
+  const points = useMemo(() => {
+    // Turn each raw number into the shape the chart wants.
+    return sales.map((value, index) => ({ label: `Day ${index + 1}`, value }))
+  }, [sales]) // rebuild only when the raw sales data changes
+
+  return (
+    <div>
+      {/* Toggling this re-renders Dashboard — but not Chart. */}
+      <button type="button" onClick={() => setMenuOpen((previous) => !previous)}>
+        {menuOpen ? 'Close menu' : 'Open menu'}
+      </button>
+
+      {/* The chart receives the same array object as last time, so it skips. */}
+      <Chart points={points} />
+    </div>
+  )
+}
 ```
 
-<Together
-  task="A page holds a search query in state and filters a 10,000-item array on every keystroke, and typing feels laggy. Wrap the filter so it only re-runs when it has to."
-  hint="The result depends on two things: the full list and the query. Both go in the dependency array."
->
+Line by line:
+
+1. **`memo(function Chart(...))`** — the wrapper. On its own it changes nothing here, which is the part that surprises people.
+2. **`sales.map(...)` inside `useMemo`** — this is the line that makes the wrapper work. Written directly in the component body it produces a new array object on every render, `Object.is` says "different", and `memo` re-renders exactly as if it were not there.
+3. **`[sales]`** — the raw data is the only input, so the derived array is rebuilt only when the data genuinely changes.
+4. **The point here is identity, not speed.** `sales.map` is cheap; the memo exists so the *same array object* comes back, not to save the mapping work. This is the one case where you reach for `useMemo` without measuring first.
+
+The function equivalent of this problem is [useCallback](/guide/state/use-callback/basics) — same reasoning, applied to functions instead of values.
+
+## Scenario: a stable value for a dependency array {#deps}
+
+`useEffect` compares its dependencies the same way `memo` compares props, so an object built during render re-triggers the effect forever.
+
+<Callout type="note">
+
+**Try it first.** A `Reveal` component takes a `threshold` prop and sets up an `IntersectionObserver` in an effect, passing an options object built from it. Write it so the observer is created once per threshold value rather than on every render. Aim for:
+
+1. One observer per distinct `threshold`.
+2. No endless teardown-and-rebuild.
+
+Hints: what does an effect compare its dependencies with? What is `{ threshold }` on the second render compared with the first? And before you reach for a hook — there are two cheaper fixes here, and you should be able to name both.
+
+</Callout>
+
+```tsx title="src/components/Reveal/Reveal.tsx"
+import type { ReactNode } from 'react'
+// useEffect runs setup code; useMemo keeps the options object stable; useRef holds the node.
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+interface RevealProps {
+  children: ReactNode
+  threshold: number
+}
+
+export function Reveal({ children, threshold }: RevealProps) {
+  // A handle to the real DOM element, filled in by React after it renders.
+  const boxRef = useRef<HTMLDivElement>(null)
+
+  // Whether the element has scrolled into view yet.
+  const [shown, setShown] = useState(false)
+
+  // Build the observer's settings object ONCE per threshold value.
+  // Written inline as `{ threshold }` it would be a new object every render,
+  // so the effect below would tear down and rebuild the observer endlessly.
+  const options = useMemo(() => ({ threshold, rootMargin: '0px' }), [threshold])
+
+  useEffect(() => {
+    // Copy the ref into a local variable so it cannot change under us.
+    const element = boxRef.current
+
+    // On the very first render the element does not exist yet — bail out.
+    if (!element) return
+
+    // Watch the element and report when it enters the viewport.
+    const observer = new IntersectionObserver(([entry]) => {
+      // Ignore the report if the element is still off screen.
+      if (!entry.isIntersecting) return
+      // Remember that it appeared, which redraws with the visible styles.
+      setShown(true)
+    }, options)
+
+    // Start watching.
+    observer.observe(element)
+
+    // Stop watching when the component goes away or `options` changes.
+    return () => observer.disconnect()
+  }, [options]) // one stable object, so this runs once per threshold
+
+  // `data-shown` lets CSS fade the box in without any JavaScript animation.
+  return (
+    <div ref={boxRef} data-shown={shown}>
+      {children}
+    </div>
+  )
+}
+```
+
+Line by line:
+
+1. **`useMemo(() => ({ threshold, rootMargin: '0px' }), [threshold])`** — one object per threshold value instead of one per render. The extra parentheses around the object are required; without them JavaScript reads the `{` as a function body.
+2. **`}, [options])` on the effect** — the effect now has a dependency that stays the same across renders, so it sets the observer up once and leaves it alone.
+3. **`const element = boxRef.current` copied first** — the cleanup runs later, by which time the ref may already be `null`.
+4. **`return () => observer.disconnect()`** — every observer you create needs a matching disconnect, or they accumulate across mounts.
+
+<Callout type="warn">
+
+Two cheaper fixes usually beat this one, which is why the brief asked you to name them. If the values are primitives, list them directly: `}, [threshold, rootMargin])` — no hook at all. If the object never changes, move it outside the component entirely, where it is created once for the whole app. Reach for `useMemo` only when the object genuinely depends on props or state.
+
+</Callout>
+
+## Scenario: an expensive format or parse {#format}
+
+Building an `Intl` formatter is genuinely slow — hundreds of times slower than using one. Build it once.
+
+<Callout type="note">
+
+**Try it first.** Build a price tag that formats an `amount` as currency for a given `locale` and `currency`. Aim for:
+
+1. The formatter constructed only when the locale or currency changes — not on every render, and not on every amount change.
+2. Exactly one `useMemo` in the component.
+
+Hints: there are two operations here — constructing the formatter and calling it. Only one of them is expensive. Which of the three props does the expensive one actually depend on?
+
+</Callout>
+
+```tsx title="src/components/PriceTag/PriceTag.tsx"
+import { useMemo } from 'react'
+
+interface PriceTagProps {
+  amount: number
+  locale: string
+  currency: string
+}
+
+export function PriceTag({ amount, locale, currency }: PriceTagProps) {
+  // Creating a NumberFormat is expensive; formatting with it is cheap.
+  // Cache the formatter itself, keyed on the two things that define it.
+  const formatter = useMemo(() => {
+    return new Intl.NumberFormat(locale, { style: 'currency', currency })
+  }, [locale, currency]) // rebuild only if the locale or currency changes
+
+  // Using the cached formatter is fast, so this needs no memo of its own.
+  return <p>{formatter.format(amount)}</p>
+}
+```
+
+Line by line:
+
+1. **`amount` is deliberately not a dependency.** The formatter does not depend on the number it will later format, so including it would rebuild the formatter on every price change — exactly the cost we are avoiding.
+2. **`formatter.format(amount)` is left un-memoised.** Calling a formatter is cheap. A second `useMemo` around it would cost more in stored dependencies and comparisons than the call itself.
+3. **The split is the whole technique**: find the expensive construction, cache that, and leave the cheap usage alone. The same shape applies to `Intl.DateTimeFormat`, `Intl.Collator`, and compiled regular expressions.
+
+## Every way to call it {#signatures}
+
+**The three dependency-array forms**, and only one of them is normally right.
 
 ```tsx
-const results = useMemo(
-  () => items.filter((item) => item.name.includes(query)),
-  [items, query],
-)
+// ① Listed dependencies — the correct default. Redo only when one changes.
+const total = useMemo(() => sum(items), [items])
+
+// ② Empty array — compute once and keep forever. Only correct when the
+//    calculation reads nothing from props or state.
+const columns = useMemo(() => buildColumns(), [])
+
+// ③ No array at all — recompute on every render. This is a useMemo that does
+//    nothing except add overhead. Never write this.
+const total = useMemo(() => sum(items))
 ```
 
-The filter now runs when `items` or `query` changes — not when unrelated state (a theme toggle, an open menu) redraws the page. Leaving `query` out would freeze the results at the first search; leaving `items` out would ignore newly loaded data.
+**Always return the value.** A concise arrow body returns automatically; a block body needs an explicit `return`.
 
-</Together>
+```tsx
+// ○ Concise body: the object after => is returned.
+const style = useMemo(() => ({ width }), [width])
+
+// ○ Block body: you must write `return` yourself.
+const style = useMemo(() => {
+  return { width }
+}, [width])
+
+// ✗ Block body with no return: `style` is undefined.
+const style = useMemo(() => {
+  ;({ width })
+}, [width])
+```
+
+**Wrapping an object literal needs parentheses.** Without them JavaScript reads the `{` as the start of a function body.
+
+```tsx
+const config = useMemo(() => ({ threshold: 0.2 }), []) // ○ parens around the object
+const config = useMemo(() => { threshold: 0.2 }, []) // ✗ returns undefined
+```
+
+**Memoising a whole piece of JSX** is legal — JSX is just a value — and occasionally useful when you cannot wrap the child in `memo`.
+
+```tsx
+// Keep this subtree's element object stable across renders.
+const header = useMemo(() => <ExpensiveHeader title={title} />, [title])
+
+return <div>{header}</div>
+```
+
+**Deriving from another memo** is fine, and each layer is cached independently.
+
+```tsx
+// Filter first — redone only when the list or the search text changes.
+const filtered = useMemo(() => items.filter((i) => i.name.includes(query)), [items, query])
+
+// Then sort the already-filtered list — redone only when `filtered` changes.
+const sorted = useMemo(() => [...filtered].sort(byPrice), [filtered])
+```
+
+**`useMemo` is a hint, not a promise.** React reserves the right to throw the cache away — for example to free memory. Your code must still be correct if the calculation runs on every render, which means the function must be pure: no `setState`, no network calls, no DOM writes.
+
+## Break it on purpose: leave a value out of the deps {#break-deps}
+
+This is the failure worth feeling, because unlike most `useMemo` mistakes it does not make things slow — **it makes them wrong**, silently.
+
+```tsx title="deliberately wrong"
+import { useMemo, useState } from 'react'
+
+export function Broken({ items }: { items: Item[] }) {
+  // The tax rate the user can change.
+  const [taxRate, setTaxRate] = useState(1.1)
+
+  const total = useMemo(() => {
+    // This calculation reads BOTH items and taxRate…
+    return items.reduce((sum, item) => sum + item.price, 0) * taxRate
+  }, [items]) // …but only items is listed here
+
+  return (
+    <div>
+      <p>Total: {Math.round(total)}</p>
+      <button type="button" onClick={() => setTaxRate(1.2)}>
+        Raise tax to 20%
+      </button>
+    </div>
+  )
+}
+```
+
+Click the button. The tax rate genuinely changes, the component genuinely re-renders — and **the total on screen does not move**.
+
+Nothing is broken in a way you can see. React compared the dependency array, found `items` unchanged, and did exactly what you told it to: handed back the cached answer, computed with the old tax rate. The number on screen is now confidently wrong.
+
+Add the missing dependency:
+
+```tsx
+}, [items, taxRate])
+```
+
+**Every value the calculation reads goes in the array — not the ones you think might change, all of them.** This is why `react-hooks/exhaustive-deps` is switched on in this project, and why silencing it with a disable comment is almost always the wrong move: the lint rule catches exactly this class of bug, which produces no error and no crash.
+
+## Cheat sheet: the shapes you will actually write {#catalog}
+
+```tsx
+// Caching an expensive calculation
+const total = useMemo(() => items.reduce((s, i) => s + i.price, 0), [items])
+const visible = useMemo(() => items.filter(matches).sort(byPrice), [items, query])
+
+// Returning an object literal — note the parentheses
+const style = useMemo(() => ({ width, height }), [width, height])
+
+// Caching an expensive instance, not the result of using it
+const formatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
+
+// A stable array or object prop for a memo() child
+const points = useMemo(() => raw.map(toPoint), [raw])
+<Chart points={points} />
+
+// A stable object for a dependency array
+const options = useMemo(() => ({ threshold }), [threshold])
+useEffect(() => observe(options), [options])
+
+// Chaining — each layer caches independently
+const filtered = useMemo(() => items.filter(matches), [items, query])
+const sorted = useMemo(() => [...filtered].sort(byPrice), [filtered])
+
+// ✗ Not worth it — the memo costs more than the work
+const count = useMemo(() => items.length, [items])
+
+// ○ Just compute it
+const count = items.length
+```
+
+## When to use it — and when not to {#when}
+
+Use `useMemo` when one of these is true:
+
+- The calculation is measurably slow — sorting, filtering or transforming thousands of items, parsing, building an `Intl` formatter.
+- The result is an **object or array** passed to a `memo()` child, or listed in a dependency array. Here the point is stable identity, not speed, and it is worth doing without measuring.
+
+Do not use it for these:
+
+- **Cheap calculations.** `items.length`, `price * 1.1`, `` `${first} ${last}` `` — the memo costs more than the work. Just compute it during render.
+- **Values you could keep in state instead.** If it is genuinely derived, derive it; if it is genuinely independent, use [useState](/guide/state/use-state/basics). `useMemo` is neither a store nor a substitute for either.
+- **Functions.** A function is a value, so `useMemo(() => fn, deps)` works — but [useCallback](/guide/state/use-callback/basics) exists for exactly that and reads better.
+- **Anything with a side effect.** Fetching, subscribing, writing to `document` — that is [useEffect](/guide/state/use-effect/basics). A memo may be discarded or re-run at React's discretion.
+- **Values that must survive without triggering renders.** That is [useRef](/guide/state/use-ref/basics).
 
 ## Common mistakes {#mistakes}
 
-<Diff
-  bad="wrapping every value and every handler in useMemo / useCallback"
-  good="writing it plainly, then memoizing the one spot that measurably lags"
-  note="Memoizing costs storage and comparisons. Applied everywhere it makes code slower to read and no faster to run."
-/>
+**Leaving a value out of the dependency array.** This is the bug that produces wrong numbers rather than slow ones.
+
+```tsx
+// ✗ `taxRate` is missing, so the total keeps the tax rate from the first render
+const total = useMemo(() => {
+  // Add up the prices, then apply tax.
+  return items.reduce((sum, item) => sum + item.price, 0) * taxRate
+}, [items]) // ← taxRate is read above but not listed here
+```
+
+Change the tax rate and the number on screen does not move, because React sees `items` unchanged and hands back the cached answer. Every value the calculation reads must be listed.
 
 <Diff
-  bad="const total = useMemo(() => price * (1 + tax), [price])"
-  good="const total = useMemo(() => price * (1 + tax), [price, tax])"
-  note="Every value used inside goes in the array. A missing dependency gives you a stale value with no error."
+  bad="useMemo(() => total(items) * taxRate, [items])"
+  good="useMemo(() => total(items) * taxRate, [items, taxRate])"
+  note="Anything the calculation reads goes in the array. A missing dependency freezes the result at its first value."
 />
 
+**Putting a fresh object in the dependency array.** The cache can then never hit.
+
+```tsx
+// ✗ `options` is a new object every render, so the memo recomputes every render
+const options = { currency: 'JPY' }
+const label = useMemo(() => format(amount, options), [amount, options])
+
+// ○ list the primitive the calculation actually depends on
+const label = useMemo(() => format(amount, { currency }), [amount, currency])
+```
+
+**Memoising something trivial.**
+
 <Diff
-  bad="passing style={{ width: 100 }} to a memo-wrapped child"
-  good="const style = useMemo(() => ({ width: 100 }), [])"
-  note="An inline object is a new object every render, so memo always sees a changed prop and redraws anyway."
+  bad="const count = useMemo(() => items.length, [items])"
+  good="const count = items.length"
+  note="Reading .length is far cheaper than storing dependencies and comparing an array every render."
 />
+
+**Forgetting `return` in a block body.** The value becomes `undefined`, usually crashing a few lines later with "cannot read properties of undefined".
+
+**Calling a hook inside the calculation.**
+
+```tsx
+// ✗ Error: hooks can only be called at the top level of a component
+const value = useMemo(() => {
+  const [x] = useState(0)
+  return x
+}, [])
+```
+
+Hooks are matched by call order across renders, and the memo's function does not run on every render. Move the hook out to the component body.
+
+**Expecting `useMemo` to stop a re-render.** It does not. The component still re-renders; only the calculation inside is skipped. Stopping a *child* from re-rendering is `memo()`, covered on the [useCallback page](/guide/state/use-callback/basics).
 
 ## Our standard {#standard}
 
 <Std
-  decision="Write it plainly first. Add useMemo / useCallback / memo only for work you have measured as slow, or to keep a prop stable for a memo-wrapped child"
-  alt="If your team would rather not think about this at all, the React Compiler inserts these optimizations automatically — see the setup part. We keep it off while learning so you can see the mechanism with your own eyes on this page."
+  decision="Write the plain calculation first. Add useMemo only when you have measured a slow render, or when the value is an object or array crossing into a memo() child or a dependency array"
+  alt="The React Compiler memoises automatically and makes most hand-written useMemo unnecessary. We deliberately leave it off in this guide so the exercises are visible on your own machine — see 'What is the React Compiler'. When you do enable it on a real project, delete hand-written memos rather than stacking both."
 >
 
-`useMemo(() => value, deps)` remembers a value, `useCallback(fn, deps)` remembers a function, `memo(Component)` skips a child whose props didn't change. The dependency array follows the same rule as `useEffect`: **everything the code inside uses goes in it**. Reach for them at the spot that hurts, not everywhere.
+Every `useMemo` costs something: React stores the previous dependencies and result, and compares the array on every render. For a cheap calculation that overhead is larger than the work you skipped. Measure with the Profiler, or with the demo's own trick of timing the render, before you reach for it. Identity-stability is the one case that does not need a measurement — there, an un-memoised array simply breaks the optimisation downstream.
 
 </Std>
 
+## What React is doing under the hood {#internals}
+
+`useMemo` stores two things in this component instance's hook slot: **the dependency array from the last render**, and **the value the function returned**.
+
+On every render:
+
+1. React builds your new dependency array — that part always runs, even when the memo hits.
+2. It compares the new array against the stored one, **position by position, using `Object.is`**. Same length, same order, every slot equal.
+3. All equal → React returns the stored value and **never calls your function**.
+4. Any difference → React calls your function, stores the new result and the new array, and returns the new result.
+
+Two consequences worth internalising. The comparison is **shallow**: `[{ id: 1 }]` and `[{ id: 1 }]` are two different objects and therefore not equal, which is the root of nearly every "my memo never hits" report. And the cache holds **exactly one entry** — it remembers the last result, not a history. Alternating between two dependency values means a miss every single time.
+
+<Deeper title="Is useMemo guaranteed to keep the value?">
+
+No, and the React documentation is explicit about it: `useMemo` is a performance hint. React may discard cached values — to free memory for offscreen content, for example — and recompute on the next render.
+
+The practical rule this creates: **never store something in `useMemo` that would be wrong to recreate.** If losing the value would break your app — a WebSocket connection, an ID that must stay stable, a mutable instance other code holds — it belongs in [useRef](/guide/state/use-ref/basics) or state, not in a memo.
+
+</Deeper>
+
+## TypeScript notes {#typescript}
+
+`useMemo` infers its type from what the function returns, so an explicit type argument is almost never needed.
+
+```tsx
+// TypeScript works out that `total` is a number.
+const total = useMemo(() => items.reduce((sum, item) => sum + item.price, 0), [items])
+
+// And that `names` is string[].
+const names = useMemo(() => items.map((item) => item.name), [items])
+```
+
+**When inference is not enough**, it is the same situation as `useState` — an empty collection, or a union you want to keep narrow:
+
+```tsx
+// ✗ inferred as never[], so nothing can ever be pushed into it
+const rows = useMemo(() => [], [])
+
+// ○ say what it holds
+const rows = useMemo<Product[]>(() => [], [])
+```
+
+**An object literal needs the wrapping parentheses**, or TypeScript reports a puzzling error because it is parsing a labelled statement, not an object:
+
+```tsx
+// ✗ error, and the message will not mention the missing parentheses
+const style = useMemo(() => { width: 100 }, [])
+
+// ○
+const style = useMemo(() => ({ width: 100 }), [])
+```
+
+**Typing a memoised formatter or instance** is worth doing explicitly, so the return type is obvious to the next reader:
+
+```tsx
+// The type argument documents what comes out without opening the function.
+const formatter = useMemo<Intl.NumberFormat>(() => {
+  return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' })
+}, [])
+```
+
+**The dependency array is typed as `unknown[]`**, so TypeScript will not catch a missing dependency. That job belongs to the `react-hooks/exhaustive-deps` lint rule, which this project has switched on — do not disable it to silence a warning; fix the array or restructure the code.
+
 ## When things go wrong {#trouble}
 
-- **The value is stale / doesn't update** … Something used inside is missing from the dependency array. Add it, and re-enable `react-hooks/exhaustive-deps` if it's off.
-- **`memo` doesn't stop the redraw** … A prop is a fresh object, array, or arrow function each render. Stabilise it with `useMemo` / `useCallback`.
-- **It got slower** … You memoized cheap work. Take it back out; the comparison cost more than the calculation.
-- **It recalculates every render anyway** … You passed `useMemo(calc(), deps)` instead of `useMemo(() => calc(), deps)`.
+- **The number on screen stops updating** … A value the calculation reads is missing from the dependency array, so you keep getting the cached answer — see [break it on purpose](#break-deps).
+- **The memo never seems to hit** … Something in the array is a fresh object or array each render. React compares with `Object.is`; list the primitive fields instead.
+- **`Cannot read properties of undefined`** … A block-bodied memo with no `return`. `useMemo(() => { … })` must return the value.
+- **An error mentioning a label or an unexpected token** … An object literal without wrapping parentheses. `useMemo(() => ({ … }), [])`.
+- **The child still re-renders even though I memoised its prop** … The child is not wrapped in `memo()`. Both halves are required.
+- **The component still re-renders** … It always will. `useMemo` skips the calculation, not the render.
+- **It got slower after I added memos everywhere** … Each memo stores an array and compares it on every render. Remove the ones around cheap calculations.
+- **`react-hooks/exhaustive-deps` is warning and I want it quiet** … It is right. Add the dependency, or move the value into the calculation. A disable comment here is how the frozen-value bug above ships.
 
 ## Summary & practice {#summary}
 
-<Exercise answer="Because the parent creates a new arrow function on every render, so onSelect is a different prop each time and memo's shallow comparison sees a change. Wrap it in useCallback (with the right dependencies) so the same function object is passed each render.">
+<Exercise answer="`taxRate` is read inside the calculation but missing from the dependency array, so React sees the dependencies as unchanged and returns the cached total. Add it: }, [items, taxRate]).">
 
-You wrapped a child in `memo`, but it still redraws every time the parent does. You pass it `onSelect={() => setId(item.id)}`. Why doesn't `memo` help, and what fixes it?
+A total is computed with `useMemo(() => sum(items) * taxRate, [items])`. Changing the tax rate does not update the number on screen. Why?
 
 </Exercise>
 
-<Exercise answer="No. The array is tiny, so filter costs far less than storing the old value and comparing dependencies every render. Write it plainly and memoize only what you have measured as slow.">
+<Exercise answer="No. Reading .length is one property access — far cheaper than storing the dependency array and comparing it on every render. Write const count = items.length. Memoise calculations that are measurably slow, or objects and arrays whose identity has to stay stable.">
 
-You have a 10-item list and someone suggests wrapping its `filter` in `useMemo`. Is that a good idea?
+Should you write `const count = useMemo(() => items.length, [items])`? Explain.
+
+</Exercise>
+
+<Exercise answer="`memo` compares props with Object.is, and points is a brand-new array on every render, so the check always fails and the child always redraws. Wrap it: const points = useMemo(() => sales.map(...), [sales]) — then the same array object is passed each time and memo can skip.">
+
+You wrapped a chart in `memo()` but it still redraws every time the parent updates. The parent passes `points={sales.map(toPoint)}`. What is wrong, and how do you fix it?
 
 </Exercise>
 
 <SummaryBox>
 
-- Every state update re-runs the whole component body, including calculations that didn't need redoing
-- `useMemo` remembers a value, `useCallback` remembers a function, `memo` skips a child with unchanged props. The dependency array behaves exactly like `useEffect`'s
-- Write it plainly first. Memoize the spot you have measured as slow, not everything
+- React re-runs the whole component body on every update. `useMemo` caches one calculation and redoes it only when a listed dependency changes
+- Every value the calculation reads must appear in the dependency array, or the result freezes at its first value
+- Reach for it when the work is measurably slow, or when an object or array has to keep a stable identity for `memo()` or a dependency array — not by default
 
 </SummaryBox>

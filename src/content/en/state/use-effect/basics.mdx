@@ -1,9 +1,9 @@
 ---
-title: What is useEffect (side effects)
-minutes: 11
+title: 'useEffect: syncing with the outside world'
+minutes: 33
 slug: use-effect-basics
 section: state
-description: "Write side effects that run after rendering with useEffect. Break down the syntax, write a clock as a full file, and organize the dependency array and cleanup. The trap of forgetting the dependency array and getting an infinite loop, plus a cheat sheet."
+description: "The complete useEffect reference: what it is, the minimal typed example, five real scenarios you attempt before reading the answer (scroll listener, IntersectionObserver, fetch, scroll lock, media query), every signature, when not to use it, the bugs beginners ship, how it runs under the hood, and the TypeScript traps."
 level: beginner
 prerequisites: ['state/use-state/basics']
 ---
@@ -12,193 +12,844 @@ import { ClockDemo } from '@/demos/Clock'
 
 <LearnBox>
 
-- What a "side effect" is, and why you need `useEffect`
-- Breaking down the `useEffect` syntax (the work, the dependency array, the cleanup)
-- The trap of forgetting the dependency array and getting an infinite loop, plus a cheat sheet
+- What `useEffect` is for — and the far longer list of things it is **not** for
+- Five scenarios you try yourself before reading the answer: scroll listener, IntersectionObserver, fetch, scroll lock, media query
+- Every signature, the classic bugs, the run order, and the TypeScript errors it produces
 
 </LearnBox>
 
-## A side effect is "work outside of rendering" {#why}
+## What it actually is {#what}
 
-So far our components have only "taken state and returned JSX". But real apps have other work too — **running a timer, fetching data from a server, changing `document.title`**, and so on. This kind of "**work other than drawing the screen**" is called a **side effect**.
+`useEffect` **keeps something outside of React in sync with your component**. That is the whole job.
 
-You can't write side effects in the middle of returning JSX (it makes rendering unstable). Instead, the dedicated place to **run them after rendering finishes** is **`useEffect`**.
+React owns the DOM it renders. It does not own the browser scroll position, `document.title`, a `setInterval`, an `IntersectionObserver`, a WebSocket, or a server. Those live outside React's world. When your component appears you often need to *connect* to one of them, and when it disappears you need to *disconnect*. `useEffect` is the place where that connect/disconnect pair lives.
 
-## Breaking down the useEffect syntax {#anatomy}
+The vanilla habit it replaces: on a landing page you wrote setup code once, at the top of a script tag.
 
-`useEffect` takes "the work you want to run" and "a dependency array". Let's name the parts of the skeleton.
+```js
+// Start listening for scrolls. Nothing ever removes this listener, and on an
+// LP that is fine — the page lives until the visitor navigates away.
+window.addEventListener('scroll', onScroll)
 
-```tsx
-useEffect(() => {
-  // ① the work you want to run (runs after rendering)
-  return () => {
-    // ② cleanup: runs before the next run, and when the component goes away
-  }
-}, [running])
-//  ↑
-//  └─ ③ dependency array: when a value in here changes, run again ([] means only the first time)
+// Build one observer for the whole page.
+const io = new IntersectionObserver(reveal)
+
+// Find every element with the class and hand each to the observer.
+document.querySelectorAll('.fade').forEach((el) => io.observe(el))
 ```
 
-- **① The work** … what you want to run after rendering (start a timer, fetch data, etc.).
-- **② Cleanup (`return () => {...}`)** … stop what you started (timers, subscriptions). **Optional**, but required for timers.
-- **③ Dependency array `[...]`** … decides "when to run". Empty `[]` means only the first time; `[running]` means every time `running` changes.
+That works because an LP script runs once and the page lives until you navigate away. A React component is different: it can mount, unmount, and mount again — a modal, a route, a tab panel. Run `addEventListener` on every mount with no matching `removeEventListener` and you stack listeners until the page stutters.
 
-## Writing a clock as a full file {#build}
+<Callout type="analogy">
 
-Create a new file `src/components/Clock/Clock.tsx` and paste in **this full file**. It's a clock whose number goes up every second.
+Think of a phone line, not a "run this after render" hook. Setup dials the number, cleanup hangs up. If a prop changes so you need to call a *different* number, React hangs up the old call and dials the new one. Every effect you write should read like a call you are willing to hang up.
 
-```tsx title="src/components/Clock/Clock.tsx (new file, full)"
+</Callout>
+
+## The smallest working example {#minimal}
+
+```tsx title="src/components/UnreadTitle/UnreadTitle.tsx"
+// useEffect runs code AFTER the component appears; useState holds a value.
 import { useEffect, useState } from 'react'
 
-export function Clock() {
-  const [seconds, setSeconds] = useState(0)
+export function UnreadTitle() {
+  // How many unread items there are. Starts at 0.
+  const [count, setCount] = useState(0)
 
   useEffect(() => {
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000) // ① start
-    return () => clearInterval(id) // ② cleanup
-  }, []) // ③ only the first time
+    // Work outside React: change the text in the browser's tab. React does
+    // not own document.title, so this cannot go in the JSX below.
+    document.title = `${count} unread`
+  }, [count]) // ← run this again whenever `count` changes
 
-  return <p>{seconds} sec</p>
+  return (
+    // Pressing this changes `count`, which redraws, which re-runs the effect.
+    <button type="button" onClick={() => setCount((c) => c + 1)}>
+      Mark one unread ({count})
+    </button>
+  )
 }
 ```
 
-`setInterval` calls `setSeconds` every second, and `clearInterval` stops it. `setSeconds((s) => s + 1)` is the functional form for the same reason as on [the previous page](/guide/state/use-state/functional-updates) (updating from the previous value).
+Three parts, and every effect you ever write has the same three:
 
-## What happens when you save {#result}
+```tsx
+useEffect(() => {
+  // ① setup — connect to the outside thing
+  return () => {
+    // ② cleanup — disconnect. Optional, but required for anything ongoing
+  }
+}, [count])
+//  ↑ ③ dependency array — the values the setup reads. Change one, React redials
+```
 
-`0 sec` appears on screen and goes up every second — `1 sec`, `2 sec`, and so on. **After** the component is displayed, `useEffect` runs and starts the timer, and since `setSeconds` updates state every second, it re-renders each time and the number advances.
+`document.title` needs no cleanup because setting it is not ongoing — there is nothing to hang up. Timers, listeners and observers all are, so they all need ②.
 
-## See it in action {#demo}
+## See it running {#demo}
 
-Below is the same thing with "stop / start" added (`running` is in the dependency array). Try it out.
+The clock below starts a `setInterval` in an effect and clears it in the cleanup. Stop it and the `running` flag changes, so React tears down the old interval and sets up a new one.
 
 <Demo title="A useEffect timer">
   <ClockDemo />
 </Demo>
 
-## The dependency array decides "when it runs" {#deps}
+## Scenario: a scroll listener (sticky header) {#scroll}
 
-The second `[ ]` specifies "**when a value in here changes, run again**". There are three patterns.
+<Callout type="note">
 
-- **`[]` (empty)** … only the first time. For an initial data fetch or starting a timer.
-- **`[query]`** … re-run every time `query` changes.
-- **Leaving it out** … **runs on every render**. Almost always a mistake, and a cause of infinite loops (we'll see this next).
+**Try it first.** Build a header that gains a "stuck" appearance once the page has scrolled past 80 pixels. Aim for:
 
-## Clean up with return {#cleanup}
+1. A piece of state holding whether it is currently stuck.
+2. A scroll listener that is attached once and removed when the component goes away.
+3. The header being correct immediately, even if the visitor reloads halfway down the page.
 
-`return () => {...}` is called **before the next re-run** and **when the component goes away**. If you don't stop the timer or subscription you started, it can run twice over or keep running even after the component is gone.
-
-```tsx
-useEffect(() => {
-  const id = setInterval(() => setSeconds((s) => s + 1), 1000)
-  return () => clearInterval(id) // without this, timers keep piling up
-}, [])
-```
-
-<Callout type="analogy">
-
-It's the same as turning off the light when you leave a room. Once you `setInterval` (turn it on), you're responsible through `clearInterval` (turn it off). Getting into the habit of writing cleanup is what makes your code safe.
+Hints: which hook holds `stuck`, and which one attaches the listener? What has to be returned from the effect? And what does the listener know at the moment the page first loads, if it has not fired yet?
 
 </Callout>
 
-## Break it on purpose: forget the dependency array and get an infinite loop {#break-loop}
+```tsx title="src/components/StickyHeader/StickyHeader.tsx"
+import { useEffect, useState } from 'react'
 
-Let's see what happens when you don't write a dependency array and update state inside.
+export function StickyHeader() {
+  // Whether the page has scrolled far enough to change the header's look.
+  const [stuck, setStuck] = useState(false)
+
+  useEffect(() => {
+    // Define the listener INSIDE the effect, so setup and cleanup both refer
+    // to this exact function object.
+    const onScroll = () => {
+      // window.scrollY is how far down the page is scrolled, in pixels.
+      // The comparison produces true or false, which goes straight into state.
+      setStuck(window.scrollY > 80)
+    }
+
+    // ① Run it once immediately, so a visitor who reloads halfway down the
+    //    page sees the correct header without touching the scroll wheel.
+    onScroll()
+
+    // ② Start listening. `passive: true` promises we will never call
+    //    preventDefault, so the browser can scroll without waiting for us.
+    window.addEventListener('scroll', onScroll, { passive: true })
+
+    // ③ Stop listening when the component goes away. The SAME function
+    //    object must be passed, or nothing is removed.
+    return () => window.removeEventListener('scroll', onScroll)
+  }, []) // empty array: attach once on mount, never re-attach
+
+  return (
+    // A data attribute rather than a class, so CSS can style
+    // [data-stuck='true'] without any class-name juggling in JavaScript.
+    <header data-stuck={stuck}>
+      <p>Logo</p>
+    </header>
+  )
+}
+```
+
+Line by line, the three details that are easy to miss:
+
+1. **`onScroll()` called immediately.** A listener only tells you about *changes*. Without this line, a visitor who reloads at the bottom of the page gets an unstuck header until they scroll one more pixel.
+2. **`{ passive: true }`.** Without it, the browser must wait for your handler to finish before it can scroll, in case you call `preventDefault()`. Adding this is free performance on every scroll listener you will ever write.
+3. **The same function reference in cleanup.** `removeEventListener` compares by identity, not by code. Because `onScroll` is defined inside the effect, setup and cleanup close over the same object. Define it outside the effect and every render creates a new one, so you remove a function that was never added.
+
+And the reason the array is empty: the effect reads nothing from props or state. `setStuck` is a `useState` setter, which React guarantees never changes.
+
+## Scenario: reveal on scroll with IntersectionObserver {#observer}
+
+<Callout type="note">
+
+**Try it first.** Build a wrapper component that marks its content as "shown" the first time it scrolls into view — the standard fade-up on a promo page. Aim for:
+
+1. No scroll listener at all; use `IntersectionObserver`.
+2. It fires once and then stops watching.
+3. It cleans up properly if the component is removed before it ever appears.
+
+Hints: you need a way to point at the real DOM element — which hook does that? What is that value during the very first render, and what does that mean for where you can read it? And why might copying it into a local variable be safer than reading it twice?
+
+</Callout>
+
+```tsx title="src/components/Reveal/Reveal.tsx"
+// `import type` brings in a type only. ReactNode means "anything React can
+// render" — text, elements, a list of them.
+import type { ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+interface RevealProps {
+  children: ReactNode
+}
+
+export function Reveal({ children }: RevealProps) {
+  // A box that will hold the real <div> element once React has created it.
+  // It is null right now, during the first render.
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Whether the element has appeared on screen yet.
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    // Copy the element into a local variable. By the time cleanup runs,
+    // ref.current may already be null — this const still points at the node.
+    const el = ref.current
+
+    // Defensive but necessary: TypeScript knows it might be null, and on some
+    // renders it genuinely is.
+    if (!el) return
+
+    // Build a watcher. It calls this function whenever the element crosses
+    // into or out of the viewport.
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        // `entry.isIntersecting` is true only when it is actually visible.
+        // If it is not, do nothing and wait for the next report.
+        if (!entry.isIntersecting) return
+
+        // Record that it appeared, which redraws with the visible styles.
+        setShown(true)
+
+        // We only ever want this once, so stop watching immediately.
+        io.disconnect()
+      },
+      // Fire when 20% of the element is visible, not the instant 1px shows.
+      { threshold: 0.2 },
+    )
+
+    // Start watching this specific element.
+    io.observe(el)
+
+    // If the component is removed before it ever appeared, stop watching.
+    return () => io.disconnect()
+  }, []) // empty: set the observer up once, on mount
+
+  return (
+    // `ref` is how React knows to put this element into ref.current.
+    // `data-shown` lets CSS handle the actual animation.
+    <div ref={ref} data-shown={shown}>
+      {children}
+    </div>
+  )
+}
+```
+
+Line by line:
+
+1. **`useRef<HTMLDivElement>(null)` plus `ref={ref}`** — the pair that gets you the real element. React fills `ref.current` in *after* rendering, which is exactly why the observer is set up in an effect and not in the render body.
+2. **`const el = ref.current` at the top** — the cleanup runs later, possibly after React has already cleared the ref back to `null`. The local `const` still points at the node you observed. Reading a ref inside an effect is correct; reading one *during render* is not (see [useRef](/guide/state/use-ref/basics)).
+3. **`io.disconnect()` in two places** — once inside the callback because the job is done, and once in the cleanup because the component might vanish before the job is ever done. Both are needed.
+4. **`{ threshold: 0.2 }`** — the fraction of the element that must be visible before it counts. `0` fires on the first pixel; `1` waits for the whole thing.
+
+## Scenario: fetch with loading and error state {#fetch}
+
+<Callout type="note">
+
+**Try it first.** Fetch a product list for a given `category` prop, showing a loading message while it arrives and an error message if it fails. Aim for:
+
+1. Refetching whenever `category` changes.
+2. Never showing the wrong category's results, even if the visitor clicks quickly.
+3. No warning about updating a component that has been removed.
+
+Hints: the effect callback itself cannot be `async` — why not, and what do you do instead? If two requests are in flight at once, which one wins by default, and is that the one the user asked for last? There is a browser API for cancelling a request, and cleanup is where you would use it.
+
+</Callout>
+
+```tsx title="src/components/ProductList/ProductList.tsx"
+import { useEffect, useState } from 'react'
+
+// The shape of one product coming back from the server.
+interface Product {
+  id: number
+  name: string
+  price: number
+}
+
+interface ProductListProps {
+  category: string
+}
+
+export function ProductList({ category }: ProductListProps) {
+  // The products themselves. Starts as an empty list.
+  const [products, setProducts] = useState<Product[]>([])
+
+  // Which situation we are in. One value instead of three booleans, so
+  // "loading and error at the same time" cannot be expressed.
+  const [status, setStatus] = useState<'loading' | 'error' | 'done'>('loading')
+
+  useEffect(() => {
+    // A remote control for cancelling this request.
+    const controller = new AbortController()
+
+    // Show the loading state before the request goes out.
+    setStatus('loading')
+
+    // Ask the server. `signal` is what lets us cancel it later.
+    fetch(`/api/products?category=${category}`, { signal: controller.signal })
+      .then((res) => {
+        // fetch does NOT throw on a 404 or a 500 — you must check yourself.
+        if (!res.ok) throw new Error(String(res.status))
+
+        // Parse the body as JSON. The `as` tells TypeScript what to expect.
+        return res.json() as Promise<Product[]>
+      })
+      .then((data) => {
+        // Store the results and move to the finished state.
+        setProducts(data)
+        setStatus('done')
+      })
+      .catch((err: unknown) => {
+        // Cancelling rejects the promise, but a cancellation is a success,
+        // not a failure — so bail out before showing an error.
+        if (err instanceof DOMException && err.name === 'AbortError') return
+
+        // Anything else is a genuine failure.
+        setStatus('error')
+      })
+
+    // Cancel the in-flight request when `category` changes or the component
+    // goes away. This is what prevents the race described below.
+    return () => controller.abort()
+  }, [category]) // re-run whenever the category changes
+
+  // Early returns keep the list below uncluttered.
+  if (status === 'loading') return <p>Loading…</p>
+  if (status === 'error') return <p>Could not load products.</p>
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.id}>
+          {product.name} — {product.price.toLocaleString()} yen
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Line by line:
+
+1. **`new AbortController()` is not optional polish.** Switch category quickly and two requests are in flight. Without cancellation, whichever *finishes* last wins — which may well be the one you asked for first. Aborting in the cleanup means the stale request is dropped the moment `category` changes.
+2. **`if (!res.ok) throw`** — `fetch` only rejects on a network failure. A 404 or a 500 arrives as a perfectly successful promise with `ok: false`, so an unchecked fetch silently renders an error page as if it were data.
+3. **The `AbortError` check** — aborting rejects the promise, and that rejection is you doing your job correctly. Without this line, every category switch would flash an error message.
+4. **`return () => controller.abort()`** — the cleanup runs *before* the next effect, so the old request is cancelled before the new one starts.
+
+We go deeper on this shape in [the data part](/guide/data/three-states), and extract it into a hook in [Extracting a useProducts custom hook](/guide/data/custom-hook).
+
+## Scenario: lock the page behind a modal {#lock}
+
+<Callout type="note">
+
+**Try it first.** Write a reusable hook that stops the page behind a modal from scrolling while the modal is open. Aim for:
+
+1. It does nothing at all while the modal is closed.
+2. Opening it locks the page; closing it unlocks.
+3. If something else on the page had already changed `overflow`, you do not stomp on it.
+
+Hints: an effect is allowed to `return` early — what does React record for that run? And when you restore the page afterwards, is `''` really the right value to restore to?
+
+</Callout>
+
+```tsx title="src/hooks/useBodyScrollLock.ts"
+import { useEffect } from 'react'
+
+// A custom hook — an ordinary function whose name starts with "use" and which
+// is allowed to call other hooks. Any component can use this one.
+export function useBodyScrollLock(locked: boolean) {
+  useEffect(() => {
+    // Not locked? Do nothing at all. React simply records no cleanup for
+    // this run, and the effect is a no-op.
+    if (!locked) return
+
+    // Remember whatever overflow value was already there before we touch it.
+    const previous = document.body.style.overflow
+
+    // Stop the page behind from scrolling.
+    document.body.style.overflow = 'hidden'
+
+    // On unlock (or unmount), put back exactly what was there before —
+    // not a hardcoded default.
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [locked]) // re-run whenever the locked flag flips
+}
+```
+
+Line by line:
+
+1. **The early `return`** — an effect may bail out before setting anything up, and React just records no cleanup for that run. You do not need to wrap the whole body in an `if` block.
+2. **`const previous = ...` before writing** — capture the old value at setup time, in the same closure the cleanup will use.
+3. **Restoring `previous`, not `''`** — if another component also locked the body, hardcoding `''` unlocks it out from under them. Restoring what was actually there composes correctly.
+4. **`[locked]`** — the effect reads `locked`, so it must be listed. Flip it and React runs the cleanup for the old value, then the setup for the new one.
+
+## Scenario: react to prefers-reduced-motion {#media}
+
+<Callout type="note">
+
+**Try it first.** Write a hook returning `true` when the visitor has asked their operating system to reduce motion, so you can skip animations for them. Aim for:
+
+1. The correct answer as soon as the component appears.
+2. Updating live if they change the setting while the page is open.
+3. Not crashing if the page is ever rendered on a server.
+
+Hints: `window.matchMedia('(prefers-reduced-motion: reduce)')` gives you an object with a `matches` boolean and a `change` event. Which of those two do you read at setup, and which do you subscribe to? And what does `window` mean on a server?
+
+</Callout>
+
+```tsx title="src/hooks/useReducedMotion.ts"
+import { useEffect, useState } from 'react'
+
+// `: boolean` after the parentheses declares what this hook returns.
+export function useReducedMotion(): boolean {
+  // Start with the safe default. `window` does not exist during server
+  // rendering, so we cannot ask the browser yet.
+  const [reduced, setReduced] = useState(false)
+
+  useEffect(() => {
+    // Effects only run in the browser, so `window` is guaranteed here.
+    // matchMedia gives back an object that tracks one CSS media query.
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+    // Read the current answer once, so the first render after mount is right.
+    setReduced(mq.matches)
+
+    // Then keep listening, in case they change the OS setting live.
+    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches)
+    mq.addEventListener('change', onChange)
+
+    // Stop listening when the component goes away.
+    return () => mq.removeEventListener('change', onChange)
+  }, []) // empty: subscribe once
+
+  // Hand the answer back to whichever component called this hook.
+  return reduced
+}
+```
+
+Line by line:
+
+1. **`useState(false)` then reading `mq.matches` in the effect** — this split is deliberate. The initial value must be safe to compute anywhere, including on a server where `window` does not exist. The real answer arrives one render later.
+2. **`mq.matches` and the `change` listener are two different things** — `matches` is the answer *right now*; the listener is for *future* changes. You need both, or the hook is either permanently stale or wrong on first paint.
+3. **`MediaQueryListEvent`, not `Event`** — the specific type is what gives you `event.matches` with no cast.
+
+Motion libraries ship their own version of this — see [Respecting reduced-motion settings](/libraries/framer-motion/reduced-motion).
+
+## Every way to call it {#signatures}
+
+**The three dependency forms.** This is the only argument that matters.
+
+```tsx
+// ① No array at all — runs after every single render. Almost always a bug.
+useEffect(() => {
+  console.log('every render')
+})
+
+// ② Empty array — set up once when the component appears, clean up when it
+//    goes away. Nothing in here can ever change, so it never re-runs.
+useEffect(() => {
+  console.log('mounted')
+}, [])
+
+// ③ Listed values — re-run whenever any of them changes.
+useEffect(() => {
+  console.log('query is now', query)
+}, [query])
+```
+
+**Cleanup is a returned function, and only that.** Return anything else and TypeScript rejects it.
 
 ```tsx
 useEffect(() => {
-  setSeconds(seconds + 1) // no dependency array
+  // Start a repeating timer, keeping the id it hands back.
+  const id = setInterval(() => setSeconds((s) => s + 1), 1000)
+
+  // Return a function that stops it. React calls this before the next run
+  // and when the component goes away.
+  return () => clearInterval(id)
+}, [])
+```
+
+**The effect callback cannot be `async`.** An `async` function returns a promise, and React expects a cleanup function. Declare the async work inside instead.
+
+```tsx
+useEffect(() => {
+  // Define an async function inside, where async IS allowed.
+  const load = async () => {
+    const res = await fetch('/api/products')
+    setProducts((await res.json()) as Product[])
+  }
+
+  // Call it. `void` tells TypeScript "yes, this returns a promise and I am
+  // deliberately not awaiting it".
+  void load()
+}, [])
+```
+
+**Reading the latest value without re-subscribing.** Sometimes a listener needs the current `label`, but re-attaching the listener every time `label` changes is wasteful. Park the value in a ref.
+
+```tsx
+// A box that survives renders and does not cause them.
+const labelRef = useRef(label)
+
+// Keep the box up to date whenever the prop changes. Cheap: no listener work.
+useEffect(() => {
+  labelRef.current = label
+}, [label])
+
+useEffect(() => {
+  // The listener reads the box, so it always sees the current value…
+  const onScroll = () => console.log(labelRef.current, window.scrollY)
+  window.addEventListener('scroll', onScroll, { passive: true })
+  return () => window.removeEventListener('scroll', onScroll)
+}, []) // …while this effect itself never re-runs
+```
+
+**Depend on primitives, not fresh objects.** An object literal is a new object on every render, so it never equals the previous one.
+
+```tsx
+// ✗ A new object every render means the dependency never matches, so the
+//    effect tears down and sets up forever.
+useEffect(() => {
+  observe({ threshold, rootMargin })
+}, [{ threshold, rootMargin }])
+
+// ○ List the primitive values instead. Numbers and strings compare by value.
+useEffect(() => {
+  observe({ threshold, rootMargin })
+}, [threshold, rootMargin])
+```
+
+**One effect per concern.** Two unrelated jobs in one effect means changing either one tears down both.
+
+```tsx
+// ✗ The timer and the search are unrelated, but they share a dependency
+//    array — so typing in the search box restarts the timer.
+useEffect(() => {
+  const id = setInterval(tick, 1000)
+  search(query)
+  return () => clearInterval(id)
+}, [query])
+
+// ○ Two effects, two dependency arrays, two independent lifetimes.
+useEffect(() => {
+  const id = setInterval(tick, 1000)
+  return () => clearInterval(id)
+}, [])
+
+useEffect(() => {
+  search(query)
+}, [query])
+```
+
+## Break it on purpose: forget the dependency array {#break-loop}
+
+Paste this into a component that has a `seconds` state and save. Watch what happens before reading on.
+
+```tsx title="deliberately wrong"
+useEffect(() => {
+  // Update state, with no dependency array at all.
+  setSeconds(seconds + 1)
 })
 ```
 
-Save, and this shows up in the console and the screen freezes.
+The tab freezes and the console fills with:
 
 ```
 Warning: Maximum update depth exceeded.
 ```
 
-That's "**the update depth is too deep (an infinite loop)**". It happens because: render → `useEffect` runs `setSeconds` → state changes and re-renders → `useEffect` runs again → `setSeconds` again … forever. The cause is that leaving out the dependency array means "run every time". **Always specify "when it runs" with `[ ]`**.
+Trace the loop yourself, because you will meet it again: render → the effect runs (no array means "after every render") → `setSeconds` → state changed, so React re-renders → the effect runs again → forever. Nothing stops it, because nothing was ever told when to stop.
 
-## Cheat sheet: the 3 useEffect patterns {#catalog}
-
-The shapes you use are roughly these three. Memorize them together.
+Now add the array and save again:
 
 ```tsx
-// ① once on mount (initial data fetch, etc.)
 useEffect(() => {
-  console.log('only the first time')
+  setSeconds(seconds + 1)
+}, []) // ← "only after the first render"
+```
+
+The freeze stops instantly. **The dependency array is not optional decoration — it is the entire answer to "when does this run".** Leaving it off is the one mistake that takes a page down rather than making it slightly wrong.
+
+## Cheat sheet: the effect patterns {#catalog}
+
+```tsx
+// ① Once, when the component appears — subscriptions, initial fetch
+useEffect(() => {
+  console.log('mounted')
 }, [])
 
-// ② every time a specific value changes
+// ② Whenever a value changes
 useEffect(() => {
-  console.log('query changed:', query)
+  console.log('query is now', query)
 }, [query])
 
-// ③ things that need cleanup (timers, subscriptions)
+// ③ Anything ongoing — always paired with a cleanup
 useEffect(() => {
   const id = setInterval(tick, 1000)
   return () => clearInterval(id)
 }, [])
-```
 
-<Together
-  task="Write a useEffect that changes document.title to 'Product list app' just once when the page opens. (You can change it with document.title = '...'.)"
-  hint="useEffect(() => { document.title = 'Product list app' }, []) — an empty dependency array [] means 'only the first time'."
->
-
-```tsx
+// ④ A browser event listener
 useEffect(() => {
-  document.title = 'Product list app'
+  const onScroll = () => setY(window.scrollY)
+  onScroll() // read the current value once
+  window.addEventListener('scroll', onScroll, { passive: true })
+  return () => window.removeEventListener('scroll', onScroll)
+}, [])
+
+// ⑤ An observer
+useEffect(() => {
+  const el = ref.current
+  if (!el) return
+  const io = new IntersectionObserver(onCross, { threshold: 0.2 })
+  io.observe(el)
+  return () => io.disconnect()
+}, [])
+
+// ⑥ Fetching, with the request cancelled when the input changes
+useEffect(() => {
+  const controller = new AbortController()
+  void load(query, controller.signal)
+  return () => controller.abort()
+}, [query])
+
+// ⑦ Async work — the effect itself may never be async
+useEffect(() => {
+  const run = async () => {
+    await doThing()
+  }
+  void run()
 }, [])
 ```
 
-Changing `document.title` is "work other than drawing the screen" — a side effect — so you write it inside `useEffect`. The dependency array `[]` makes it run just once, the first time.
+## When to use it — and when not to {#when}
 
-</Together>
+Use `useEffect` when your component has to **reach outside React**: the DOM APIs, the browser, the network, a timer, a third-party library instance.
+
+Do not use it for these — each has a better answer:
+
+- **Deriving a value from props or state.** Just compute it while rendering: `const total = items.length`. A `useState` + `useEffect` pair to keep `total` "in sync" is one render slower and one bug wider. If the computation is measurably expensive, reach for [useMemo](/guide/state/use-memo/basics) — not an effect.
+- **Responding to a click, submit or change.** Put the code in the handler. An effect that watches a `submitted` flag runs *after* the render, so your network call fires a frame late and runs again on every unrelated re-render.
+- **Resetting state when a prop changes.** Give the component a `key`: `<Editor key={userId} />`. React throws the old instance away and mounts a fresh one with fresh state. No effect, no flash of stale values.
+- **Computing an expensive initial value.** Use the lazy initializer: `useState(() => parse(raw))`. It runs once, before the first paint, instead of after it.
+- **Measuring the DOM and adjusting layout before the user sees it.** That is `useLayoutEffect`, which runs before the browser paints. `useEffect` runs after, so the user sees one frame of the wrong position.
+- **Subscribing to a store outside React.** `useSyncExternalStore` exists exactly for this and gets the tearing edge cases right.
 
 ## Common mistakes {#mistakes}
 
-<Diff
-  bad="useEffect(() => { setX(x + 1) }) (no dependency array + state update)"
-  good="useEffect(() => { setX(x + 1) }, [])"
-  note="Forget the dependency array and it runs every time. If you update state, it becomes an infinite loop."
-/>
+**A missing dependency freezes the value (a stale closure).**
+
+```tsx
+// ✗ Logs "count: 0" forever.
+useEffect(() => {
+  // This arrow function captured `count` at the moment it was created.
+  const id = setInterval(() => console.log('count:', count), 1000)
+  return () => clearInterval(id)
+}, []) // ← count is read above but not listed here
+```
+
+The effect ran once, on the first render, when `count` was `0`. The arrow function it created captured that `0` and nothing ever replaces it. Two fixes, depending on intent: add `count` to the array (the interval restarts on every change), or keep `count` in a ref as shown in [Every way to call it](#signatures) (the interval stays put and reads the fresh value).
 
 <Diff
-  bad="const id = setInterval(...) (no cleanup)"
-  good="return () => clearInterval(id)"
-  note="Stop the timers and subscriptions you started with return. Leave them and they run multiple times over."
+  bad="useEffect(() => { ... reads count ... }, [])"
+  good="useEffect(() => { ... reads count ... }, [count])"
+  note="Every value from the component that the setup reads belongs in the array. Leave one out and it stays frozen at its first-render value."
 />
+
+**An object or array in the deps re-runs forever.**
+
+```tsx
+// ✗ `options` is rebuilt on every render, so it is never the same object as
+//    last time, so the effect runs, which renders, which rebuilds it…
+const options = { threshold: 0.2 }
+useEffect(() => {
+  observe(options)
+}, [options])
+```
+
+React compares dependencies with `Object.is`. Two objects with identical contents are not the same object. Depend on the primitive fields instead, or move the object inside the effect.
+
+**Updating state with no dependency array.**
+
+```tsx
+// ✗ Warning: Maximum update depth exceeded.
+//   Render → effect → setSeconds → render → effect → forever.
+useEffect(() => {
+  setSeconds(seconds + 1)
+})
+```
+
+This is the loop every beginner ships once.
+
+<Diff
+  bad="useEffect(() => { setX(x + 1) })"
+  good="useEffect(() => { setX(x + 1) }, [])"
+  note="No array means 'after every render'. Combine that with a state update and you have an infinite loop."
+/>
+
+**No cleanup on anything ongoing.**
+
+<Diff
+  bad="useEffect(() => { window.addEventListener('scroll', onScroll) }, [])"
+  good="useEffect(() => { window.addEventListener('scroll', onScroll); return () => window.removeEventListener('scroll', onScroll) }, [])"
+  note="Listeners, intervals, observers and subscriptions all pile up across mounts without a cleanup."
+/>
+
+**Two responses racing, and the slow one wins.** Covered in [the fetch scenario](#fetch): abort in the cleanup, or set an `ignore` flag.
+
+```tsx
+useEffect(() => {
+  // A flag this run can check when its response eventually arrives.
+  let ignore = false
+
+  fetch(`/api/products?category=${category}`)
+    .then((res) => res.json() as Promise<Product[]>)
+    .then((data) => {
+      // If cleanup already ran, this run is stale — drop the result.
+      if (!ignore) setProducts(data)
+    })
+
+  // Cleanup flips the flag for THIS run's closure only.
+  return () => {
+    ignore = true
+  }
+}, [category])
+```
+
+**Using an effect to mirror one state into another.**
+
+```tsx
+// ✗ Two renders per change, and `fullName` is stale for the first of them.
+const [fullName, setFullName] = useState('')
+useEffect(() => {
+  setFullName(`${first} ${last}`)
+}, [first, last])
+
+// ○ One render, never stale, and one fewer thing to keep in sync.
+const fullName = `${first} ${last}`
+```
 
 ## Our standard {#standard}
 
 <Std
-  decision="Write side effects in useEffect, always specify the dependency array, and clean up what you started (timers, subscriptions) with return"
-  alt="You can fetch data from a server with useEffect too, but as things grow a data-fetching library becomes easier (we cover it in the data part). First, get a feel for the shape of useEffect."
+  decision="Reach for useEffect only when the component must connect to something outside React — and always ship the cleanup with the setup, in the same edit"
+  alt="Data fetching is the one common case where useEffect is the teaching answer but not the production one. Once the app has more than a couple of endpoints, a router loader or a data library gives you caching, deduping and race handling for free. Learn the effect version first — every library is this code with a cache on top."
 >
 
-`useEffect(work, dependency array)`. The dependency array is "when it runs" — `[]` for only the first time, `[value]` to react to a specific value. Don't leave it out. Stop what you started with `return`. Keep these three points and you'll prevent almost all `useEffect` accidents.
+Write the setup and the `return` cleanup at the same moment, before you run the code. Cleanup added later is cleanup you forgot on three other effects. Then list in the dependency array every value from the component that the setup reads — not fewer, and let the `react-hooks/exhaustive-deps` lint rule check you.
 
 </Std>
 
+## What React is doing under the hood {#internals}
+
+The order for a single update:
+
+1. **Render** — React calls your component function. It returns JSX. No effect has run yet.
+2. **Commit** — React applies the differences to the real DOM.
+3. **Paint** — the browser draws the frame. The user sees it.
+4. **Effects** — React runs the cleanup from the previous run of each changed effect, then its new setup.
+
+Effects run *after* paint, which is why they never block the first frame — and why measuring layout in a `useEffect` can produce a visible jump.
+
+Comparison is positional and shallow: React keeps the previous array, walks it index by index, and compares with `Object.is`. Any single mismatch re-runs the whole effect (cleanup first). This positional matching is also why a hook may never sit inside an `if` or a loop — the array of hooks has to line up across renders.
+
+<Deeper title="Why does my effect run twice in development?">
+
+In `StrictMode` — which `src/main.tsx` turns on — React deliberately runs each mount effect **setup, cleanup, setup** in development. It is a smoke test: an effect with correct cleanup survives it invisibly, while one that stacks listeners or double-starts a timer shows the bug immediately, on your machine, instead of in production after a user opens the same modal twice.
+
+It never happens in a production build. If double-running breaks your effect, the cleanup is what is wrong — do not remove `StrictMode`.
+
+</Deeper>
+
+## TypeScript notes {#typescript}
+
+`useEffect` takes no type argument and needs none — inference always suffices. The type errors it produces are all about the **return value**, which must be `void` or a cleanup function.
+
+**A concise arrow body returns a value, and that is an error.**
+
+```tsx
+// ✗ An arrow with no braces returns whatever the expression evaluates to —
+//   here, the assigned string. React expected a cleanup function.
+useEffect(() => (document.title = title), [title])
+
+// ○ Braces make the body a statement, so nothing is returned.
+useEffect(() => {
+  document.title = title
+}, [title])
+```
+
+The same trap catches `useEffect(() => setOpen(false), [])` in reverse: that one compiles, because `setOpen` returns `void`. The rule is about what the arrow returns, not what it does.
+
+**`async` effects fail for the same reason.**
+
+```tsx
+// ✗ Type 'Promise<void>' is not assignable to type 'void | Destructor'.
+//   An async function always returns a promise, never a cleanup function.
+useEffect(async () => {
+  await load()
+}, [])
+```
+
+**Timer ids are not `number`.** `setInterval` returns a `number` in the browser and a `Timeout` object in Node, and your editor may be looking at either. Let TypeScript work it out:
+
+```tsx
+// "Whatever type setInterval returns here, or null." Works in both worlds.
+const idRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+useEffect(() => {
+  // Store the id so the cleanup can reach it.
+  idRef.current = setInterval(tick, 1000)
+
+  return () => {
+    // The null check is what convinces TypeScript this is safe to pass on.
+    if (idRef.current !== null) clearInterval(idRef.current)
+  }
+}, [])
+```
+
+**Event listeners infer from the event name — but only inline.**
+
+```tsx
+// ○ Written inline, TypeScript knows 'change' on a MediaQueryList produces a
+//   MediaQueryListEvent, so `event` is typed for free.
+mq.addEventListener('change', (event) => setReduced(event.matches))
+
+// ✗ A named function defined elsewhere has no such context — annotate it.
+const onChange = (event: MediaQueryListEvent) => setReduced(event.matches)
+mq.addEventListener('change', onChange)
+```
+
+**Refs need the narrowing.** `useRef<HTMLDivElement>(null)` has type `HTMLDivElement | null`, so the `if (!el) return` in the observer scenario is not defensive noise — it is what makes `el` a `HTMLDivElement` for the rest of the effect.
+
 ## When things go wrong {#trouble}
 
-- **`Maximum update depth exceeded`** … A `useEffect` with no dependency array is updating state. Add a dependency array like `[]`.
-- **The timer runs twice / keeps running after it's gone** … You didn't write the `return` cleanup. Stop it with `clearInterval` or similar.
-- **It runs many times when you meant just once** … Check that the dependency array is `[]`.
+- **`Maximum update depth exceeded` / the tab freezes** … An effect with no dependency array is calling a setter. Add the array — see [break it on purpose](#break-loop).
+- **The effect runs on every render when I wanted it once** … Either the array is missing, or something in it is a fresh object or array each render. Depend on primitives.
+- **The effect runs twice on mount, only in development** … That is `StrictMode` doing its job. If double-running breaks it, the cleanup is wrong; do not remove `StrictMode`.
+- **A timer runs twice as fast, or keeps ticking after the component is gone** … No cleanup. `return () => clearInterval(id)`.
+- **The page gets slower every time I open and close a modal** … Listeners are stacking up. `removeEventListener` must receive the same function object you added, so define the handler inside the effect.
+- **A value inside the effect is stuck at its first-render value** … A missing dependency (a stale closure). Add it to the array, or keep the value in a ref.
+- **The wrong data appears after clicking quickly** … Two requests raced and the slower one won. Abort in the cleanup, or use an `ignore` flag.
+- **`Type 'Promise<void>' is not assignable to type 'void | Destructor'`** … The effect callback is `async`. Declare an async function inside and call it with `void`.
+- **`Type 'string' is not assignable to type 'void | Destructor'`** … A concise arrow body is returning a value. Add braces.
+- **`Can't perform a React state update on an unmounted component`** … An async result arrived after the component left. Abort or guard with `ignore` in the cleanup.
 
 ## Summary & practice {#summary}
 
-<Exercise answer="Without a dependency array it runs on every render, and calling setState inside causes re-render → run again … an infinite loop (Maximum update depth exceeded). Add a dependency array like [].">
+<Exercise answer="Nothing removes the listener. Every time the component mounts it adds another one, and they all survive unmounting, so after opening and closing the modal five times the handler runs five times per scroll event. Fix: return () => window.removeEventListener('scroll', onScroll) from the effect, passing the same function reference you added.">
 
-You're calling `setState` inside a `useEffect` and got `Maximum update depth exceeded`. Explain the cause and the fix.
+A modal component adds `window.addEventListener('scroll', onScroll)` in a `useEffect` with `[]`. It works, but after opening and closing the modal a few times the page gets sluggish. What is happening, and what is the fix?
+
+</Exercise>
+
+<Exercise answer="Neither. Compute it during render: const filtered = products.filter((p) => p.category === category). Storing derived data in state costs an extra render and can show a stale list for one frame. Only reach for useMemo if you have measured the filter as slow.">
+
+You want a filtered list that updates whenever `category` changes. Should you keep `filtered` in `useState` and update it from a `useEffect`, or something else?
 
 </Exercise>
 
 <SummaryBox>
 
-- Write side effects (timers, data fetching, `document.title`, etc.) in `useEffect`. They run after rendering
-- The syntax is `useEffect(work, dependency array)`. `[]` is only the first time, `[value]` is every time that value changes
-- Clean up what you started with `return`. Forgetting the dependency array is the source of infinite loops
+- `useEffect` connects your component to things outside React, and the cleanup disconnects it. Write both together
+- The dependency array lists every value the setup reads. `[]` is mount-only, no array is every render (almost always a bug)
+- Deriving values, handling clicks, resetting state on a prop change and expensive initial values all have better answers than an effect
 
 </SummaryBox>

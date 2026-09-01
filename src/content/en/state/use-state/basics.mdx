@@ -1,206 +1,1026 @@
 ---
-title: The basics of useState
-minutes: 11
+title: 'useState: remembering values between renders'
+minutes: 40
 slug: use-state-basics
 section: state
-description: "Break down const [count, setCount] = useState(0) piece by piece and write a counter in full. The three parts—initial value, reading, and the updater function—plus the trap of assigning to count directly. Includes a writing catalog."
+description: "The complete useState reference: what state is and why a plain variable won't do, the minimal typed example, five real scenarios you attempt before reading the answer (form input, toggle, list, object form, request status), every signature including the lazy initializer and updater form, when not to use it, the bugs beginners ship, how React stores state, and the TypeScript traps."
 level: beginner
-prerequisites: ['state/use-state/what-is-state', 'javascript/destructuring']
+prerequisites: ['state/goal', 'javascript/destructuring']
 ---
 
+import { ArrayStateDemo } from '@/demos/ArrayStateDemo'
 import { CounterDemo } from '@/demos/Counter'
+import { FavoriteDemo } from '@/demos/Favorite'
+import { PlainVsStateDemo } from '@/demos/PlainVsState'
+import { TripleClickDemo } from '@/demos/TripleClick'
 
 <LearnBox>
 
-- Break down the three parts of `const [count, setCount] = useState(0)`
-- Write a counter as **one full file**
-- Tell "reading" the value apart from the "updater function," and the trap of direct assignment
+- What state is, and the precise reason a plain `let` cannot do the job
+- Five scenarios you try yourself before reading the answer: form input, toggle, list, object form, request status
+- Every signature — lazy initializer, updater form, deriving vs storing, state from props, lifting up — plus the classic bugs and the TypeScript traps
 
 </LearnBox>
 
-## Break down the one line of useState {#anatomy}
+## What state actually is {#what}
 
-To hold state, you use a **hook** called `useState`. First, let's put **a name on each part** of this one line.
+**State is a value React remembers between renders, and changing it is how you tell React to redraw.** Those are two separate jobs, and both matter.
 
-```tsx
-const [count, setCount] = useState(0)
-//     ↑      ↑                    ↑
-//     │      │                    └─ initial value. The value that's in there at first
-//     │      └─ the updater function. Call it and a re-render happens
-//     └─ the current value. Think of it as read-only
+On a landing page, the truth lived in the DOM. You asked the page what was going on and then wrote back to it:
+
+```js
+// Ask the DOM whether the nav currently has the "is-open" class on it.
+const isOpen = nav.classList.contains('is-open')
+
+// Write the opposite back — this is both the storage and the display.
+nav.classList.toggle('is-open', !isOpen)
+
+// Read the number out of the page as text, turn it into a number, add one,
+// turn it back into text, and put it back. The page IS the variable.
+count.textContent = String(Number(count.textContent) + 1)
 ```
 
-- **`useState(0)`** … creates the state. Inside the parentheses is the **initial value** (`0` here).
-- **`count`** … the current value. Used for display. **You don't rewrite it yourself.**
-- **`setCount`** … the updater function. Call `setCount(new value)` and the value changes and a **re-render** happens.
+That works until two places disagree about `is-open`. React inverts it: **you keep the truth in a variable, describe what the screen looks like for that value, and React writes the DOM.** State is that variable.
 
-Why receive it as a `[ ]` array instead of a `{ }` object? Because `useState` returns a **two-element array** of "\[current value, updater function\]". Since it's array destructuring ([Part 2](/guide/javascript/destructuring)), **you get to choose the names yourself**. Writing them as a "value" / "set + value" pair like `count` / `setCount` is the convention.
+So why not a plain `let`? Two reasons, and the second is the fatal one.
 
-<JsNote feature="[count, setCount] is array destructuring">
+```tsx
+// Define a component. Remember: React calls this function again on every update.
+export function Broken() {
+  // ① Create a variable set to 0. Because the whole function runs again on
+  //    every render, this line resets it to 0 every single time.
+  let count = 0
 
-`const [a, b] = someArray` pulls out the 1st and 2nd items—that's destructuring. Since `useState`'s return value is an array, this form receives both "the current value" and "the updater function" at once.
+  return (
+    // When the button is pressed, add one to the variable.
+    <button type="button" onClick={() => (count = count + 1)}>
+      {/* ② Show the variable. The assignment above changed it, but nothing
+             told React the screen was out of date — so nothing redraws. */}
+      {count}
+    </button>
+  )
+}
+```
 
-</JsNote>
+Your component is a **function React calls again on every render**, so a local `let` is created fresh each time — nothing survives. And even if it did survive, assigning to it is a silent operation: nothing notifies React that the screen is now out of date. `useState` fixes both. Press the left button below as many times as you like; the number never moves, though the console shows the variable really is changing.
 
-## Write the counter in full {#build}
+<Demo title="A plain variable vs. state">
+  <PlainVsStateDemo />
+</Demo>
 
-Once you've broken it down, write it for real. Create a new file `src/components/Counter/Counter.tsx` and paste in **this entire file** (it works as-is, not as a fragment).
+<Callout type="analogy">
 
-```tsx title="src/components/Counter/Counter.tsx (new file, full source)"
+State is a whiteboard React keeps for each component instance. Your function reads the board every time it runs. `setCount` doesn't edit the board mid-sentence — it hands React a new value, React wipes and rewrites the board, then calls your function again to see what the screen should look like now.
+
+</Callout>
+
+## The smallest working example {#minimal}
+
+```tsx title="src/components/Counter/Counter.tsx"
+// Bring the useState tool in from the React library. The curly braces mean
+// "take just this one thing out of the react package".
 import { useState } from 'react'
 
+// Define and export a component so other files can use it.
 export function Counter() {
+  // Ask React to remember a number for this component, starting at 0.
+  // `count` is the current value; `setCount` is how you change it.
   const [count, setCount] = useState(0)
 
   return (
     <div>
-      <button type="button" onClick={() => setCount(count - 1)}>
-        −
-      </button>
-      <span>{count}</span>
+      {/* Print the current value into the page. */}
+      <p>{count}</p>
+
+      {/* When pressed, hand React a new value: the current one plus one.
+          React then re-runs this whole function with the new number. */}
       <button type="button" onClick={() => setCount(count + 1)}>
-        ＋
+        Add one
       </button>
     </div>
   )
 }
 ```
 
-On the calling side (`App.tsx`), you use it like this.
+One line does all of it. Named parts:
 
-```tsx title="src/App.tsx (the caller)"
-import { Counter } from './components/Counter/Counter'
-
-function App() {
-  return <Counter />
-}
-
-export default App
+```tsx
+const [count, setCount] = useState(0)
+//     ↑       ↑                   ↑
+//     │       │                   └─ ③ the initial value, used on the first render only
+//     │       └─ ② the setter: call it to change the value and schedule a redraw
+//     └─ ① the current value: read it, never assign to it
 ```
 
-## What happens when you save {#result}
+`useState` returns an array of exactly two things, and the `[a, b]` on the left is [array destructuring](/guide/javascript/destructuring) — you are naming them. The names are yours; the convention `x` / `setX` is worth keeping because everyone reads it instantly.
 
-Save, and you get `−` and `＋` buttons with `0` between them. **Press ＋ and `setCount(count + 1)` is called**, so `count` goes up by 1. Then React **calls `Counter` again** (re-render) and redraws `<span>{count}</span>` with the new `count`. That's why the number on screen goes up. The "update state → re-render" from the previous page is actually running here.
-
-## The actual behavior {#demo}
-
-Here's that same code running as-is. Give it a press.
-
-<Demo title="Counter">
+<Demo title="useState in one line">
   <CounterDemo />
 </Demo>
 
-## Break it on purpose: assign to count directly {#break-assign}
+## Scenario: a controlled form input {#input}
 
-To see why "always go through `setCount` to update" matters, let's break that rule and check. Instead of using `setCount`, we assign to `count` directly.
+<Callout type="note">
+
+**Try it first.** Build a contact form with one email field and a Send button. Aim for three things:
+
+1. Typing in the field updates a piece of state — the state, not the DOM, holds the text.
+2. The Send button is disabled while the field is empty, and re-enables the moment something is typed.
+3. After sending, the form is replaced by a thank-you message.
+
+Hints: you need **two** pieces of state, not one. An input becomes "controlled" when you give it both `value` and `onChange`. A form's submit handler must call `event.preventDefault()` or the browser reloads the page.
+
+</Callout>
+
+```tsx title="src/components/ContactForm/ContactForm.tsx"
+// `import type` brings in TYPES only — descriptions of shapes, deleted at build
+// time. ChangeEvent describes a typing event; FormEvent describes a submit.
+import type { ChangeEvent, FormEvent } from 'react'
+// The actual useState tool, which does exist at runtime.
+import { useState } from 'react'
+
+export function ContactForm() {
+  // Piece of state #1: the text currently in the email field. Starts empty.
+  const [email, setEmail] = useState('')
+
+  // Piece of state #2: whether the form has been sent yet. Starts as "no".
+  const [sent, setSent] = useState(false)
+
+  // Runs on every keystroke in the email field.
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    // `event.target` is the input element; `.value` is what is typed in it.
+    // Store it in state, which redraws the component with the new text.
+    setEmail(event.target.value)
+  }
+
+  // Runs when the form is submitted (Send pressed, or Enter in the field).
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    // Stop the browser's default behaviour, which is to reload the page.
+    event.preventDefault()
+
+    // Flip the "sent" flag, which swaps the whole form for the message below.
+    setSent(true)
+  }
+
+  // An early return: if it has been sent, show only this and stop here.
+  if (sent) return <p>Thanks — we will be in touch.</p>
+
+  return (
+    // onSubmit fires for both the button press and the Enter key.
+    <form onSubmit={handleSubmit}>
+      {/* htmlFor connects this label to the input with the matching id, so
+          clicking the label focuses the field and screen readers pair them. */}
+      <label htmlFor="email">Email</label>
+
+      <input
+        id="email"
+        type="email"
+        // `value` makes the state the source of truth for what is displayed.
+        value={email}
+        // `onChange` sends every keystroke back into that state.
+        onChange={handleChange}
+        // The browser's own check that the field is not left empty.
+        required
+      />
+
+      <button
+        type="submit"
+        // Grey the button out while the field is blank. `.trim()` ignores
+        // input that is only spaces. This re-evaluates on every keystroke.
+        disabled={email.trim().length === 0}
+      >
+        Send
+      </button>
+    </form>
+  )
+}
+```
+
+Line by line, the decisions that matter:
+
+1. **Two `useState` calls, not one.** `email` and `sent` change at completely different moments, so they are separate. Grouping them into one object would mean rebuilding that object on every keystroke for no reason.
+2. **`value` and `onChange` must come as a pair.** `value={email}` says "display whatever state holds"; `onChange` says "put every keystroke back into state". Give an input `value` without `onChange` and the user physically cannot type into it, because state never changes and state is what is displayed.
+3. **`event.preventDefault()` is not optional.** Without it the browser does what HTML forms have always done — reload the page — and your state is wiped before anything happens.
+4. **`disabled` is derived, not stored.** There is no `const [canSend, setCanSend] = useState(false)`. It is computed fresh on every render from `email`, so it can never disagree with the field.
+
+In exchange for all this you never write `document.querySelector('#email').value` again: on submit the answer is already sitting in `email`.
+
+<Callout type="note">
+
+Once a form has more than three or four fields, hand this off to a library — see [Forms with react-hook-form](/libraries/react-hook-form). Every field being state means every keystroke re-renders the whole form, which is fine for a contact form and wasteful for a checkout.
+
+</Callout>
+
+## Scenario: a toggle {#toggle}
+
+<Callout type="note">
+
+**Try it first.** Build a favourite button that switches between "♡ Save" and "♥ saved" when pressed. Aim for:
+
+1. One piece of state, holding a `true`/`false`.
+2. Pressing it flips that value, whatever it currently is.
+3. Assistive technology is told the button's on/off state, not just its label.
+
+Hints: the value you want is the *opposite* of the current one — `!current`. There is a safer way to write that than reading the variable directly. The HTML attribute for a two-state button is `aria-pressed`.
+
+</Callout>
+
+```tsx title="src/components/FavoriteButton/FavoriteButton.tsx"
+import { useState } from 'react'
+
+// Describe what this component must be given from outside.
+interface FavoriteButtonProps {
+  productName: string
+}
+
+// `{ productName }` pulls that one value out of the props object.
+export function FavoriteButton({ productName }: FavoriteButtonProps) {
+  // Remember whether this product is favourited. Starts off.
+  const [favorite, setFavorite] = useState(false)
+
+  return (
+    <button
+      type="button"
+      // Tells screen readers "this is a toggle, and it is currently on/off".
+      // Without it, a blind user hears the label but not the state.
+      aria-pressed={favorite}
+      // `(prev) => !prev` means "take whatever it is now and flip it".
+      // `!` turns true into false and false into true.
+      onClick={() => setFavorite((prev) => !prev)}
+    >
+      {/* Choose the label from the state. The ? : is a ternary: condition,
+          then the value if true, then the value if false. */}
+      {favorite ? `♥ ${productName} saved` : `♡ Save ${productName}`}
+    </button>
+  )
+}
+```
+
+Line by line:
+
+1. **`useState(false)`** — a toggle is the simplest possible state: one boolean. The initial value also fixes the type, so TypeScript now rejects `setFavorite('yes')`.
+2. **`setFavorite((prev) => !prev)`** — the updater form. `setFavorite(!favorite)` would also work *here*, but the updater form reads the freshest value rather than the one captured by this render, which matters the moment two toggles fire close together. See [the updater form](#signatures).
+3. **`aria-pressed={favorite}`** — the state is drawn *and* announced. A pressed-state button with only a changing label is invisible to assistive tech. For a show/hide disclosure the equivalent attribute is `aria-expanded`.
+4. **The ternary in the label** — the display is derived from state at render time. There is no second `useState` holding the label text; that would be a copy that can go stale.
+
+<Demo title="A boolean toggle">
+  <FavoriteDemo />
+</Demo>
+
+## Scenario: a list you add to and remove from {#list}
+
+<Callout type="note">
+
+**Try it first.** Build a shopping list: type a name, press Add, see it appear; press × on a row to remove it; press ↑ to move a row up. Aim for:
+
+1. The list itself in state, plus the text box's contents in state.
+2. Adding, removing and reordering all work — and the screen actually updates each time.
+3. Adding an empty or spaces-only entry does nothing.
+
+Hints: this is where most beginners get stuck, so here is the rule up front — **never change the existing array**. `push` will look like it works and then the screen will not update. `map` and `filter` already build new arrays; `sort` and `splice` do not.
+
+</Callout>
+
+```tsx title="src/components/ShoppingList/ShoppingList.tsx"
+import { useState } from 'react'
+
+export function ShoppingList() {
+  // The list of item names. `<string[]>` tells TypeScript it holds strings.
+  const [items, setItems] = useState<string[]>(['Tomatoes', 'Eggs'])
+
+  // Whatever is typed in the box right now, before it is added.
+  const [text, setText] = useState('')
+
+  const add = () => {
+    // Strip spaces off both ends so " " does not become an entry.
+    const value = text.trim()
+
+    // If nothing is left after trimming, stop here and do nothing.
+    if (!value) return
+
+    // Build a BRAND-NEW array: everything from before, plus the new value.
+    // `...prev` is the spread operator — "unpack all of prev in place here".
+    setItems((prev) => [...prev, value])
+
+    // Empty the text box, which is itself just a state update.
+    setText('')
+  }
+
+  const remove = (index: number) => {
+    // `filter` keeps items where the test is true, and returns a NEW array.
+    // `_` is the item, which we ignore; `i` is its position in the list.
+    setItems((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const moveUp = (index: number) => {
+    // Nothing above the first row, so leave immediately.
+    if (index === 0) return
+
+    setItems((prev) => {
+      // Copy the array first — the next line rewrites it in place.
+      const next = [...prev]
+
+      // Swap two positions in one statement. The leading semicolon protects
+      // the line from being joined onto the one above by JavaScript.
+      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+
+      // Hand the new array back to React.
+      return next
+    })
+  }
+
+  return (
+    <div>
+      {/* A controlled text box, exactly like the form scenario. */}
+      <input value={text} onChange={(event) => setText(event.target.value)} />
+
+      <button type="button" onClick={add}>
+        Add
+      </button>
+
+      <ul>
+        {/* Turn every item in the array into a list row. */}
+        {items.map((item, index) => (
+          // `key` lets React tell rows apart between renders, so it updates
+          // only the ones that changed instead of rebuilding the whole list.
+          <li key={item}>
+            {item}
+
+            {/* Wrapped in an arrow so it runs on the CLICK, not on render.
+                Writing onClick={moveUp(index)} would fire immediately. */}
+            <button type="button" onClick={() => moveUp(index)}>
+              ↑
+            </button>
+
+            <button type="button" onClick={() => remove(index)}>
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+Line by line:
+
+1. **`[...prev, value]`** — the spread operator copies every existing item into a fresh array, then appends the new one. React compares the old array with the new one; a fresh array is a different value, so it redraws. `prev.push(value)` would hand back *the same array* and change nothing on screen.
+2. **`prev.filter(...)`** — `filter` is already non-destructive: it returns a new array containing the items that passed the test. Same for `map`. These two are safe to use directly.
+3. **`const next = [...prev]` before the swap** — assigning into `next[0]` edits the array in place, so you must be holding a copy, not the original.
+4. **`key={item}`** — React needs a stable identity per row to know that "Eggs" moved rather than "Tomatoes" being renamed. Using the array index instead would break reordering. Here the names are unique; with real data use the record's `id`.
+5. **`onClick={() => remove(index)}`** — the arrow wrapper delays the call. Without it, `remove(index)` runs while the list is rendering, which updates state during render, which renders again — an infinite loop. Full explanation in [Passing functions as values](/guide/javascript/functions-as-values).
+
+Background on why "don't mutate" is a rule at all: [Reference vs copy](/guide/javascript/reference-vs-copy).
+
+<Demo title="Add, remove, reorder">
+  <ArrayStateDemo />
+</Demo>
+
+## Scenario: one object for a whole form {#object}
+
+<Callout type="note">
+
+**Try it first.** Build a profile form with a name field, an email field and a newsletter checkbox — all held in a **single** piece of state rather than three. Aim for:
+
+1. One `useState` holding an object with three properties.
+2. **One** change handler shared by all three inputs.
+3. Typing in the name field leaves the email and the checkbox untouched.
+
+Hints: give each input a `name` attribute matching its property. A checkbox reports `event.target.checked`, a text field reports `event.target.value`. To update one property without losing the others, you build a new object that copies the old one first.
+
+</Callout>
+
+```tsx title="src/components/ProfileForm/ProfileForm.tsx"
+import type { ChangeEvent } from 'react'
+import { useState } from 'react'
+
+// Describe the shape of the whole form's data in one place.
+interface Profile {
+  name: string
+  email: string
+  newsletter: boolean
+}
+
+export function ProfileForm() {
+  // One piece of state holding all three fields together.
+  const [profile, setProfile] = useState<Profile>({
+    name: '',
+    email: '',
+    newsletter: false,
+  })
+
+  // A single handler serving every input in the form.
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    // Pull four things off the element that fired: its name attribute, its
+    // text value, its type, and (for checkboxes) whether it is ticked.
+    const { name, value, type, checked } = event.target
+
+    setProfile((prev) => ({
+      // Copy every existing property into the new object first.
+      ...prev,
+      // Then overwrite ONE of them. The square brackets mean "use the value
+      // of the `name` variable as the property name" — a computed key.
+      [name]: type === 'checkbox' ? checked : value,
+    }))
+  }
+
+  return (
+    <form>
+      {/* `name="name"` is what tells the shared handler which property to
+          update. It must match the property in the Profile interface. */}
+      <input name="name" value={profile.name} onChange={handleChange} />
+
+      <input name="email" type="email" value={profile.email} onChange={handleChange} />
+
+      {/* A checkbox uses `checked`, not `value`, to show its state. */}
+      <input
+        name="newsletter"
+        type="checkbox"
+        checked={profile.newsletter}
+        onChange={handleChange}
+      />
+    </form>
+  )
+}
+```
+
+Line by line:
+
+1. **`{ ...prev, [name]: ... }`** — read it as "start from a copy of everything, then change one thing". Drop `...prev` and the other two fields vanish from the object, so the email would blank itself every time you typed a letter of the name.
+2. **The extra parentheses in `(prev) => ({ ... })`** are not decoration. Without them JavaScript reads the `{` as the start of a function body, the arrow returns nothing, and your state becomes `undefined`.
+3. **`[name]` in square brackets** is a computed key: the property name comes from the variable, so one handler covers all three inputs. Without it you would write `name: value` and every field would overwrite the `name` property.
+4. **`type === 'checkbox' ? checked : value`** — checkboxes report `true`/`false` in `checked`; everything else reports text in `value`. One handler, both cases.
+
+Nested objects need a spread per level, which is the point at which you should flatten the shape instead:
 
 ```tsx
-<button type="button" onClick={() => (count = count + 1)}>＋</button>
+// ✗ This copies `address` into a new object but changes nothing inside it —
+//    a pointless copy that looks like an update.
+setProfile((prev) => ({ ...prev, address: { ...prev.address } }))
+
+// ○ Copy the outer object, then copy the inner one and change the city in it.
+setProfile((prev) => ({
+  ...prev,
+  address: { ...prev.address, city: 'Osaka' },
+}))
 ```
 
-Right away, a red squiggle appears.
+## Scenario: the status of a request {#status}
 
-```
-Cannot assign to 'count' because it is a constant.
-```
+<Callout type="note">
 
-`count` is received with `const`, so you can't assign to it in the first place. And even if you could, as on [the previous page](/guide/state/use-state/what-is-state), **no re-render would happen**. **When you change state, always go through the updater function (`setCount`)**—that's the golden rule. React redraws using "the updater function was called" as its signal.
+**Try it first.** Show a product list fetched from a server, with a loading message while it arrives and an error message if it fails. Before writing any code, answer one design question: **how many pieces of state do you need, and what type is each one?**
 
-<Together
-  task="To make the counter start from 10 instead of 0, where would you change it? Actually rewrite it and check that the first thing shown is 10."
-  hint="The initial value is inside useState's parentheses."
->
+Hints: the obvious answer is a boolean per situation — `loading`, `error`, `empty`. Count how many combinations three booleans can be in, and how many of those are situations that could actually happen. There is a shape that makes the impossible ones unrepresentable.
+
+</Callout>
+
+The shape you choose for state decides which bugs are possible. Separate booleans let you express nonsense:
 
 ```tsx
-const [count, setCount] = useState(10) // set the initial value to 10
+// ✗ Three true/false values = eight combinations, and five of them are
+//    situations that should never exist (loading AND error at the same time,
+//    error AND empty, all three at once…). Nothing stops them.
+const [loading, setLoading] = useState(false)
+const [error, setError] = useState(false)
+const [empty, setEmpty] = useState(false)
 ```
 
-With `useState(10)`, the first thing shown is `10`. Inside `useState`'s parentheses is "the very first value."
+One union makes that unrepresentable:
 
-</Together>
+```tsx title="src/components/ProductList/ProductList.tsx"
+// useEffect runs code after the component appears on screen.
+import { useEffect, useState } from 'react'
 
-<Together
-  task="Make a counter that goes up by 5 each time you press ＋, instead of by 1."
-  hint="Make the expression passed to setCount count + 5."
->
+// The shape of one product record coming back from the server.
+interface Product {
+  id: number
+  name: string
+}
 
-```tsx
-<button type="button" onClick={() => setCount(count + 5)}>＋5</button>
+// A list of the ONLY four situations this component can be in. The | means
+// "or". Anything not on this list is a compile error.
+type Status = 'idle' | 'loading' | 'error' | 'done'
+
+export function ProductList() {
+  // The products themselves. Starts as an empty list of Products.
+  const [products, setProducts] = useState<Product[]>([])
+
+  // Which of the four situations we are in right now.
+  const [status, setStatus] = useState<Status>('idle')
+
+  useEffect(() => {
+    // Switch to the loading situation before the request starts.
+    setStatus('loading')
+
+    // Ask the server for the data.
+    fetch('/api/products')
+      // Turn the raw response into JavaScript values. `as Promise<Product[]>`
+      // tells TypeScript what shape to expect back.
+      .then((res) => res.json() as Promise<Product[]>)
+      .then((data) => {
+        // Store the products…
+        setProducts(data)
+        // …and move to the finished situation.
+        setStatus('done')
+      })
+      // If anything above threw, move to the error situation.
+      .catch(() => setStatus('error'))
+  }, []) // the empty array means "run this once, when the component appears"
+
+  // Early returns keep the happy path below uncluttered.
+  if (status === 'loading') return <p>Loading…</p>
+  if (status === 'error') return <p>Could not load products.</p>
+
+  return (
+    <ul>
+      {products.map((product) => (
+        // The database id is the ideal `key`: unique and stable.
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  )
+}
 ```
 
-With `setCount(count + 5)`, it goes up by 5 each press. It means "take the current value `count`, add 5, and make that the new state." Reading is `count`, updating is `setCount(...)`—keep these two roles firmly separate.
+Line by line:
 
-</Together>
+1. **`type Status = 'idle' | 'loading' | 'error' | 'done'`** — a union of literal strings. This is the whole trick: the variable can hold *only* these four values, so "loading and error at once" cannot be written.
+2. **`useState<Status>('idle')`** — the explicit type is required here. Without it TypeScript would infer plain `string` from `'idle'`, and `setStatus('loadng')` would compile happily.
+3. **Two pieces of state, not one** — `products` and `status` genuinely change at different moments and hold different things. Merging them would not make the code clearer.
+4. **The early returns** mean each situation is handled once, at the top, instead of being wrapped in conditionals around the list.
 
-## Writing catalog: useState works with many types {#catalog}
+The fetch itself belongs in [useEffect](/guide/state/use-effect/basics); this page is about the shape of what it stores.
 
-The initial value of `useState` isn't limited to numbers. **Anything tied to the screen** can be state. Here are the common forms. Use them wholesale as templates for your own code.
+## Every way to call it {#signatures}
+
+**The updater function form.** Whenever the next value is computed from the current one, pass a function instead of a value.
 
 ```tsx
-// number
+// Reads the `count` that this particular render captured.
+setCount(count + 1)
+
+// Receives the freshest value React has, whatever it is by the time this runs.
+setCount((prev) => prev + 1)
+```
+
+Why it matters: calling the plain form three times adds **one**, not three. All three read the same captured `count`, so all three say "make it 1".
+
+```tsx
+const addThree = () => {
+  // At this moment `count` is 0, so this schedules "set it to 1".
+  setCount(count + 1)
+  // `count` is STILL 0 — the variable in this render never changes.
+  setCount(count + 1)
+  // Still 0. All three said the same thing, so the result is 1.
+  setCount(count + 1)
+}
+
+const addThreeCorrectly = () => {
+  // React passes in 0, so this schedules 1.
+  setCount((prev) => prev + 1)
+  // React passes in the result of the previous one — 1 — so this schedules 2.
+  setCount((prev) => prev + 1)
+  // And this one receives 2 and schedules 3.
+  setCount((prev) => prev + 1)
+}
+```
+
+<Demo title="+1 vs +3">
+  <TripleClickDemo />
+</Demo>
+
+The same trap bites inside `setTimeout`, inside `useEffect` cleanup, and anywhere a handler runs later than the render that created it. **Rule: if the new value mentions the old one, use the function form.**
+
+**The lazy initializer.** `useState(expensive())` calls `expensive()` on **every render** and throws the result away after the first. Pass a function and React calls it once.
+
+```tsx
+// ✗ JSON.parse runs on every single render. Its result is only used the first
+//    time; every later run is wasted work.
+const [cart, setCart] = useState<string[]>(JSON.parse(localStorage.getItem('cart') ?? '[]'))
+
+// ○ Passing a FUNCTION tells React "call this only when you need the initial
+//    value" — which is once, on mount.
+const [cart, setCart] = useState<string[]>(() => JSON.parse(localStorage.getItem('cart') ?? '[]'))
+```
+
+Only worth it for real work — parsing, reading storage, building a big array. `useState(0)` needs no ceremony.
+
+**Deriving instead of storing.** If a value can be calculated from other state, calculate it. A second `useState` is a second thing that can go stale.
+
+```tsx
+// ✗ Two states that must be kept in sync by hand. Forget to update `count`
+//    in one place and the number on screen is silently wrong.
+const [items, setItems] = useState<string[]>([])
 const [count, setCount] = useState(0)
 
-// string (input fields, etc.)
-const [name, setName] = useState('')
-
-// boolean (open/close, ON/OFF)
-const [isOpen, setIsOpen] = useState(false)
-
-// array (a list)
+// ○ One state. Everything else is worked out fresh on every render, so it
+//    is impossible for these to disagree with `items`.
 const [items, setItems] = useState<string[]>([])
-
-// object (a form or several values)
-const [form, setForm] = useState({ name: '', email: '' })
-
-// starts as "not there yet" (before fetching data, etc.) — types covered in Part 6
-const [product, setProduct] = useState<Product | null>(null)
+const count = items.length
+const hasAny = count > 0
+const sorted = [...items].sort()
 ```
 
-Booleans for open/close and favorites, arrays for lists, objects for forms—you'll actually use each of these on the pages ahead. Once you understand that "any value can be state," you can apply it broadly.
+Only reach for [useMemo](/guide/state/use-memo/basics) if you have measured the derivation as slow. It is an optimization, not the default.
+
+**Initial value from a prop.** The initial value is exactly that — initial. It is read on the first render and ignored forever after.
+
+```tsx
+export function NameField({ defaultName }: { defaultName: string }) {
+  // `defaultName` is read once, on the first render. If the parent later
+  // passes a different one, this state does NOT notice.
+  const [name, setName] = useState(defaultName)
+
+  return <input value={name} onChange={(e) => setName(e.target.value)} />
+}
+```
+
+If you want it to reset when the prop changes, don't add an effect — change the `key` from the parent and React mounts a fresh instance with fresh state:
+
+```tsx
+// Changing `key` tells React "this is a different component now". It throws
+// the old one away, state and all, and builds a new one.
+<NameField key={userId} defaultName={user.name} />
+```
+
+**Lifting state up.** When two components need the same value, it belongs to their nearest common parent. Pass the value down as a prop and the setter down as another.
+
+```tsx title="src/components/Filterable/Filterable.tsx"
+import { useState } from 'react'
+
+// The search box does not own the query — it is handed the current value and
+// a function to call when the user changes it.
+interface SearchBoxProps {
+  query: string
+  onQueryChange: (next: string) => void
+}
+
+function SearchBox({ query, onQueryChange }: SearchBoxProps) {
+  // Display the parent's value, and report every keystroke back up to it.
+  return <input value={query} onChange={(event) => onQueryChange(event.target.value)} />
+}
+
+function ResultCount({ query, items }: { query: string; items: string[] }) {
+  // Work out the matches from the props. No state of its own is needed.
+  const matches = items.filter((item) => item.includes(query))
+
+  return <p>{matches.length} matches</p>
+}
+
+export function Filterable({ items }: { items: string[] }) {
+  // The shared owner. Both children below read from this one value.
+  const [query, setQuery] = useState('')
+
+  return (
+    <div>
+      {/* Pass the value down, and pass the setter down as the callback. */}
+      <SearchBox query={query} onQueryChange={setQuery} />
+
+      {/* The second child sees the same value, so they can never disagree. */}
+      <ResultCount query={query} items={items} />
+    </div>
+  )
+}
+```
+
+When the parent is many levels up and the props are just passing through, that's the signal to switch to `useContext`.
+
+**One state or several?** Split values that change independently; group values that always change together.
+
+```tsx
+// ○ Independent — a keystroke in the search box has nothing to do with the
+//    modal, so they get their own state and their own updates.
+const [query, setQuery] = useState('')
+const [modalOpen, setModalOpen] = useState(false)
+
+// ○ Always change together — a coordinate is one idea, so one object is fine.
+const [position, setPosition] = useState({ x: 0, y: 0 })
+```
+
+**Setting the same value does nothing.** React compares with `Object.is` and skips the re-render if the value is unchanged, so `setOpen(false)` on an already-closed menu is free. This is also why mutating an object and passing it back is invisible: same reference, no redraw.
+
+## Break it on purpose: add to an array with push {#break-push}
+
+Type this out and run it. It is the single most instructive failure in `useState`, and reading about it is not the same as watching it happen.
+
+```tsx title="src/components/Broken/Broken.tsx (deliberately wrong)"
+import { useState } from 'react'
+
+export function Broken() {
+  const [items, setItems] = useState<string[]>(['Tomatoes'])
+
+  const add = () => {
+    // Add to the array the normal JavaScript way.
+    items.push('Eggs')
+
+    // Hand it to React.
+    setItems(items)
+
+    // Prove to yourself that the array really did change.
+    console.log('the array is now', items)
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={add}>
+        Add
+      </button>
+      <ul>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+Press the button. **The console shows the array growing — and the screen never changes.**
+
+That gap is the whole lesson. `push` changed the contents of the array but not *which* array it is, so `setItems(items)` handed React the exact same object it already had. React compared them with `Object.is`, got `true`, concluded nothing had changed, and skipped the redraw.
+
+Now fix it by changing one line:
+
+```tsx
+// Build a NEW array. A different array is a different value, so React redraws.
+setItems((prev) => [...prev, 'Eggs'])
+```
+
+Everything on this page about not mutating state comes from that one comparison. React does not watch your data for changes — it compares the old value to the new one, and `push` gives it nothing to see.
+
+## Cheat sheet: the shapes you will actually write {#catalog}
+
+```tsx
+// Declaring, with the type inferred from the initial value
+const [count, setCount] = useState(0) // number
+const [name, setName] = useState('') // string
+const [open, setOpen] = useState(false) // boolean
+
+// Declaring, where inference is not enough
+const [items, setItems] = useState<Product[]>([]) // empty array
+const [picked, setPicked] = useState<Product | null>(null) // "nothing yet"
+const [status, setStatus] = useState<Status>('idle') // union of literals
+
+// Expensive initial value — pass a function so it runs once
+const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem('cart') ?? '[]'))
+
+// Updating: plain value vs. from the previous value
+setCount(5) // when the new value does not depend on the old
+setCount((prev) => prev + 1) // when it does — always prefer this then
+setOpen((prev) => !prev) // toggling
+
+// Arrays — never push/splice/sort the original
+setItems((prev) => [...prev, item]) // add
+setItems((prev) => prev.filter((i) => i.id !== id)) // remove
+setItems((prev) => prev.map((i) => (i.id === id ? { ...i, done: true } : i))) // update one
+setItems((prev) => [...prev].sort(byPrice)) // sort a copy
+
+// Objects — copy, then overwrite
+setProfile((prev) => ({ ...prev, email: value })) // one field
+setProfile((prev) => ({ ...prev, address: { ...prev.address, city } })) // nested
+
+// Derived — no useState at all
+const total = items.length
+const isEmpty = total === 0
+```
+
+## When to use it — and when not to {#when}
+
+Use `useState` for anything the user can change that the screen has to reflect: input text, open/closed, selected tab, the current page number, the loaded data.
+
+Do not use it for these:
+
+- **Values you can compute from other state.** Derive them during render. A `useState` + `useEffect` pair to keep them in sync is one render slower and can show a stale value for a frame.
+- **Values the screen never shows.** A timer id, a scroll position you only read in a handler, a "has this already fired" flag. Those go in [useRef](/guide/state/use-ref/basics) — changing them should not cost a redraw.
+- **A prop, copied.** Read the prop. If you need to reset local state when it changes, use `key`, not state plus an effect.
+- **Several fields that always move together through defined transitions.** Once the update logic outgrows a couple of spread calls, `useReducer` puts all the transitions in one place you can read.
+- **A value many distant components need.** Lift it as far as it goes, then reach for `useContext` rather than threading props through five levels.
+- **Server data, in a growing app.** The `useState` + `useEffect` pair is the right way to learn it, and a data library is the right way to ship it once caching and refetching matter.
 
 ## Common mistakes {#mistakes}
 
-<Diff
-  bad="count = count + 1 (direct assignment. error, and no re-render)"
-  good="setCount(count + 1)"
-  note="Change state with the updater function. Direct assignment is a const error and doesn't re-render."
-/>
+**Reading the value right after setting it.**
+
+```tsx
+const handleClick = () => {
+  // Schedule an update. This does NOT change `count` on the line below.
+  setCount(count + 1)
+
+  // ✗ Still the value this render started with. The new one arrives on the
+  //   NEXT render, when the whole function runs again.
+  console.log(count)
+}
+```
+
+`count` is a `const` in this render — `setCount` cannot reach back and change it. If you need the new value now, compute it into a variable first.
 
 <Diff
-  bad="const count = useState(0) (receiving it as the array as-is)"
-  good="const [count, setCount] = useState(0)"
-  note="useState returns a [value, updater function] array. Use destructuring to receive the two separately."
+  bad="setCount(count + 1); console.log(count)"
+  good="const next = count + 1; setCount(next); console.log(next)"
+  note="The state variable in the current render never changes. The new value shows up on the next render."
 />
+
+**Three updates that add one.** Covered in [the updater form](#signatures) — use `setCount((prev) => prev + 1)`.
+
+**Mutating array or object state.**
+
+```tsx
+// ✗ push changes the existing array and returns its new length.
+items.push('Milk')
+// You then hand React the SAME array it already had. Object.is says "equal",
+// so React concludes nothing changed and skips the redraw.
+setItems(items)
+
+// ○ Build a new array. A different array is a different value, so React redraws.
+setItems((prev) => [...prev, 'Milk'])
+```
+
+<Diff
+  bad="items.push('Milk'); setItems(items)"
+  good="setItems((prev) => [...prev, 'Milk'])"
+  note="push/splice/sort/reverse edit the original. React compares references, sees the same array, and skips the redraw."
+/>
+
+**Calling the setter during render.**
+
+```tsx
+// ✗ The () means "run this right now" — during the render. That schedules a
+//   render, which runs it again, which schedules a render… Too many re-renders.
+<button onClick={setOpen(true)}>Open</button>
+
+// ○ Pass a function. It sits there unused until the button is actually pressed.
+<button onClick={() => setOpen(true)}>Open</button>
+```
+
+Full explanation in [Passing functions as values](/guide/javascript/functions-as-values).
+
+<Diff
+  bad="onClick={setOpen(true)}"
+  good="onClick={() => setOpen(true)}"
+  note="With () it runs at render time and loops. Handlers take a function, not the result of calling one."
+/>
+
+**Copying a prop into state.**
+
+```tsx
+// ✗ Read once on the first render, then frozen. If the parent sends a new
+//   product, this `price` keeps the old one forever.
+const [price, setPrice] = useState(product.price)
+
+// ○ Just read the prop. It is always current by definition.
+const price = product.price
+```
+
+**A hook inside a condition.**
+
+```tsx
+// ✗ React has detected a change in the order of Hooks.
+//   On renders where isLoggedIn is false, this useState is never called, so
+//   React's slot-by-position bookkeeping goes out of alignment.
+if (isLoggedIn) {
+  const [name, setName] = useState('')
+}
+```
+
+Move the `useState` to the top of the component and put the condition in the JSX instead.
 
 ## Our standard {#standard}
 
 <Std
-  decision="Receive state in the form const [value, setValue] = useState(initial value), and always update with the set function"
-  alt="Once a single component accumulates a lot of state, you may group related pieces into an object or array (from the next page on). But to start, one value per useState is plenty."
+  decision="One useState per independently-changing value. Derive everything you can. Use the updater form whenever the new value is based on the old one"
+  alt="Group fields into a single object state when they genuinely always change together (a coordinate, a form submitted as a unit). Reach for useReducer once you are writing more than two or three spread updates against the same object — the transitions become easier to read in one place than scattered across handlers."
 >
 
-Memorize the shape `const [count, setCount] = useState(0)` as a template. You read `count`, you change `setCount`. Just by not mixing up these two, you can write 80% of state.
+Before adding a `useState`, ask whether the value can be computed from what you already have. Most "extra" state is a derived value someone stored by hand, and every stored copy is a chance for the two to disagree. When you do need it, keep it as close to where it is used as possible, and lift it only when a second component genuinely needs the same value.
 
 </Std>
 
+## What React is doing under the hood {#internals}
+
+React stores your hooks in a list attached to that **component instance**, in the order you called them. `useState` is really "give me slot 1 of my list, and a setter that writes to slot 1". That is the entire reason a hook may never sit inside an `if`, a loop, or an early return — slot 1 has to be the same thing on every render.
+
+When you call a setter:
+
+1. React records the new value (or your updater function) in a queue.
+2. It **does not** re-run your component immediately. All updates fired from the same event are **batched** into one render — three setters in one click handler produce one redraw, not three.
+3. On the next render your function runs again from the top, and `useState` hands back the updated value.
+4. If the new value is `Object.is`-equal to the current one, React may skip the render entirely.
+
+Each instance gets its own list. Ten `ProductCard`s have ten independent `favorite` values, and unmounting one throws its state away — which is precisely what changing a `key` exploits to reset a component.
+
+<Deeper title="Why is my initial value ignored on later renders?">
+
+`useState(initial)` is not "keep this in sync with `initial`". After the first render React already has a value in the slot, so the argument is evaluated (which is why the lazy initializer exists) and then discarded.
+
+The mental shortcut: the argument is the value for the render where the slot is empty. Every render after that, React ignores it and returns what is in the slot.
+
+</Deeper>
+
+## TypeScript notes {#typescript}
+
+Most of the time inference is enough — `useState(0)` is `number`, `useState('')` is `string`, `useState(false)` is `boolean`. You need an explicit type in exactly three situations.
+
+**An empty array or object.** Without help, `[]` infers as `never[]` and nothing can ever go in it.
+
+```tsx
+// ✗ TypeScript sees an empty array and concludes "an array of nothing".
+const [products, setProducts] = useState([])
+
+// ○ The angle brackets say what it will hold once it is filled.
+const [products, setProducts] = useState<Product[]>([])
+```
+
+**A value that starts out `null` or `undefined`.** `useState(null)` has type `null`, so the setter accepts nothing else.
+
+```tsx
+// ✗ The only value this can ever hold is null.
+const [selected, setSelected] = useState(null)
+
+// ○ "A Product, or nothing yet."
+const [selected, setSelected] = useState<Product | null>(null)
+```
+
+**A union of literals.** `useState('idle')` widens to `string`, which loses the whole point.
+
+```tsx
+// List the only allowed values…
+type Status = 'idle' | 'loading' | 'error' | 'done'
+
+// …and say so here, or TypeScript will widen it back to plain string.
+const [status, setStatus] = useState<Status>('idle')
+```
+
+**Passing a setter down as a prop.** Its type is `Dispatch<SetStateAction<T>>` — and prefer a narrow callback when the child only needs to set a value, not to run updater functions.
+
+```tsx
+import type { Dispatch, SetStateAction } from 'react'
+
+interface Props {
+  // The full setter: the child may pass a value OR an updater function.
+  setQuery: Dispatch<SetStateAction<string>>
+  // A plain callback: the child can only hand back a new string. Simpler,
+  // and it hides the fact that a useState is behind it.
+  onQueryChange: (next: string) => void
+}
+```
+
+**Event handler types**, which is where the errors actually show up:
+
+```tsx
+import type { ChangeEvent, FormEvent, MouseEvent } from 'react'
+
+// Typing in a text input.
+const onInput = (event: ChangeEvent<HTMLInputElement>) => setText(event.target.value)
+
+// Choosing from a dropdown — note the different element type.
+const onSelect = (event: ChangeEvent<HTMLSelectElement>) => setSort(event.target.value)
+
+// Submitting a form.
+const onSubmit = (event: FormEvent<HTMLFormElement>) => event.preventDefault()
+
+// Clicking a button. `currentTarget` is the button the handler is attached to.
+const onClick = (event: MouseEvent<HTMLButtonElement>) => event.currentTarget.blur()
+```
+
+Written **inline** in the JSX (`onChange={(event) => ...}`) all of these are inferred and you can skip the annotations entirely. You only need them for handlers defined separately, where TypeScript has no context to infer from.
+
 ## When things go wrong {#trouble}
 
-- **`Cannot assign to 'count' because it is a constant`** … You're assigning to `count` directly. Use `setCount(...)`.
-- **Hook errors like `Rendered more hooks than during the previous render`** … Are you calling `useState` inside an `if` or a loop? Call hooks at the **very top** of the function.
-- **It doesn't change after an update** … Check whether you're calling `setCount`, and whether the value you pass is genuinely new.
+- **I click and nothing on screen changes** … You are almost certainly mutating. `push`, `splice`, `sort`, `reverse` and `obj.field = x` all hand React the same object back. Build a new one — see [break it on purpose](#break-push).
+- **`Too many re-renders`** … A setter is being called during render, not in a handler. Look for `onClick={setOpen(true)}` and wrap it: `onClick={() => setOpen(true)}`.
+- **The number only goes up by one when I expected three** … Three calls all read the same captured value. Use `setCount((prev) => prev + 1)`.
+- **`console.log` right after the setter prints the old value** … It always will. The new value arrives on the next render; compute it into a variable if you need it now.
+- **The value stops updating when the parent sends a new prop** … You copied a prop into `useState`. Read the prop directly, or remount with `key`.
+- **`Argument of type 'X' is not assignable to parameter of type 'never'`** … An empty array with no type: `useState<Product[]>([])`.
+- **`React has detected a change in the order of Hooks`** … A `useState` is inside an `if`, a loop, or after an early `return`. Move it to the top of the component.
+- **The field will not let me type in it** … A `value` with no `onChange`. Controlled inputs need both.
 
 ## Summary & practice {#summary}
 
-<Exercise answer="useState returns a [current value, updater function] array. Use count for display, and call setCount(new value) when you change the value. You can't assign to count directly (and it wouldn't re-render either).">
+<Exercise answer="All three read the same `count` captured by this render, so all three schedule 'set it to 1'. Use the updater form: setCount((prev) => prev + 1) three times, where each call receives the result of the previous one.">
 
-In `const [count, setCount] = useState(0)`, what is each of `count` and `setCount` used for?
+A single click calls `setCount(count + 1)` three times, but the number only goes up by one. Why, and what is the fix?
+
+</Exercise>
+
+<Exercise answer="Neither — derive it. const total = items.reduce((sum, item) => sum + item.price, 0). A second useState has to be updated by hand on every change to `items`, and a useEffect that syncs it renders twice and is stale for the first of them.">
+
+You have `items` in state and want the total price. Should `total` be its own `useState`, kept in sync by a `useEffect`, or something else?
+
+</Exercise>
+
+<Exercise answer="The initial argument is only read on the first render, so the state keeps the old value. Don't copy props into state: read the prop directly, or if the component genuinely needs its own editable copy, remount it with a key — <NameField key={userId} defaultName={user.name} />.">
+
+`useState(props.defaultName)` shows the right name at first, but stops updating when the parent passes a new `defaultName`. Why, and what do you do instead?
 
 </Exercise>
 
 <SummaryBox>
 
-- `useState(initial value)` returns `[current value, updater function]`. Receive it with destructuring
-- You read `count` and change with `setCount(new value)`. Calling the updater function triggers a re-render
-- The initial value can be anything—number, string, boolean, array, object, or null
+- State is a value React remembers per component instance; the setter is what tells React to redraw. A plain variable does neither
+- Never mutate array or object state — build a new one with `[...prev]` or `{ ...prev }`. React compares references
+- Use the updater form when the new value depends on the old one, the lazy initializer for expensive initial work, and derive anything you can rather than storing it
 
 </SummaryBox>

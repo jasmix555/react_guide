@@ -168,7 +168,7 @@ export const strings = {
         body: 'Component → props → state, hands-on and in order.',
         links: [
           { label: 'Reusing with variants', to: '/guide/components/button-variants' },
-          { label: 'Updating array state', to: '/guide/state/use-state/updating-array-state' },
+          { label: 'useState from top to bottom', to: '/guide/state/use-state/basics' },
         ],
       },
       {

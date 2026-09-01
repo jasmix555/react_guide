@@ -1,206 +1,1025 @@
 ---
-title: useState の基本
-minutes: 11
+title: 'useState：描画をまたいで値を覚える'
+minutes: 40
 slug: use-state-basics
 section: state
-description: const [count, setCount] = useState(0) を1つずつ分解し、カウンターを全文で書く。初期値・読み取り・更新関数の3点と、count に直接代入する罠。書き方カタログ付き。
+description: useState の総合リファレンス。state とは何か・なぜ普通の変数ではダメか・最小の型付き例・自分で考えてから答えを見る5シナリオ（入力欄 / トグル / 一覧 / オブジェクトのフォーム / 通信の状態）・遅延初期化と関数形を含む全シグネチャ・使わない判断・よくあるバグ・React 内部の持ち方・TypeScript の落とし穴。
 level: beginner
-prerequisites: ['state/use-state/what-is-state', 'javascript/destructuring']
+prerequisites: ['state/goal', 'javascript/destructuring']
 ---
 
+import { ArrayStateDemo } from '@/demos/ArrayStateDemo'
 import { CounterDemo } from '@/demos/Counter'
+import { FavoriteDemo } from '@/demos/Favorite'
+import { PlainVsStateDemo } from '@/demos/PlainVsState'
+import { TripleClickDemo } from '@/demos/TripleClick'
 
 <LearnBox>
 
-- `const [count, setCount] = useState(0)` の 3 つの部品を分解する
-- カウンターを **1 ファイル全文**で書く
-- 値の「読み取り」と「更新関数」の使い分け、直接代入の罠
+- state とは何か。そして「普通の `let` では務まらない」理由を正確に
+- 答えを見る前に自分で考える 5 シナリオ：入力欄・トグル・一覧・オブジェクトのフォーム・通信の状態
+- 全シグネチャ——遅延初期化・関数形・導出と保持・props からの初期値・リフトアップ——と定番のバグ、TypeScript の落とし穴
 
 </LearnBox>
 
-## useState の 1 行を分解する {#anatomy}
+## state の正体 {#what}
 
-state を持つには、`useState` という **hook（フック）** を使います。まず、この 1 行の**部品ひとつひとつに名前**を付けます。
+**state とは、React が描画をまたいで覚えている値であり、それを変えることが「描き直して」という合図になります。**仕事は 2 つあり、どちらも重要です。
 
-```tsx
-const [count, setCount] = useState(0)
-//     ↑      ↑                    ↑
-//     │      │                    └─ 初期値。最初に入っている値
-//     │      └─ 更新する関数。これを呼ぶと再描画される
-//     └─ いまの値。読み取り専用だと思ってよい
+LP では、真実は DOM の中にありました。ページに状態を訊いて、ページに書き戻していました。
+
+```js
+// いまナビに "is-open" クラスが付いているか、DOM に訊く。
+const isOpen = nav.classList.contains('is-open')
+
+// 反対の状態を書き戻す。保存場所と表示場所が同じになっている。
+nav.classList.toggle('is-open', !isOpen)
+
+// ページから文字として数値を読み、数値に変換し、1 足し、また文字にして戻す。
+// ページそのものが変数になっている。
+count.textContent = String(Number(count.textContent) + 1)
 ```
 
-- **`useState(0)`** … state を作る。かっこの中が **初期値**（ここでは `0`）。
-- **`count`** … 今の値。表示に使う。**自分では書き換えない**。
-- **`setCount`** … 更新用の関数。`setCount(新しい値)` を呼ぶと、値が変わり**再描画**される。
+これは、`is-open` について 2 か所の認識がズレるまでは動きます。React は逆にします。**真実は変数に持ち、その値のとき画面がどう見えるかを書き、DOM は React が書く。**その変数が state です。
 
-なぜ `{ }` のオブジェクトではなく `[ ]` の配列で受け取るのか——`useState` は「\[今の値, 更新関数\]」という **2 つ組の配列**を返すからです。配列の分割代入（[Part 2](/guide/javascript/destructuring)）なので、**名前は自分で決められます**。`count` / `setCount` のように「値」と「set + 値」の組で書くのが慣習です。
+では、なぜ普通の `let` ではダメなのか。理由は 2 つで、致命的なのは 2 つめです。
 
-<JsNote feature="[count, setCount] は配列の分割代入">
+```tsx
+// コンポーネントを定義する。React は更新のたびにこの関数を呼び直す。
+export function Broken() {
+  // ① 0 を入れた変数を作る。関数全体が毎回走り直すので、
+  //    この行は描画のたびに 0 に戻す。
+  let count = 0
 
-`const [a, b] = 配列` で 1 番目・2 番目を取り出すのが分割代入です。`useState` の戻り値は配列なので、この形で「今の値」と「更新関数」の 2 つを一度に受け取っています。
+  return (
+    // 押されたら変数に 1 足す。
+    <button type="button" onClick={() => (count = count + 1)}>
+      {/* ② 変数を表示する。上の代入で中身は変わったが、「画面が古くなった」と
+             React に伝えるものが何もないので、何も描き直されない。 */}
+      {count}
+    </button>
+  )
+}
+```
 
-</JsNote>
+コンポーネントは **描画のたびに React が呼び直す関数**なので、ローカルの `let` は毎回作り直され、何も残りません。仮に残ったとしても、代入は静かな操作です——画面が古くなったことを React に知らせる手段がありません。`useState` はこの両方を解決します。下の左のボタンは何回押しても数字が動きませんが、コンソールを見れば変数自体はちゃんと変わっています。
 
-## カウンターを全文で書く {#build}
+<Demo title="ただの変数と state">
+  <PlainVsStateDemo />
+</Demo>
 
-分解できたら、実際に書きます。`src/components/Counter/Counter.tsx` を新規作成して、**この全文**を貼り付けてください（断片ではなく、これで動きます）。
+<Callout type="analogy">
 
-```tsx title="src/components/Counter/Counter.tsx（新規作成・全文）"
+state は、React がコンポーネントの一つひとつに用意しているホワイトボードです。あなたの関数は、走るたびにそのボードを読みます。`setCount` はボードを途中で書き換えるのではなく、新しい値を React に渡します。React がボードを消して書き直し、そのうえで「画面はどうなるべきか」を見るためにあなたの関数をもう一度呼びます。
+
+</Callout>
+
+## 最小の動く例 {#minimal}
+
+```tsx title="src/components/Counter/Counter.tsx"
+// React ライブラリから useState という道具を持ってくる。波括弧は
+// 「react パッケージから、この 1 つだけ取り出す」の意味。
 import { useState } from 'react'
 
+// コンポーネントを定義し、他のファイルから使えるように export する。
 export function Counter() {
+  // このコンポーネントのために、0 から始まる数値を React に覚えてもらう。
+  // `count` が今の値、`setCount` がそれを変える手段。
   const [count, setCount] = useState(0)
 
   return (
     <div>
-      <button type="button" onClick={() => setCount(count - 1)}>
-        −
-      </button>
-      <span>{count}</span>
+      {/* 今の値をページに出す。 */}
+      <p>{count}</p>
+
+      {/* 押されたら、今の値に 1 足した新しい値を React に渡す。
+          React はその新しい数値で、この関数全体を走らせ直す。 */}
       <button type="button" onClick={() => setCount(count + 1)}>
-        ＋
+        1 増やす
       </button>
     </div>
   )
 }
 ```
 
-呼び出す側（`App.tsx`）ではこう使います。
+この 1 行がすべてです。部品に名前を付けます。
 
-```tsx title="src/App.tsx（使う側）"
-import { Counter } from './components/Counter/Counter'
-
-function App() {
-  return <Counter />
-}
-
-export default App
+```tsx
+const [count, setCount] = useState(0)
+//     ↑       ↑                   ↑
+//     │       │                   └─ ③ 初期値。初回描画でだけ使われる
+//     │       └─ ② 更新関数。呼ぶと値が変わり、描き直しが予約される
+//     └─ ① 現在の値。読むだけ。代入してはいけない
 ```
 
-## 保存すると何が起きるか {#result}
+`useState` はちょうど 2 つ入った配列を返し、左辺の `[a, b]` は[分割代入](/guide/javascript/destructuring)です——自分で名前を付けています。名前は自由ですが、`x` / `setX` という慣習は誰でも一目で読めるので守る価値があります。
 
-保存すると、`0` を挟んで `−` と `＋` のボタンが出ます。**＋を押すと `setCount(count + 1)` が呼ばれ**、`count` が 1 増えます。すると React は `Counter` を**もう一度呼び出して**（再描画）、新しい `count` で `<span>{count}</span>` を描き直します。だから画面の数字が増えます。前のページの「state を更新 → 再描画」が、ここで実際に動いています。
-
-## 実際の動き {#demo}
-
-上のコードがそのまま動いているのが、これです。押してみてください。
-
-<Demo title="カウンター">
+<Demo title="1 行の useState">
   <CounterDemo />
 </Demo>
 
-## わざと壊す：count に直接代入する {#break-assign}
+## シナリオ：入力欄（制御されたコンポーネント） {#input}
 
-「更新は必ず `setCount` を通す」のがなぜ大事か、破って確かめます。`setCount` を使わず、`count` に直接代入してみます。
+<Callout type="note">
+
+**まず自分で書いてみる。**メールアドレス欄が 1 つと送信ボタンがある問い合わせフォームを作ってください。目指すのは次の 3 つです。
+
+1. 入力すると state が更新される——文字列を持っているのは DOM ではなく state。
+2. 欄が空のあいだ送信ボタンは押せず、何か入力した瞬間に押せるようになる。
+3. 送信後は、フォームの代わりにお礼のメッセージが出る。
+
+ヒント：state は 1 つではなく **2 つ**必要です。入力欄は `value` と `onChange` の両方を渡して初めて「制御された」状態になります。フォームの送信ハンドラでは `event.preventDefault()` を呼ばないと、ブラウザがページを再読み込みします。
+
+</Callout>
+
+```tsx title="src/components/ContactForm/ContactForm.tsx"
+// `import type` は「型」だけを持ってくる書き方。型は形の説明であって、
+// ビルド時に消えます。ChangeEvent は入力イベント、FormEvent は送信イベント。
+import type { ChangeEvent, FormEvent } from 'react'
+// こちらは実行時にも存在する、本物の useState。
+import { useState } from 'react'
+
+export function ContactForm() {
+  // state その 1：メール欄に今入っている文字列。最初は空。
+  const [email, setEmail] = useState('')
+
+  // state その 2：送信済みかどうか。最初は「まだ」。
+  const [sent, setSent] = useState(false)
+
+  // メール欄で 1 文字打つたびに走る。
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    // `event.target` が入力欄そのもの、`.value` が打たれている文字列。
+    // それを state に入れると、新しい文字列で再描画される。
+    setEmail(event.target.value)
+  }
+
+  // フォームが送信されたとき（送信ボタン、または欄で Enter）に走る。
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    // ブラウザ既定の動作＝ページ再読み込みを止める。
+    event.preventDefault()
+
+    // 「送信済み」フラグを立てる。これでフォーム全体が下のメッセージに変わる。
+    setSent(true)
+  }
+
+  // 早期 return：送信済みならこれだけを表示して、ここで終わり。
+  if (sent) return <p>送信しました。折り返しご連絡します。</p>
+
+  return (
+    // onSubmit はボタン押下でも、欄での Enter でも発火する。
+    <form onSubmit={handleSubmit}>
+      {/* htmlFor は同じ id の入力欄とこのラベルを結びつける。ラベルを
+          クリックすると欄にフォーカスが入り、読み上げでも対で扱われる。 */}
+      <label htmlFor="email">メールアドレス</label>
+
+      <input
+        id="email"
+        type="email"
+        // `value` で「表示される内容の正解は state」と宣言する。
+        value={email}
+        // `onChange` で 1 打鍵ごとにその state へ戻す。
+        onChange={handleChange}
+        // 空のまま送信できないようにする、ブラウザ側のチェック。
+        required
+      />
+
+      <button
+        type="submit"
+        // 欄が空のあいだはボタンを無効にする。`.trim()` で空白だけの入力も
+        // 空とみなす。この式は 1 打鍵ごとに評価し直される。
+        disabled={email.trim().length === 0}
+      >
+        送信
+      </button>
+    </form>
+  )
+}
+```
+
+1 行ずつ、大事な判断はここです。
+
+1. **`useState` は 1 つではなく 2 つ。**`email` と `sent` はまったく別のタイミングで変わるので分けます。1 つのオブジェクトにまとめると、1 打鍵ごとに意味もなくそのオブジェクトを作り直すことになります。
+2. **`value` と `onChange` は必ずセット。**`value={email}` は「state の中身を表示する」、`onChange` は「打たれた文字を state に戻す」。`onChange` のない `value` を渡すと、state が変わらず、state が表示されるので、物理的に入力できない欄になります。
+3. **`event.preventDefault()` は省略不可。**これがないとブラウザは HTML フォーム本来の動作、つまりページ再読み込みをして、その前に state はすべて消えます。
+4. **`disabled` は保持ではなく導出。**`const [canSend, setCanSend] = useState(false)` はどこにもありません。毎回の描画で `email` から計算し直すので、欄の内容と食い違いようがありません。
+
+この代わりに、`document.querySelector('#email').value` を二度と書かなくて済みます。送信時には答えがすでに `email` に入っています。
+
+<Callout type="note">
+
+項目が 3〜4 個を超えたら、ライブラリに任せます——[react-hook-form でフォームを作る](/libraries/react-hook-form)を参照。全項目を state にすると 1 打鍵ごとにフォーム全体が再描画されます。問い合わせフォームなら問題ありませんが、購入フォームでは無駄です。
+
+</Callout>
+
+## シナリオ：トグル {#toggle}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**押すと「♡ 保存」と「♥ 保存済み」が切り替わるお気に入りボタンを作ってください。目指すのは次の 3 つです。
+
+1. `true` / `false` を持つ state が 1 つ。
+2. 押すと、今どちらであってもその反対に切り替わる。
+3. 支援技術に、ラベルだけでなくボタンのオン／オフ状態が伝わる。
+
+ヒント：欲しい値は今の値の*反対*、つまり `!今の値` です。変数を直接読むより安全な書き方があります。2 状態のボタンを表す HTML 属性は `aria-pressed` です。
+
+</Callout>
+
+```tsx title="src/components/FavoriteButton/FavoriteButton.tsx"
+import { useState } from 'react'
+
+// このコンポーネントが外から何を受け取るかを書く。
+interface FavoriteButtonProps {
+  productName: string
+}
+
+// `{ productName }` で props からその 1 つを取り出す。
+export function FavoriteButton({ productName }: FavoriteButtonProps) {
+  // この商品がお気に入りかどうかを覚える。最初はオフ。
+  const [favorite, setFavorite] = useState(false)
+
+  return (
+    <button
+      type="button"
+      // 読み上げソフトに「これはトグルで、今はオン／オフ」と伝える。
+      // これがないと、目の見えない利用者にはラベルしか届かない。
+      aria-pressed={favorite}
+      // `(prev) => !prev` は「今の値を受け取って反転する」。
+      // `!` は true を false に、false を true にする。
+      onClick={() => setFavorite((prev) => !prev)}
+    >
+      {/* state からラベルを選ぶ。? : は三項演算子で、条件・真のときの値・
+          偽のときの値、の順に書く。 */}
+      {favorite ? `♥ ${productName} を保存済み` : `♡ ${productName} を保存`}
+    </button>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`useState(false)`** … トグルは最も単純な state、真偽値 1 つです。初期値が型も決めるので、TypeScript は以後 `setFavorite('yes')` を拒否します。
+2. **`setFavorite((prev) => !prev)`** … 関数形です。*ここでは* `setFavorite(!favorite)` でも動きますが、関数形は「この描画が掴んだ値」ではなく最新の値を読むので、2 回の切り替えが近接したときに差が出ます。[関数形](#signatures)を参照。
+3. **`aria-pressed={favorite}`** … state が描かれるだけでなく、伝えられます。ラベルが変わるだけのトグルは、支援技術からは見えません。開閉の場合は `aria-expanded` が対応する属性です。
+4. **ラベルの三項演算子** … 表示は描画時に state から導出しています。ラベル文字列を持つ 2 つめの `useState` はありません。それは古くなりうるコピーだからです。
+
+<Demo title="真偽値のトグル">
+  <FavoriteDemo />
+</Demo>
+
+## シナリオ：追加・削除できる一覧 {#list}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**買い物リストを作ってください。名前を打って「追加」で行が増え、行の × で削除、↑ で 1 つ上へ移動します。目指すのは次の 3 つです。
+
+1. リスト本体と、テキスト欄の中身、どちらも state に持つ。
+2. 追加・削除・並べ替えが動き、そのたびに画面がちゃんと更新される。
+3. 空や空白だけの入力では何も追加されない。
+
+ヒント：ここが一番つまずくところなので、原則を先に書きます——**既存の配列を絶対に変えないこと**。`push` は動いているように見えて、画面が更新されません。`map` と `filter` はすでに新しい配列を作りますが、`sort` と `splice` は作りません。
+
+</Callout>
+
+```tsx title="src/components/ShoppingList/ShoppingList.tsx"
+import { useState } from 'react'
+
+export function ShoppingList() {
+  // 品名のリスト。`<string[]>` で「文字列の配列」だと TypeScript に伝える。
+  const [items, setItems] = useState<string[]>(['トマト', 'たまご'])
+
+  // 追加される前の、テキスト欄に今入っている文字列。
+  const [text, setText] = useState('')
+
+  const add = () => {
+    // 前後の空白を落とす。" " だけが項目にならないように。
+    const value = text.trim()
+
+    // 落とした結果が空なら、何もせずここで終わる。
+    if (!value) return
+
+    // まったく新しい配列を作る：これまでの全部＋新しい値。
+    // `...prev` はスプレッド構文で、「prev の中身をここに展開する」。
+    setItems((prev) => [...prev, value])
+
+    // テキスト欄を空にする。これも state の更新にすぎない。
+    setText('')
+  }
+
+  const remove = (index: number) => {
+    // `filter` は条件が真の項目だけを残し、新しい配列を返す。
+    // `_` は項目そのもの（今回は使わない）、`i` はその位置。
+    setItems((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const moveUp = (index: number) => {
+    // 先頭の上には何もないので、すぐ抜ける。
+    if (index === 0) return
+
+    setItems((prev) => {
+      // 先にコピーする。次の行は配列をその場で書き換えるため。
+      const next = [...prev]
+
+      // 2 つの位置を 1 文で入れ替える。行頭のセミコロンは、JavaScript が
+      // 上の行と勝手につなげてしまうのを防ぐためのもの。
+      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+
+      // 新しい配列を React に返す。
+      return next
+    })
+  }
+
+  return (
+    <div>
+      {/* フォームのシナリオと同じ、制御されたテキスト欄。 */}
+      <input value={text} onChange={(event) => setText(event.target.value)} />
+
+      <button type="button" onClick={add}>
+        追加
+      </button>
+
+      <ul>
+        {/* 配列の各項目を、リストの行に変換する。 */}
+        {items.map((item, index) => (
+          // `key` があると React は描画間で行を見分けられ、変わった行だけを
+          // 更新できる。ないと一覧を丸ごと作り直すことになる。
+          <li key={item}>
+            {item}
+
+            {/* アロー関数で包むと「クリック時」に走る。onClick={moveUp(index)}
+                と書くと、描画された瞬間に実行されてしまう。 */}
+            <button type="button" onClick={() => moveUp(index)}>
+              ↑
+            </button>
+
+            <button type="button" onClick={() => remove(index)}>
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`[...prev, value]`** … スプレッド構文が既存の項目を新しい配列に全部コピーし、その後ろに新しい値を足します。React は古い配列と新しい配列を比べ、別物なので描き直します。`prev.push(value)` は*同じ配列*を返すので、画面は何も変わりません。
+2. **`prev.filter(...)`** … `filter` はもともと非破壊で、条件を通った項目を集めた新しい配列を返します。`map` も同じです。この 2 つはそのまま使って安全です。
+3. **入れ替えの前の `const next = [...prev]`** … `next[0]` への代入は配列をその場で書き換えるので、握っているのは元ではなくコピーでなければなりません。
+4. **`key={item}`** … React が「トマトが改名された」のではなく「たまごが移動した」と分かるには、行ごとの安定した目印が要ります。配列の添字を使うと並べ替えが壊れます。ここでは名前が一意ですが、実データではレコードの `id` を使います。
+5. **`onClick={() => remove(index)}`** … アロー関数で包むと呼び出しが遅れます。包まないと一覧の描画中に `remove(index)` が走り、描画中に state を更新し、また描画され……と無限ループになります。詳しくは[関数を値として渡す](/guide/javascript/functions-as-values)。
+
+そもそもなぜ「書き換えない」が原則なのかは[参照とコピー](/guide/javascript/reference-vs-copy)を参照してください。
+
+<Demo title="追加・削除・並べ替え">
+  <ArrayStateDemo />
+</Demo>
+
+## シナリオ：フォーム全体を 1 つのオブジェクトに {#object}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**名前欄・メール欄・メルマガのチェックボックスがあるプロフィールフォームを、state 3 つではなく **1 つ**で作ってください。目指すのは次の 3 つです。
+
+1. 3 つのプロパティを持つオブジェクトを、`useState` 1 つで持つ。
+2. 変更ハンドラは 3 つの入力で **1 つ**を共有する。
+3. 名前欄に入力しても、メールとチェックボックスは無傷のまま。
+
+ヒント：各入力にプロパティ名と同じ `name` 属性を付けます。チェックボックスは `event.target.checked`、テキスト欄は `event.target.value` を報告します。他を失わずに 1 つだけ更新するには、まず元をコピーした新しいオブジェクトを作ります。
+
+</Callout>
+
+```tsx title="src/components/ProfileForm/ProfileForm.tsx"
+import type { ChangeEvent } from 'react'
+import { useState } from 'react'
+
+// フォーム全体のデータの形を、1 か所にまとめて書く。
+interface Profile {
+  name: string
+  email: string
+  newsletter: boolean
+}
+
+export function ProfileForm() {
+  // 3 項目をまとめて持つ、1 つの state。
+  const [profile, setProfile] = useState<Profile>({
+    name: '',
+    email: '',
+    newsletter: false,
+  })
+
+  // フォーム内のすべての入力が共有する、1 つのハンドラ。
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    // 発火した要素から 4 つ取り出す：name 属性、文字列の値、種類、
+    // そして（チェックボックス用に）チェックされているか。
+    const { name, value, type, checked } = event.target
+
+    setProfile((prev) => ({
+      // まず既存のプロパティを全部、新しいオブジェクトにコピーする。
+      ...prev,
+      // そのうえで 1 つだけ上書きする。角括弧は「変数 `name` の中身を
+      // プロパティ名として使う」という意味（計算されたキー）。
+      [name]: type === 'checkbox' ? checked : value,
+    }))
+  }
+
+  return (
+    <form>
+      {/* `name="name"` が、共有ハンドラに「どのプロパティを更新するか」を
+          伝える。Profile インターフェースのプロパティ名と一致させる。 */}
+      <input name="name" value={profile.name} onChange={handleChange} />
+
+      <input name="email" type="email" value={profile.email} onChange={handleChange} />
+
+      {/* チェックボックスは状態の表示に `value` ではなく `checked` を使う。 */}
+      <input
+        name="newsletter"
+        type="checkbox"
+        checked={profile.newsletter}
+        onChange={handleChange}
+      />
+    </form>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`{ ...prev, [name]: ... }`** … 「全部のコピーから始めて、1 つだけ変える」と読みます。`...prev` を落とすと他の 2 項目がオブジェクトから消えるので、名前を 1 文字打つたびにメール欄が空になります。
+2. **`(prev) => ({ ... })` の外側の括弧**は飾りではありません。これがないと JavaScript は `{` を関数本体の始まりと読み、アロー関数は何も返さず、state が `undefined` になります。
+3. **角括弧の `[name]`** は計算されたキーです。プロパティ名を変数から取るので、1 つのハンドラで 3 つの入力を賄えます。これがないと `name: value` と書くことになり、どの欄を触っても `name` プロパティだけが上書きされます。
+4. **`type === 'checkbox' ? checked : value`** … チェックボックスは `checked` に真偽値を、それ以外は `value` に文字列を報告します。ハンドラ 1 つで両方を扱えます。
+
+入れ子のオブジェクトは階層ごとにスプレッドが要ります。そこまで来たら、形を平らにすることを検討する合図です。
 
 ```tsx
-<button type="button" onClick={() => (count = count + 1)}>＋</button>
+// ✗ `address` を新しいオブジェクトにコピーしているが、中身は何も変えていない。
+//    更新に見えるだけの、無意味なコピー。
+setProfile((prev) => ({ ...prev, address: { ...prev.address } }))
+
+// ○ 外側をコピーし、内側もコピーして、その中の city を変える。
+setProfile((prev) => ({
+  ...prev,
+  address: { ...prev.address, city: '大阪' },
+}))
 ```
 
-すると、その場で赤い波線が出ます。
+## シナリオ：通信の状態を持つ {#status}
 
-```
-Cannot assign to 'count' because it is a constant.
-```
+<Callout type="note">
 
-`count` は `const` で受け取っているので、そもそも代入できません。仮にできたとしても、[前のページ](/guide/state/use-state/what-is-state)のとおり**再描画は起きません**。**state を変えるときは、必ず更新関数（`setCount`）を通す**——これが鉄則です。React は「更新関数が呼ばれた」ことを合図に描き直すからです。
+**まず自分で書いてみる。**サーバーから取得した商品一覧を、取得中はローディング表示、失敗時はエラー表示付きで出してください。コードを書く前に、設計の問いに 1 つ答えてください——**state はいくつ必要で、それぞれ何型ですか？**
 
-<Together
-  task="初期値を 0 ではなく 10 から始めるカウンターにするには、どこを変えればよいでしょう。実際に書き換えて、最初の表示が 10 になるか確かめてください。"
-  hint="useState のかっこの中が初期値です。"
->
+ヒント：思いつきやすいのは状況ごとの真偽値、`loading`・`error`・`empty` です。真偽値 3 つで何通りの組み合わせがあり、そのうち実際に起こりうるのはいくつか数えてみてください。あり得ない組み合わせを、そもそも表現できなくする形があります。
+
+</Callout>
+
+state の「形」の選び方が、起こりうるバグを決めます。真偽値を並べると、意味のない組み合わせまで表現できてしまいます。
 
 ```tsx
-const [count, setCount] = useState(10) // 初期値を 10 に
+// ✗ 真偽値 3 つ＝ 8 通り。そのうち 5 通りは存在してはいけない状況
+//    （読み込み中かつエラー、エラーかつ空、3 つ全部……）。
+//    それを止めるものが何もない。
+const [loading, setLoading] = useState(false)
+const [error, setError] = useState(false)
+const [empty, setEmpty] = useState(false)
 ```
 
-`useState(10)` にすると、最初の表示が `10` になります。`useState` のかっこの中が「一番最初の値」です。
+ユニオン 1 つにすれば、そもそも表現できなくなります。
 
-</Together>
+```tsx title="src/components/ProductList/ProductList.tsx"
+// useEffect は、コンポーネントが画面に出たあとにコードを走らせる道具。
+import { useEffect, useState } from 'react'
 
-<Together
-  task="＋を押すと 1 ずつではなく 5 ずつ増えるカウンターにしてみてください。"
-  hint="setCount に渡す式を count + 5 にします。"
->
+// サーバーから返ってくる商品 1 件の形。
+interface Product {
+  id: number
+  name: string
+}
 
-```tsx
-<button type="button" onClick={() => setCount(count + 5)}>＋5</button>
+// このコンポーネントが取りうる状況を「これだけ」と並べたもの。| は「または」。
+// この一覧にない値を入れるとコンパイルエラーになる。
+type Status = 'idle' | 'loading' | 'error' | 'done'
+
+export function ProductList() {
+  // 商品そのもの。最初は空の Product 配列。
+  const [products, setProducts] = useState<Product[]>([])
+
+  // いま 4 つのうちどの状況にいるか。
+  const [status, setStatus] = useState<Status>('idle')
+
+  useEffect(() => {
+    // リクエスト開始前に、読み込み中の状況へ切り替える。
+    setStatus('loading')
+
+    // サーバーにデータを要求する。
+    fetch('/api/products')
+      // 生のレスポンスを JavaScript の値に変換する。`as Promise<Product[]>`
+      // で、どんな形が返るかを TypeScript に伝えている。
+      .then((res) => res.json() as Promise<Product[]>)
+      .then((data) => {
+        // 商品を保存し……
+        setProducts(data)
+        // ……完了の状況へ移る。
+        setStatus('done')
+      })
+      // 上のどこかで例外が出たら、エラーの状況へ移る。
+      .catch(() => setStatus('error'))
+  }, []) // 空配列は「コンポーネントが出たときに 1 回だけ」の意味
+
+  // 早期 return にしておくと、下の正常系がすっきりする。
+  if (status === 'loading') return <p>読み込み中…</p>
+  if (status === 'error') return <p>商品を取得できませんでした。</p>
+
+  return (
+    <ul>
+      {products.map((product) => (
+        // データベースの id は理想的な `key`。一意で、変わらない。
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  )
+}
 ```
 
-`setCount(count + 5)` にすれば、押すたびに 5 増えます。「今の値 `count` に 5 を足したものを、新しい state にする」という意味です。読み取りは `count`、更新は `setCount(...)`——この 2 つの役割を、しっかり分けて使います。
+1 行ずつ。
 
-</Together>
+1. **`type Status = 'idle' | 'loading' | 'error' | 'done'`** … 文字列リテラルのユニオンです。仕掛けはこれだけ。変数はこの 4 つ*しか*持てないので、「読み込み中かつエラー」は書けません。
+2. **`useState<Status>('idle')`** … ここでは型の明示が必須です。書かないと TypeScript は `'idle'` から素の `string` と推論し、`setStatus('loadng')` が通ってしまいます。
+3. **state は 1 つではなく 2 つ** … `products` と `status` は本当に別のタイミングで変わり、別のものを持ちます。まとめても読みやすくなりません。
+4. **早期 return** … 各状況を一覧の周りに条件分岐で巻き付けるのではなく、冒頭で 1 回ずつ処理しています。
 
-## 書き方カタログ：useState はいろいろな型で使える {#catalog}
+fetch そのものは [useEffect](/guide/state/use-effect/basics) の担当で、このページのテーマは「何をどんな形で持つか」です。
 
-`useState` の初期値は数値だけではありません。**画面と連動する値なら何でも** state にできます。よく使う形を並べます。丸ごと自分のコードのひな形にしてください。
+## 呼び出し方のすべて {#signatures}
+
+**関数形（updater）。**次の値を今の値から計算するときは、値ではなく関数を渡します。
 
 ```tsx
-// 数値
+// 「この描画が掴んだ count」を読む。
+setCount(count + 1)
+
+// 実行される時点で React が持っている最新の値を受け取る。
+setCount((prev) => prev + 1)
+```
+
+なぜ重要か。素直な形を 3 回呼んでも、増えるのは **1** です。3 回とも同じ `count` を読むので、3 回とも「1 にして」と言っています。
+
+```tsx
+const addThree = () => {
+  // この時点で `count` は 0 なので、「1 にして」を予約する。
+  setCount(count + 1)
+  // `count` は「まだ」0。この描画の変数は決して変わらない。
+  setCount(count + 1)
+  // やはり 0。3 回とも同じことを言ったので、結果は 1。
+  setCount(count + 1)
+}
+
+const addThreeCorrectly = () => {
+  // React が 0 を渡してくるので、1 を予約する。
+  setCount((prev) => prev + 1)
+  // 前の結果である 1 を受け取るので、2 を予約する。
+  setCount((prev) => prev + 1)
+  // これは 2 を受け取り、3 を予約する。
+  setCount((prev) => prev + 1)
+}
+```
+
+<Demo title="＋1 と ＋3">
+  <TripleClickDemo />
+</Demo>
+
+同じ罠は `setTimeout` の中、`useEffect` のクリーンアップの中、そして「作られた描画より後で走るハンドラ」すべてに潜みます。**鉄則：新しい値が古い値に言及するなら、関数形。**
+
+**遅延初期化。**`useState(expensive())` は `expensive()` を**毎回の描画で**呼び、初回以外は結果を捨てます。関数を渡せば、React は一度だけ呼びます。
+
+```tsx
+// ✗ JSON.parse が毎回の描画で走る。結果が使われるのは初回だけで、
+//    それ以降はすべて無駄。
+const [cart, setCart] = useState<string[]>(JSON.parse(localStorage.getItem('cart') ?? '[]'))
+
+// ○ 「関数」を渡すと、React は「初期値が要るときだけ呼んで」と解釈する
+//    ——つまりマウント時に 1 回だけ。
+const [cart, setCart] = useState<string[]>(() => JSON.parse(localStorage.getItem('cart') ?? '[]'))
+```
+
+意味があるのは実際に重い処理のときだけです——パース、ストレージの読み出し、大きな配列の生成など。`useState(0)` に儀式は要りません。
+
+**保持せず導出する。**他の state から計算できる値は、計算します。`useState` を増やすことは、古くなりうるものを増やすことです。
+
+```tsx
+// ✗ 手で同期し続けなければならない state が 2 つ。1 か所で `count` の更新を
+//    忘れると、画面の数字が黙って間違う。
+const [items, setItems] = useState<string[]>([])
 const [count, setCount] = useState(0)
 
-// 文字列（入力欄など）
-const [name, setName] = useState('')
-
-// 真偽値（開閉・ON/OFF）
-const [isOpen, setIsOpen] = useState(false)
-
-// 配列（一覧）
+// ○ state は 1 つ。他は毎回の描画で計算し直すので、`items` と
+//    食い違うことがあり得ない。
 const [items, setItems] = useState<string[]>([])
-
-// オブジェクト（フォームなど複数の値）
-const [form, setForm] = useState({ name: '', email: '' })
-
-// 最初は「まだ無い」（データ取得前など）— 型は Part 6 で詳しく
-const [product, setProduct] = useState<Product | null>(null)
+const count = items.length
+const hasAny = count > 0
+const sorted = [...items].sort()
 ```
 
-真偽値は開閉やお気に入り、配列は一覧、オブジェクトはフォーム——このあとのページで、それぞれ実際に使います。「どんな値でも state にできる」と分かれば、応用がききます。
+[useMemo](/guide/state/use-memo/basics) を使うのは、導出が遅いと**計測できた**ときだけです。最適化であって、既定ではありません。
+
+**props を初期値にする。**初期値はあくまで初期値です。初回描画で読まれ、以後は永久に無視されます。
+
+```tsx
+export function NameField({ defaultName }: { defaultName: string }) {
+  // `defaultName` は初回描画で 1 回だけ読まれる。親があとで別の値を
+  // 渡しても、この state は気づかない。
+  const [name, setName] = useState(defaultName)
+
+  return <input value={name} onChange={(e) => setName(e.target.value)} />
+}
+```
+
+prop が変わったらリセットしたい——そのときエフェクトを足すのではなく、親から `key` を変えます。React が新しいインスタンスを作り直し、state も新品になります。
+
+```tsx
+// `key` を変えると React は「もう別のコンポーネントだ」と判断する。
+// 古いほうを state ごと捨て、新しく作り直す。
+<NameField key={userId} defaultName={user.name} />
+```
+
+**リフトアップ（state を持ち上げる）。**2 つのコンポーネントが同じ値を必要とするなら、その値は共通の親のものです。値を props で下ろし、更新関数ももう 1 本下ろします。
+
+```tsx title="src/components/Filterable/Filterable.tsx"
+import { useState } from 'react'
+
+// 検索欄は query を所有しない。今の値と、変わったときに呼ぶ関数を渡される。
+interface SearchBoxProps {
+  query: string
+  onQueryChange: (next: string) => void
+}
+
+function SearchBox({ query, onQueryChange }: SearchBoxProps) {
+  // 親の値を表示し、1 打鍵ごとに親へ報告する。
+  return <input value={query} onChange={(event) => onQueryChange(event.target.value)} />
+}
+
+function ResultCount({ query, items }: { query: string; items: string[] }) {
+  // props から一致件数を計算する。自分の state は要らない。
+  const matches = items.filter((item) => item.includes(query))
+
+  return <p>{matches.length} 件</p>
+}
+
+export function Filterable({ items }: { items: string[] }) {
+  // 共有の持ち主。下の 2 つの子は、この 1 つの値を見る。
+  const [query, setQuery] = useState('')
+
+  return (
+    <div>
+      {/* 値を下ろし、更新関数をコールバックとして下ろす。 */}
+      <SearchBox query={query} onQueryChange={setQuery} />
+
+      {/* 2 つめの子も同じ値を見るので、食い違いようがない。 */}
+      <ResultCount query={query} items={items} />
+    </div>
+  )
+}
+```
+
+親が何階層も上で、props が素通りするだけになってきたら、`useContext` に切り替える合図です。
+
+**state は 1 つ？ 複数？**独立して変わる値は分け、必ず一緒に変わる値はまとめます。
+
+```tsx
+// ○ 独立している——検索欄の打鍵はモーダルと無関係なので、
+//    state も更新も別にする。
+const [query, setQuery] = useState('')
+const [modalOpen, setModalOpen] = useState(false)
+
+// ○ 必ず一緒に変わる——座標は 1 つの概念なので、オブジェクト 1 つでよい。
+const [position, setPosition] = useState({ x: 0, y: 0 })
+```
+
+**同じ値を入れても何も起きません。**React は `Object.is` で比較し、値が変わっていなければ描き直しを省きます。閉じているメニューに `setOpen(false)` してもコストはゼロです。オブジェクトを書き換えてそのまま渡すと何も起きないのも、これと同じ理由です（参照が同じ）。
+
+## わざと壊す：push で配列に追加する {#break-push}
+
+自分で書いて動かしてください。`useState` で最も学びの大きい失敗であり、読むのと自分の目で見るのとではまったく違います。
+
+```tsx title="src/components/Broken/Broken.tsx（わざと間違えたコード）"
+import { useState } from 'react'
+
+export function Broken() {
+  const [items, setItems] = useState<string[]>(['トマト'])
+
+  const add = () => {
+    // 普通の JavaScript のやり方で配列に追加する。
+    items.push('たまご')
+
+    // それを React に渡す。
+    setItems(items)
+
+    // 配列が本当に変わっていることを、自分の目で確かめる。
+    console.log('いまの配列:', items)
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={add}>
+        追加
+      </button>
+      <ul>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+ボタンを押してください。**コンソールでは配列が増えていき、画面は一度も変わりません。**
+
+このズレが、このページ全体の核心です。`push` は配列の中身を変えましたが、「どの配列か」は変えていません。だから `setItems(items)` は、React がすでに持っているのとまったく同じオブジェクトを渡したことになります。React は `Object.is` で比べ、`true` を得て、「何も変わっていない」と判断し、描き直しを省きました。
+
+1 行だけ直します。
+
+```tsx
+// 新しい配列を作る。別の配列は別の値なので、React は描き直す。
+setItems((prev) => [...prev, 'たまご'])
+```
+
+「state を書き換えるな」という話はすべて、この 1 つの比較から出ています。React はデータの変化を見張ってはいません。古い値と新しい値を比べるだけで、`push` は比べるものを何も残さないのです。
+
+## 書き方カタログ：実際に書く形 {#catalog}
+
+```tsx
+// 宣言。型は初期値から推論される
+const [count, setCount] = useState(0) // number
+const [name, setName] = useState('') // string
+const [open, setOpen] = useState(false) // boolean
+
+// 宣言。推論では足りない場合
+const [items, setItems] = useState<Product[]>([]) // 空配列
+const [picked, setPicked] = useState<Product | null>(null) // 「まだ何もない」
+const [status, setStatus] = useState<Status>('idle') // リテラルのユニオン
+
+// 重い初期値 — 関数を渡して 1 回だけ実行させる
+const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem('cart') ?? '[]'))
+
+// 更新：素の値と、前の値から決める形
+setCount(5) // 新しい値が古い値に依存しないとき
+setCount((prev) => prev + 1) // 依存するとき — このときは必ずこちら
+setOpen((prev) => !prev) // 反転
+
+// 配列 — 元を push / splice / sort しない
+setItems((prev) => [...prev, item]) // 追加
+setItems((prev) => prev.filter((i) => i.id !== id)) // 削除
+setItems((prev) => prev.map((i) => (i.id === id ? { ...i, done: true } : i))) // 1 件更新
+setItems((prev) => [...prev].sort(byPrice)) // コピーを並べ替え
+
+// オブジェクト — コピーしてから上書き
+setProfile((prev) => ({ ...prev, email: value })) // 1 項目
+setProfile((prev) => ({ ...prev, address: { ...prev.address, city } })) // 入れ子
+
+// 導出 — useState は使わない
+const total = items.length
+const isEmpty = total === 0
+```
+
+## 使うとき・使わないとき {#when}
+
+`useState` を使うのは、ユーザーが変えられて、かつ画面に反映されるべきものです——入力文字列、開閉、選択中のタブ、現在のページ番号、取得したデータ。
+
+次には使いません。
+
+- **他の state から計算できる値**……描画中に導出します。`useState` ＋ `useEffect` で同期させると描画が 1 回増え、1 フレームだけ古い値が見えることがあります。
+- **画面に出ない値**……タイマー ID、ハンドラの中でしか読まないスクロール位置、「もう発火したか」のフラグ。これらは [useRef](/guide/state/use-ref/basics) です。変えても描き直す必要がありません。
+- **props のコピー**……prop をそのまま読みます。prop が変わったときにローカル state をリセットしたいなら、state ＋エフェクトではなく `key` です。
+- **決まった遷移で必ず一緒に動く複数の項目**……同じオブジェクトに対するスプレッド更新が 2〜3 個を超えたら、`useReducer` が遷移を 1 か所にまとめてくれます。
+- **遠く離れた多数のコンポーネントが必要とする値**……行けるところまでリフトアップし、5 階層も props を通すようなら `useContext` へ。
+- **成長中のアプリのサーバーデータ**……`useState` ＋ `useEffect` は学ぶには正しい形で、キャッシュや再取得が要るようになったらデータ取得ライブラリが正解です。
 
 ## よくある間違い {#mistakes}
 
-<Diff
-  bad="count = count + 1（直接代入。エラー＆再描画されない）"
-  good="setCount(count + 1)"
-  note="state は更新関数で変える。直接代入は const エラー＋再描画も起きない。"
-/>
+**更新した直後に値を読む。**
+
+```tsx
+const handleClick = () => {
+  // 更新を予約する。これは下の行の `count` を変えない。
+  setCount(count + 1)
+
+  // ✗ この描画が始まったときの値のまま。新しい値は「次の」描画、
+  //   関数がもう一度頭から走るときに届く。
+  console.log(count)
+}
+```
+
+`count` はこの描画における `const` です。`setCount` が遡って書き換えることはできません。今すぐ必要なら、先に変数へ計算します。
 
 <Diff
-  bad="const count = useState(0)（配列のまま受け取る）"
-  good="const [count, setCount] = useState(0)"
-  note="useState は [値, 更新関数] の配列を返す。分割代入で 2 つに分けて受け取る。"
+  bad="setCount(count + 1); console.log(count)"
+  good="const next = count + 1; setCount(next); console.log(next)"
+  note="今の描画の state 変数は変わらない。新しい値は次の描画で受け取る。"
 />
+
+**3 回更新して 1 しか増えない。**[関数形](#signatures)のとおり、`setCount((prev) => prev + 1)` を使います。
+
+**配列やオブジェクトの state を書き換える。**
+
+```tsx
+// ✗ push は既存の配列を書き換え、新しい長さを返す。
+items.push('牛乳')
+// そして React には「もともと持っていたのと同じ配列」を渡すことになる。
+// Object.is が「等しい」と言うので、React は何も変わっていないと判断する。
+setItems(items)
+
+// ○ 新しい配列を作る。別の配列は別の値なので、React は描き直す。
+setItems((prev) => [...prev, '牛乳'])
+```
+
+<Diff
+  bad="items.push('牛乳'); setItems(items)"
+  good="setItems((prev) => [...prev, '牛乳'])"
+  note="push / splice / sort / reverse は元を編集する。React は参照を比べ、同じ配列だと判断して描き直しを省く。"
+/>
+
+**描画中に更新関数を呼ぶ。**
+
+```tsx
+// ✗ () は「今すぐ実行」の意味なので、描画中に走る。すると描画が予約され、
+//   また走り、また予約され……で Too many re-renders。
+<button onClick={setOpen(true)}>開く</button>
+
+// ○ 関数を渡す。実際にボタンが押されるまで、それは使われずに待つ。
+<button onClick={() => setOpen(true)}>開く</button>
+```
+
+詳しくは[関数を値として渡す](/guide/javascript/functions-as-values)。
+
+<Diff
+  bad="onClick={setOpen(true)}"
+  good="onClick={() => setOpen(true)}"
+  note="() を付けると描画時に実行されてループする。ハンドラが受け取るのは関数であって、呼んだ結果ではない。"
+/>
+
+**props を state にコピーする。**
+
+```tsx
+// ✗ 初回描画で 1 回読まれ、そこで固まる。親が新しい商品を渡しても、
+//   この `price` は古い値を持ち続ける。
+const [price, setPrice] = useState(product.price)
+
+// ○ prop をそのまま読む。定義上、常に最新。
+const price = product.price
+```
+
+**条件分岐の中でフックを呼ぶ。**
+
+```tsx
+// ✗ React has detected a change in the order of Hooks.
+//   isLoggedIn が false の描画ではこの useState が呼ばれないので、
+//   React の「位置でスロットを対応づける」帳簿がずれる。
+if (isLoggedIn) {
+  const [name, setName] = useState('')
+}
+```
+
+`useState` はコンポーネントの先頭に置き、条件は JSX 側で書きます。
 
 ## うちの標準 {#standard}
 
 <Std
-  decision="state は const [値, set値] = useState(初期値) の形で受け取り、更新は必ず set 関数を使う"
-  alt="1 つのコンポーネントに state が増えてきたら、関連するものをオブジェクトや配列にまとめることもあります（次のページ以降）。まずは 1 値 1 useState で十分です。"
+  decision="独立して変わる値ごとに useState を 1 つ。導出できるものは導出する。新しい値が古い値をもとにするなら関数形を使う"
+  alt="必ず一緒に変わる項目（座標、ひとまとまりで送るフォーム）は 1 つのオブジェクト state にまとめて構いません。同じオブジェクトに対するスプレッド更新を 3 つ以上書くようになったら useReducer に移します——ハンドラに散らばった遷移より、1 か所にまとまった遷移のほうが読めます。"
 >
 
-`const [count, setCount] = useState(0)` の形を、そのまま型として覚えます。読むのは `count`、変えるのは `setCount`。この 2 つを混同しないだけで、state の 8 割は書けます。
+`useState` を足す前に、「この値は今あるものから計算できないか」を必ず一度考えます。「余分な」state のほとんどは、手で保存された導出値です。そして保存されたコピーはすべて、食い違いの種です。本当に必要なときは、使う場所のできるだけ近くに置き、別のコンポーネントが同じ値を本当に必要としたときにだけ持ち上げます。
 
 </Std>
 
+## 内部で起きていること {#internals}
+
+React は、あなたのフックを**そのコンポーネントのインスタンス**に紐づいたリストに、呼んだ順で保存します。`useState` は実質「自分のリストの 1 番目のスロットと、そこに書き込む更新関数をください」です。フックを `if` やループ、早期 return の中に置いてはいけない理由はこれです——1 番目のスロットは、どの描画でも同じものでなければなりません。
+
+更新関数を呼ぶと、こうなります。
+
+1. React が新しい値（または渡した関数）をキューに記録します。
+2. **すぐには再実行しません。**同じイベントから出た更新は 1 回の描画に**まとめられます**（バッチ）。1 回のクリックで更新関数を 3 回呼んでも、描き直しは 1 回です。
+3. 次の描画であなたの関数が頭から走り直し、`useState` が更新後の値を返します。
+4. 新しい値が現在の値と `Object.is` で等しければ、React は描画自体を省くことがあります。
+
+リストはインスタンスごとに別々です。`ProductCard` が 10 枚あれば `favorite` も 10 個独立していて、アンマウントすればその state は捨てられます——`key` を変えてリセットするのは、まさにこの性質を利用しています。
+
+<Deeper title="なぜ 2 回目以降は初期値が無視されるの？">
+
+`useState(initial)` は「`initial` と同期し続けて」という意味ではありません。初回描画のあとスロットにはすでに値が入っているので、引数は評価され（だからこそ遅延初期化が要ります）、そのまま捨てられます。
+
+覚え方：引数は「スロットが空の描画のための値」。それ以降の描画では、React は引数を無視してスロットの中身を返します。
+
+</Deeper>
+
+## TypeScript メモ {#typescript}
+
+ほとんどの場合は推論で足ります——`useState(0)` は `number`、`useState('')` は `string`、`useState(false)` は `boolean`。明示的な型が要るのは、次の 3 つの場面だけです。
+
+**空の配列やオブジェクト。**そのままだと `[]` は `never[]` と推論され、何も入れられません。
+
+```tsx
+// ✗ TypeScript は空配列を見て「何も入らない配列」と結論する。
+const [products, setProducts] = useState([])
+
+// ○ 中身が入ったとき何を持つのかを、山括弧で伝える。
+const [products, setProducts] = useState<Product[]>([])
+```
+
+**`null` や `undefined` から始まる値。**`useState(null)` の型は `null` なので、更新関数は他の値を受け付けません。
+
+```tsx
+// ✗ これが持てる値は null だけ。
+const [selected, setSelected] = useState(null)
+
+// ○ 「Product、またはまだ何もない」。
+const [selected, setSelected] = useState<Product | null>(null)
+```
+
+**リテラルのユニオン。**`useState('idle')` は `string` に広がってしまい、意味がなくなります。
+
+```tsx
+// 許される値だけを並べて……
+type Status = 'idle' | 'loading' | 'error' | 'done'
+
+// ……ここで明示する。書かないと TypeScript は素の string に広げてしまう。
+const [status, setStatus] = useState<Status>('idle')
+```
+
+**更新関数を props で渡すとき。**型は `Dispatch<SetStateAction<T>>` です。子が「値を入れる」だけなら、狭いコールバックのほうが扱いやすくなります。
+
+```tsx
+import type { Dispatch, SetStateAction } from 'react'
+
+interface Props {
+  // 完全な更新関数：子は値でも関数形でも渡せる。
+  setQuery: Dispatch<SetStateAction<string>>
+  // ただのコールバック：子は新しい文字列を返すことしかできない。単純で、
+  // 裏に useState があることも隠せる。
+  onQueryChange: (next: string) => void
+}
+```
+
+**イベントハンドラの型。**実際にエラーが出るのはここです。
+
+```tsx
+import type { ChangeEvent, FormEvent, MouseEvent } from 'react'
+
+// テキスト入力への入力。
+const onInput = (event: ChangeEvent<HTMLInputElement>) => setText(event.target.value)
+
+// プルダウンの選択——要素の型が違う点に注意。
+const onSelect = (event: ChangeEvent<HTMLSelectElement>) => setSort(event.target.value)
+
+// フォームの送信。
+const onSubmit = (event: FormEvent<HTMLFormElement>) => event.preventDefault()
+
+// ボタンのクリック。`currentTarget` はハンドラが付いているボタン自身。
+const onClick = (event: MouseEvent<HTMLButtonElement>) => event.currentTarget.blur()
+```
+
+JSX に**インラインで**書けば（`onChange={(event) => ...}`）すべて推論されるので、注釈は要りません。必要になるのは、別途定義したハンドラ——TypeScript に推論の手がかりがない場合だけです。
+
 ## うまくいかないとき {#trouble}
 
-- **`Cannot assign to 'count' because it is a constant`** … `count` に直接代入しています。`setCount(...)` を使います。
-- **`Rendered more hooks than during the previous render` など hook のエラー** … `useState` を `if` の中やループの中で呼んでいませんか。hook は関数の**一番上**で呼びます。
-- **更新しても変わらない** … `setCount` を呼んでいるか、呼ぶ値が本当に新しくなっているかを確認します。
+- **クリックしても画面が変わらない** … ほぼ確実に元を書き換えています。`push` `splice` `sort` `reverse` `obj.field = x` はどれも同じオブジェクトを返します。新しく作ってください——[わざと壊す](#break-push)を参照。
+- **`Too many re-renders`** … ハンドラの中ではなく描画中に更新関数が呼ばれています。`onClick={setOpen(true)}` を探し、`onClick={() => setOpen(true)}` に直します。
+- **3 増やしたつもりが 1 しか増えない** … 3 回とも同じ値を読んでいます。`setCount((prev) => prev + 1)` にします。
+- **更新の直後の `console.log` が古い値を出す** … 必ずそうなります。新しい値は次の描画で届きます。今すぐ要るなら変数に計算しておきます。
+- **親が新しい prop を渡しても値が更新されない** … prop を `useState` にコピーしています。prop を直接読むか、`key` で作り直します。
+- **`Argument of type 'X' is not assignable to parameter of type 'never'`** … 型のない空配列です。`useState<Product[]>([])` にします。
+- **`React has detected a change in the order of Hooks`** … `useState` が `if` やループ、早期 return の後ろにあります。コンポーネントの先頭へ移します。
+- **入力欄に文字が打てない** … `onChange` のない `value` です。制御されたコンポーネントには両方が要ります。
 
 ## まとめと練習 {#summary}
 
-<Exercise answer="useState は [今の値, 更新関数] の配列を返します。count は表示に使い、値を変えるときは setCount(新しい値) を呼びます。count への直接代入はできません（再描画も起きません）。">
+<Exercise answer="3 回とも「この描画で掴んだ同じ count」を読むので、3 回とも『1 にして』と予約しているためです。関数形にします。setCount((prev) => prev + 1) を 3 回書けば、各呼び出しが前の結果を受け取ります。">
 
-`const [count, setCount] = useState(0)` の `count` と `setCount` は、それぞれ何に使うものでしょう。
+1 回のクリックで `setCount(count + 1)` を 3 回呼んでいるのに、数字が 1 しか増えません。なぜで、どう直しますか。
+
+</Exercise>
+
+<Exercise answer="どちらでもなく、導出します。const total = items.reduce((sum, item) => sum + item.price, 0)。useState を増やすと items が変わるたびに手で更新する必要があり、useEffect で同期すると描画が 2 回走って 1 回目は古い値になります。">
+
+`items` を state に持っていて、合計金額を出したいとします。`total` は別の `useState` にして `useEffect` で同期すべきでしょうか。それとも別の方法がありますか。
+
+</Exercise>
+
+<Exercise answer="初期値の引数は初回描画でしか読まれないので、state は古い値のままです。props を state にコピーしないこと。prop を直接読むか、どうしても編集可能なコピーが必要なら key で作り直します——<NameField key={userId} defaultName={user.name} />。">
+
+`useState(props.defaultName)` は最初は正しい名前を出しますが、親が新しい `defaultName` を渡しても更新されません。なぜで、代わりにどうしますか。
 
 </Exercise>
 
 <SummaryBox>
 
-- `useState(初期値)` は `[今の値, 更新関数]` を返す。分割代入で受け取る
-- 読むのは `count`、変えるのは `setCount(新しい値)`。更新関数を呼ぶと再描画される
-- 初期値は数値・文字列・真偽値・配列・オブジェクト・null と何でもよい
+- state はコンポーネントのインスタンスごとに React が覚えている値。更新関数が「描き直して」を伝える。普通の変数はどちらもできない
+- 配列・オブジェクトの state は書き換えず、`[...prev]` や `{ ...prev }` で新しく作る。React は参照を比べている
+- 新しい値が古い値をもとにするなら関数形、初期化が重いなら遅延初期化、そして導出できる値は保持せず導出する
 
 </SummaryBox>

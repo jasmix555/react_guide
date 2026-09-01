@@ -1,0 +1,906 @@
+---
+title: 'useContext: passing values without props'
+minutes: 32
+slug: use-context-basics
+section: state
+description: "The complete useContext reference: what prop drilling is and how context replaces it, the minimal typed example, four real scenarios you attempt before reading the answer (theme, signed-in user, overlay controller, language), the React 19 provider syntax and use(), when not to use it, the re-render trap, and the TypeScript notes."
+level: intermediate
+prerequisites: ['state/use-state/basics', 'components/props']
+---
+
+import { ThemeContextDemo } from '@/demos/ThemeContext'
+
+<LearnBox>
+
+- Prop drilling, and the exact point at which context is worth its cost
+- Four scenarios you try yourself before reading the answer: theme, signed-in user, overlay controller, language
+- The React 19 provider syntax, `use()`, the re-render trap, and the custom-hook pattern that makes context pleasant
+
+</LearnBox>
+
+## What useContext actually is {#what}
+
+**`useContext` lets a component read a value from an ancestor, without every component in between having to pass it along.**
+
+The problem it solves has a name: **prop drilling**. Say the theme lives at the top of the app and a button five levels down needs it.
+
+```tsx
+// The theme starts here, at the top.
+function App() {
+  const [theme, setTheme] = useState('light')
+  // It has to be handed to Layout, even though Layout does not use it.
+  return <Layout theme={theme} />
+}
+
+// Layout does not care about the theme. It just passes it on.
+function Layout({ theme }) {
+  return <Sidebar theme={theme} />
+}
+
+// Neither does Sidebar. It also just passes it on.
+function Sidebar({ theme }) {
+  return <Menu theme={theme} />
+}
+
+// Menu, the same. Three components now have a prop they never read.
+function Menu({ theme }) {
+  return <ThemedButton theme={theme} />
+}
+
+// Finally, the one component that actually wanted it.
+function ThemedButton({ theme }) {
+  return <button className={theme}>Click</button>
+}
+```
+
+Three components carry a prop they never read. Add a second value and it is six pointless props. Rename `theme` and you edit five files.
+
+Context cuts the middle out: an ancestor **provides** a value, and any descendant **reads** it directly, however deep.
+
+<Callout type="analogy">
+
+Props are handing a note down a line of people. Context is a noticeboard: one person pins the note up, and anyone standing under it can read it without the note being passed to them. People in between do not need to know the noticeboard exists.
+
+</Callout>
+
+You have already used context without noticing. `useLocation` from React Router, and the `<MDXProvider>` that gives every page on this site its `Callout` and `Demo` components, are both context underneath.
+
+## The smallest working example {#minimal}
+
+Context is always three pieces: **create**, **provide**, **read**.
+
+```tsx title="src/context/ThemeContext.tsx"
+// createContext makes the "noticeboard"; useContext reads from it.
+import { createContext, useContext } from 'react'
+
+// ① CREATE. The argument is the default value, used only when a component
+//    reads this context with no provider above it.
+const ThemeContext = createContext('light')
+
+// ③ READ. This component is nested three levels down and receives no props
+//    at all, yet it gets the value from the nearest provider above it.
+function ThemedButton() {
+  const theme = useContext(ThemeContext)
+  return <button className={theme}>Click</button>
+}
+
+// Two components in the middle that never mention the theme.
+function Toolbar() {
+  return <ThemedButton />
+}
+
+function Layout() {
+  return <Toolbar />
+}
+
+export function App() {
+  return (
+    // ② PROVIDE. Everything inside these tags can read the value 'dark'.
+    //    In React 19 you render the context itself; older code writes
+    //    <ThemeContext.Provider value="dark">.
+    <ThemeContext value="dark">
+      <Layout />
+    </ThemeContext>
+  )
+}
+```
+
+```tsx
+const ThemeContext = createContext('light')
+//    ↑                            ↑
+//    │                            └─ ② the default, used ONLY when there is no provider
+//    └─ ① the context object itself — you pass this to both the provider and the reader
+
+const theme = useContext(ThemeContext)
+//    ↑                  ↑
+//    │                  └─ ④ which context to read. Not a string, the actual object
+//    └─ ③ the value from the nearest provider above, or the default if there is none
+```
+
+## See it running {#demo}
+
+The button below is three levels deep. Levels 1 and 2 do not mention the theme at all — no props were threaded through them.
+
+<Demo title="A value crossing three levels">
+  <ThemeContextDemo />
+</Demo>
+
+## Scenario: a theme toggle {#theme}
+
+<Callout type="note">
+
+**Try it first.** Build a dark-mode toggle that any component in the app can both read and flip, without prop drilling. Aim for:
+
+1. A provider owning the theme state.
+2. A `useTheme()` hook consumers call, rather than importing the context object everywhere.
+3. A clear error if someone renders a consumer outside the provider.
+
+Hints: what should the context's *default* value be, if the point is to catch a missing provider rather than paper over it? And the value you provide is an object — what problem does building it fresh on every render create for consumers?
+
+</Callout>
+
+```tsx title="src/context/ThemeContext.tsx"
+// `import type` brings in types only; ReactNode means "anything renderable".
+import type { ReactNode } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
+
+// The two allowed themes, as a union so typos become compile errors.
+type Theme = 'light' | 'dark'
+
+// The shape of what the provider hands out: the current value plus a way
+// to change it. Bundling both is what lets consumers toggle, not just read.
+interface ThemeValue {
+  theme: Theme
+  toggle: () => void
+}
+
+// null as the default is deliberate. There is no sensible "theme with no
+// provider", so we want the hook below to throw rather than silently
+// fall back to something that looks like it works.
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+// The custom hook consumers actually call. It hides the context object and
+// turns "no provider" into a clear error instead of a confusing null.
+export function useTheme(): ThemeValue {
+  const value = useContext(ThemeContext)
+
+  // TypeScript narrows `value` to ThemeValue after this line.
+  if (!value) throw new Error('useTheme must be used inside <ThemeProvider>')
+
+  return value
+}
+
+interface ThemeProviderProps {
+  children: ReactNode
+}
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  // The single source of truth for the whole app's theme.
+  const [theme, setTheme] = useState<Theme>('light')
+
+  // Build the value object only when `theme` changes. Without useMemo this
+  // would be a new object on every render, so every consumer would re-render
+  // even when the theme itself had not changed.
+  const value = useMemo<ThemeValue>(
+    () => ({
+      theme,
+      // The updater form means this function never needs rebuilding.
+      toggle: () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light')),
+    }),
+    [theme],
+  )
+
+  // React 19: render the context directly as the provider.
+  return <ThemeContext value={value}>{children}</ThemeContext>
+}
+```
+
+Using it from anywhere, at any depth:
+
+```tsx title="src/components/ThemeToggle/ThemeToggle.tsx"
+import { useTheme } from '@/context/ThemeContext'
+
+export function ThemeToggle() {
+  // No props, no imports of the context object, no knowledge of who provides it.
+  const { theme, toggle } = useTheme()
+
+  return (
+    <button type="button" onClick={toggle} aria-pressed={theme === 'dark'}>
+      {theme === 'light' ? 'Switch to dark' : 'Switch to light'}
+    </button>
+  )
+}
+```
+
+Line by line:
+
+1. **`createContext<ThemeValue | null>(null)`** — the answer to the first hint. A default of `'light'` would make a component rendered outside the provider *look* like it works, then behave wrongly in a way nobody can trace. `null` plus the check in the hook turns that into an error naming the exact problem.
+2. **The `useTheme()` custom hook** is the pattern to copy every time. Consumers never import `ThemeContext`, never handle `null`, and get a real error message when they get it wrong. It also means you can change the implementation later without touching a single consumer.
+3. **`useMemo` on the value** — the answer to the second hint. `{ theme, toggle }` written inline is a brand-new object on every render of the provider, and every consumer re-renders when the value's identity changes. Memoising means only a real theme change costs anything.
+4. **`toggle` uses the updater form**, so the function reads nothing from the surrounding render and the memo's `[theme]` dependency is genuinely the only thing that matters.
+5. **`<ThemeContext value={value}>`** — the React 19 form. Before 19 this was `<ThemeContext.Provider value={value}>`, which still works.
+
+## Scenario: the signed-in user {#auth}
+
+<Callout type="note">
+
+**Try it first.** Make the current user available everywhere — a header avatar, a "My account" link, a checkout page — without passing `user` down through the whole tree. Aim for:
+
+1. Three situations distinguishable: still checking, signed in, signed out.
+2. `signOut` callable from any component.
+3. Consumers not having to handle "still loading" in ten different places.
+
+Hints: what shape should the value be so that "loading" and "signed out" cannot be confused? And where does the "still checking" case get handled — in every consumer, or once?
+
+</Callout>
+
+```tsx title="src/context/AuthContext.tsx"
+import type { ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+
+// What we know about a signed-in person.
+interface User {
+  id: string
+  name: string
+}
+
+// One value covering every possible situation. `user: null` with
+// status 'ready' means "checked, and nobody is signed in".
+interface AuthValue {
+  user: User | null
+  status: 'checking' | 'ready'
+  signOut: () => void
+}
+
+const AuthContext = createContext<AuthValue | null>(null)
+
+export function useAuth(): AuthValue {
+  const value = useContext(AuthContext)
+  if (!value) throw new Error('useAuth must be used inside <AuthProvider>')
+  return value
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  // Who is signed in, if anyone. null until we know otherwise.
+  const [user, setUser] = useState<User | null>(null)
+
+  // Whether we have finished asking the server. Starts as 'checking'.
+  const [status, setStatus] = useState<'checking' | 'ready'>('checking')
+
+  useEffect(() => {
+    // Guard against a response arriving after this component is gone.
+    let ignore = false
+
+    // Ask the server who the current session belongs to.
+    fetch('/api/me')
+      .then((res) => (res.ok ? (res.json() as Promise<User>) : null))
+      .then((data) => {
+        if (ignore) return
+        setUser(data)
+        // Either way, we are done checking.
+        setStatus('ready')
+      })
+      .catch(() => {
+        if (!ignore) setStatus('ready')
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, []) // run once, when the provider mounts
+
+  // Stable across renders because it reads nothing from this render.
+  const signOut = useCallback(() => {
+    setUser(null)
+  }, [])
+
+  // Rebuild only when something consumers care about actually changed.
+  const value = useMemo<AuthValue>(
+    () => ({ user, status, signOut }),
+    [user, status, signOut],
+  )
+
+  return <AuthContext value={value}>{children}</AuthContext>
+}
+```
+
+Handling "still checking" **once**, at the top, so no consumer ever has to:
+
+```tsx title="src/App.tsx"
+import { AuthProvider, useAuth } from '@/context/AuthContext'
+
+function Routes() {
+  const { status } = useAuth()
+
+  // One place decides. Everything below can assume the check is finished.
+  if (status === 'checking') return <p>Loading…</p>
+
+  return <Shell />
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <Routes />
+    </AuthProvider>
+  )
+}
+```
+
+Line by line:
+
+1. **`status` and `user` are separate fields, not one clever value.** The answer to the first hint is that `user: null` alone is ambiguous — it means both "still checking" and "definitely signed out". Adding `status` makes those two distinguishable, and a consumer that forgets the difference shows a "Sign in" button to a signed-in user for a split second.
+2. **The `checking` gate lives in one component**, answering the second hint. Ten consumers each writing `if (status === 'checking')` is ten chances to forget one.
+3. **`useCallback` on `signOut`** — it goes into the value object, so an unstable `signOut` would defeat the `useMemo` below it and re-render every consumer on every provider render.
+4. **`[user, status, signOut]`** — all three fields, because all three end up in the object. Miss one and consumers keep seeing a stale copy of it.
+5. **The `ignore` flag** — standard [useEffect](/guide/state/use-effect/basics) race protection, because the provider could unmount while the request is in flight.
+
+## Scenario: an overlay controller {#overlay}
+
+<Callout type="note">
+
+**Try it first.** Let any component anywhere open the site-wide search overlay — the header button, an empty-results message, a keyboard shortcut — without each of them receiving an `onOpenSearch` prop. Aim for:
+
+1. `open`, `close` and the current `isOpen` available anywhere.
+2. The overlay itself rendered once, at the top of the app.
+
+Hints: this value contains two functions and a boolean. Which of those change identity on every render if you are not careful, and what does that do to consumers? There is a reason the boolean is the only field here that ever changes.
+
+</Callout>
+
+```tsx title="src/context/SearchContext.tsx"
+import type { ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+
+interface SearchValue {
+  isOpen: boolean
+  open: () => void
+  close: () => void
+}
+
+const SearchContext = createContext<SearchValue | null>(null)
+
+export function useSearch(): SearchValue {
+  const value = useContext(SearchContext)
+  if (!value) throw new Error('useSearch must be used inside <SearchProvider>')
+  return value
+}
+
+export function SearchProvider({ children }: { children: ReactNode }) {
+  // The only piece of state here. Everything else is a stable function.
+  const [isOpen, setIsOpen] = useState(false)
+
+  // Both are wrapped so their identity survives every render. Without this,
+  // the value object below would change even when `isOpen` had not.
+  const open = useCallback(() => setIsOpen(true), [])
+  const close = useCallback(() => setIsOpen(false), [])
+
+  const value = useMemo<SearchValue>(
+    () => ({ isOpen, open, close }),
+    [isOpen, open, close],
+  )
+
+  return <SearchContext value={value}>{children}</SearchContext>
+}
+```
+
+Opening it from anywhere, and rendering it once:
+
+```tsx title="src/components/Header/Header.tsx"
+import { useSearch } from '@/context/SearchContext'
+
+export function Header() {
+  // Only `open` is needed here — but reading the context gets the whole value.
+  const { open } = useSearch()
+
+  return (
+    <header>
+      <button type="button" onClick={open}>
+        Search
+      </button>
+    </header>
+  )
+}
+```
+
+```tsx title="src/components/SearchOverlay/SearchOverlay.tsx"
+import { useSearch } from '@/context/SearchContext'
+
+export function SearchOverlay() {
+  const { isOpen, close } = useSearch()
+
+  // Render nothing at all while closed.
+  if (!isOpen) return null
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Search">
+      <input type="search" placeholder="Search products" />
+      <button type="button" onClick={close}>
+        Close
+      </button>
+    </div>
+  )
+}
+```
+
+Line by line:
+
+1. **`open` and `close` are `useCallback`-wrapped** — the answer to the first hint. Two arrow functions written inline would be new objects every render, so the `useMemo` below could never hit and every consumer would re-render on every provider render, `isOpen` unchanged or not.
+2. **`isOpen` is the only field that ever changes**, which is exactly what makes this shape efficient: the value object is rebuilt precisely when something meaningful happened.
+3. **`useSearch()` returns everything**, and `Header` destructures only `open`. Context has no way to subscribe to part of a value — reading it at all means re-rendering when any part of it changes. That limitation is the reason for the split-contexts advice below.
+4. **The overlay is rendered once**, at the top of the app, and controlled from anywhere. Nobody passes `onOpenSearch` down five levels.
+
+## Scenario: a language switcher {#locale}
+
+<Callout type="note">
+
+**Try it first.** Give every component a `t('key')` function for translated strings plus the current language, switchable at runtime. Aim for:
+
+1. `t` and `locale` reachable from anywhere.
+2. A missing key not crashing the page.
+
+Hints: `t` closes over the current dictionary, so what has to happen to it when the language changes — and what has to happen to it when the language does *not* change? And which of the two things this context provides is the one that actually changes?
+
+</Callout>
+
+```tsx title="src/context/I18nContext.tsx"
+import type { ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+
+type Locale = 'en' | 'ja'
+
+// The translations, keyed by language and then by string id.
+const DICTIONARIES: Record<Locale, Record<string, string>> = {
+  en: { greeting: 'Hello', cart: 'Cart' },
+  ja: { greeting: 'こんにちは', cart: 'カート' },
+}
+
+interface I18nValue {
+  locale: Locale
+  // Takes a key, returns the translated string.
+  t: (key: string) => string
+  setLocale: (next: Locale) => void
+}
+
+const I18nContext = createContext<I18nValue | null>(null)
+
+export function useI18n(): I18nValue {
+  const value = useContext(I18nContext)
+  if (!value) throw new Error('useI18n must be used inside <I18nProvider>')
+  return value
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  // The active language. Everything else here follows from it.
+  const [locale, setLocale] = useState<Locale>('en')
+
+  // Rebuild `t` only when the language changes — it closes over the
+  // dictionary for THIS language, so a stale `t` would return stale strings.
+  const t = useCallback(
+    (key: string) => {
+      // `??` falls back only for null/undefined, so an empty translation
+      // stays empty. Showing the raw key beats crashing or showing blank.
+      return DICTIONARIES[locale][key] ?? key
+    },
+    [locale],
+  )
+
+  const value = useMemo<I18nValue>(
+    () => ({ locale, t, setLocale }),
+    // setLocale is a useState setter, which React guarantees never changes.
+    [locale, t],
+  )
+
+  return <I18nContext value={value}>{children}</I18nContext>
+}
+```
+
+Line by line:
+
+1. **`t` is wrapped in `useCallback` with `[locale]`** — the answer to the first hint, in both directions. It *must* be rebuilt when the language changes, because it closes over `DICTIONARIES[locale]` and a stale one would keep returning English. And it must *not* be rebuilt otherwise, or the memoised value changes for no reason.
+2. **`?? key` as the fallback** — a missing translation renders the key itself, which is ugly and obvious rather than blank and invisible. Use `??` rather than `||` so a deliberately empty string survives.
+3. **`setLocale` is left out of the dependency array**, because `useState` setters are guaranteed stable. Including it would be harmless but misleading.
+4. **`locale` is the only real input**, which answers the second hint: `t` and `setLocale` are both derived from or independent of it, so one state variable drives the entire context.
+
+## Every way to call it {#signatures}
+
+**The provider, two ways.** React 19 lets you render the context itself.
+
+```tsx
+// ○ React 19 and later.
+<ThemeContext value="dark">
+  <App />
+</ThemeContext>
+
+// ○ Every version, including 19. You will see this in most existing code.
+<ThemeContext.Provider value="dark">
+  <App />
+</ThemeContext.Provider>
+```
+
+**The default value is a fallback, not an initial value.** It applies only where there is no provider above.
+
+```tsx
+// If some component reads this with no provider anywhere above it, it gets
+// 'light'. It does NOT mean "the provider starts at light".
+const ThemeContext = createContext('light')
+```
+
+**Nesting overrides.** The nearest provider above wins, so a subtree can have a different value.
+
+```tsx
+<ThemeContext value="dark">
+  <Page /> {/* reads "dark" */}
+
+  <ThemeContext value="light">
+    <Sidebar /> {/* reads "light" — the nearer provider wins */}
+  </ThemeContext>
+</ThemeContext>
+```
+
+**Multiple contexts** are read with multiple calls. There is no combined form, and you should not want one.
+
+```tsx
+function Header() {
+  const { theme } = useTheme()
+  const { user } = useAuth()
+  const { t } = useI18n()
+  return <p className={theme}>{t('greeting')}, {user?.name}</p>
+}
+```
+
+**`use(Context)` instead of `useContext`.** New in React 19, and the one way to read context conditionally.
+
+```tsx
+import { use } from 'react'
+
+function Divider({ show }: { show: boolean }) {
+  if (show) {
+    // ○ Legal. `use` may be called inside an if, unlike every other hook.
+    const { theme } = use(ThemeContext)
+    return <hr className={theme} />
+  }
+  return null
+}
+```
+
+Prefer `useContext` for ordinary reads — it is what people expect to see. Reach for `use` when the condition genuinely cannot be lifted to the top of the component.
+
+**Splitting one context into two** is the fix when a rarely-changing value shares a provider with a constantly-changing one.
+
+```tsx
+// ✗ One context: every keystroke in the search box re-renders every
+//    component that only wanted the theme.
+const AppContext = createContext({ theme, query, setQuery })
+
+// ○ Two contexts: theme consumers ignore query changes entirely.
+const ThemeContext = createContext(theme)
+const SearchContext = createContext({ query, setQuery })
+```
+
+**A value that never changes needs no memo.** If you are providing a constant, hoist it out of the component and the identity is stable for free.
+
+```tsx
+// Created once for the whole module, not once per render.
+const CONFIG = { apiUrl: '/api', pageSize: 20 }
+
+export function ConfigProvider({ children }: { children: ReactNode }) {
+  return <ConfigContext value={CONFIG}>{children}</ConfigContext>
+}
+```
+
+## Break it on purpose: forget the provider {#break-provider}
+
+Two versions of the same mistake. Build the first, click the button, and see how little help you get.
+
+```tsx title="deliberately wrong"
+// A friendly-looking default.
+const ThemeContext = createContext({ theme: 'light', toggle: () => {} })
+
+function ThemeToggle() {
+  const { theme, toggle } = useContext(ThemeContext)
+  return <button onClick={toggle}>{theme}</button>
+}
+
+export function App() {
+  // Note what is NOT here: any provider at all.
+  return <ThemeToggle />
+}
+```
+
+It renders. It says "light". You click it and **nothing happens, with no error, no warning, and nothing in the console.** The `toggle` you got was the empty function from the default value, and there is no clue pointing at the missing provider. This is the bug that eats an afternoon.
+
+Now the version that tells you:
+
+```tsx
+// No sensible "theme with no provider" exists, so say so.
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+export function useTheme(): ThemeValue {
+  const value = useContext(ThemeContext)
+  if (!value) throw new Error('useTheme must be used inside <ThemeProvider>')
+  return value
+}
+```
+
+Same mistake, and now the screen shows `useTheme must be used inside <ThemeProvider>` the instant it renders. Same amount of code, one afternoon saved.
+
+The general lesson beyond context: **a default value is only worth having when the default is genuinely correct.** When "no provider" is a bug, make it behave like one.
+
+## Cheat sheet: the shapes you will actually write {#catalog}
+
+```tsx
+// ① Create — outside any component, usually in its own file
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+// ② The hook consumers call. Always export this, never the context itself
+export function useTheme(): ThemeValue {
+  const value = useContext(ThemeContext)
+  if (!value) throw new Error('useTheme must be used inside <ThemeProvider>')
+  return value
+}
+
+// ③ The provider component
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>('light')
+
+  // Always memoise the value…
+  const value = useMemo(() => ({ theme, setTheme }), [theme])
+
+  // …and in React 19, render the context itself
+  return <ThemeContext value={value}>{children}</ThemeContext>
+}
+
+// ④ Reading it, at any depth, with no props
+const { theme } = useTheme()
+
+// ⑤ Reading it conditionally — React 19 only
+if (show) {
+  const { theme } = use(ThemeContext)
+}
+
+// ⑥ Overriding for one subtree
+<ThemeContext value={darkValue}>
+  <Sidebar />
+</ThemeContext>
+
+// ⑦ A value that never changes — hoist it, no memo needed
+const CONFIG = { apiUrl: '/api' }
+
+// ⑧ Wrapping the app
+<ThemeProvider>
+  <AuthProvider>
+    <App />
+  </AuthProvider>
+</ThemeProvider>
+```
+
+## When to use it — and when not to {#when}
+
+Use context for values that are **genuinely global to a subtree and change rarely**: theme, the signed-in user, language, feature flags, a design-system configuration, an overlay controller.
+
+Do not use it for these:
+
+- **Passing a prop down one or two levels.** Props are simpler, explicit, and easier to trace. Context earns its complexity somewhere around three levels, or when the same value is needed by several distant branches.
+- **State that changes on every keystroke or every frame.** Every consumer re-renders on every change. A search query, a mouse position or a scroll offset in context will make the whole subtree re-render constantly. Keep those local, or split them into their own context with few consumers.
+- **Avoiding a component's own state.** If only one branch needs it, [useState](/guide/state/use-state/basics) in the nearest common parent is the answer. Lift state up before reaching for context.
+- **Server data.** Context is a delivery mechanism, not a cache. It has no request deduping, no revalidation and no loading conventions — a data library gives you all three.
+- **As a general-purpose state manager for a large app.** It has no selectors, so every consumer re-renders on every change to the value. When that becomes a real cost, a store library with selectors is the tool.
+
+## Common mistakes {#mistakes}
+
+**A fresh object as the value, re-rendering every consumer.** This is the big one.
+
+```tsx
+// ✗ `{ theme, toggle }` is a brand-new object on every render of the
+//    provider, so every consumer below re-renders — even when the theme
+//    has not changed at all.
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState('light')
+  return (
+    <ThemeContext value={{ theme, toggle: () => setTheme(flip) }}>
+      {children}
+    </ThemeContext>
+  )
+}
+```
+
+<Diff
+  bad="<ThemeContext value={{ theme, toggle }}>"
+  good="const value = useMemo(() => ({ theme, toggle }), [theme]); <ThemeContext value={value}>"
+  note="Context compares the value by identity. A new object every render means every consumer re-renders every render."
+/>
+
+The same applies inside the object: a `toggle` written inline is new every time, so it must be `useCallback`-wrapped or defined via the updater form inside the memo. See [useCallback](/guide/state/use-callback/basics).
+
+**Reading a context with no provider above it.**
+
+```tsx
+// ✗ Renders, silently, with the default value. The bug shows up later as
+//   "the theme toggle does nothing" and takes an hour to find.
+const ThemeContext = createContext('light')
+
+// ○ null default plus a hook that checks, so the mistake is loud.
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+export function useTheme() {
+  const value = useContext(ThemeContext)
+  if (!value) throw new Error('useTheme must be used inside <ThemeProvider>')
+  return value
+}
+```
+
+**Passing the wrong thing to `useContext`.**
+
+```tsx
+// ✗ Passing the provider, not the context.
+const theme = useContext(ThemeContext.Provider)
+
+// ○ Pass the context object itself.
+const theme = useContext(ThemeContext)
+```
+
+**One giant context for the whole app.**
+
+```tsx
+// ✗ A component that only wants the theme now re-renders on every keystroke
+//    in the search box, because it all lives in one value.
+const AppContext = createContext({ user, theme, cart, query, setQuery })
+```
+
+Split by change frequency, not by topic: things that change together belong together.
+
+<Diff
+  bad="const AppContext = createContext({ user, theme, cart, query })"
+  good="Separate UserContext, ThemeContext, CartContext, SearchContext"
+  note="Every consumer re-renders when any part of the value changes. Contexts are cheap; make more of them."
+/>
+
+**Expecting `memo()` to stop a context re-render.** It does not.
+
+```tsx
+// ✗ Wrapping in memo() does nothing here. memo compares PROPS, and this
+//   component re-renders because of the context it reads, not its props.
+const Expensive = memo(function Expensive() {
+  const { theme } = useTheme()
+  return <Chart theme={theme} />
+})
+```
+
+A context read is a subscription. `memo()` cannot intercept it — the only fixes are splitting the context or moving the read further down the tree, into a smaller component.
+
+## Our standard {#standard}
+
+<Std
+  decision="Wrap every context in a custom hook that throws when the provider is missing, and memoise the value object. Reach for context at about three levels of drilling, or when distant branches need the same value"
+  alt="For a value that changes very frequently and is read in many places, context alone will re-render too much. Split it into separate contexts first — that solves most cases. Only if it still hurts is a store library with selectors worth the dependency."
+>
+
+Two disciplines make context pleasant, and skipping either is what gives it a bad reputation. **Export a `useX()` hook, never the raw context object**, so consumers get a real error rather than a `null`, and so the implementation stays yours to change. And **wrap the value in `useMemo`**, wrapping any functions inside it in `useCallback`, because a fresh object every render re-renders every consumer in the subtree whether or not anything meaningful changed.
+
+</Std>
+
+## What React is doing under the hood {#internals}
+
+`createContext` returns an object that acts as a **key**. It holds no value itself; the value lives on whichever provider is currently rendering.
+
+When a component calls `useContext(SomeContext)`:
+
+1. React walks **up** the tree from that component, looking for the nearest provider for that exact context object.
+2. Found one → it returns that provider's current `value`, and registers this component as a **subscriber** of that provider.
+3. Found none → it returns the default from `createContext`.
+
+When a provider renders with a `value` that is not `Object.is`-equal to its previous one, React re-renders **every subscribed consumer** in that subtree — regardless of where they sit, and regardless of whether they are wrapped in `memo()`.
+
+Two consequences worth internalising. The comparison is on the **whole value**, with no way to subscribe to one field of it: read a context at all and you re-render when any part changes. And a component between the provider and the consumer that passes `children` through is *not* re-rendered by a context change — it never read the context, so it was never subscribed.
+
+<Deeper title="Does a context update re-render components that don't read it?">
+
+No, and that distinction is what makes the `children` pattern useful.
+
+When the provider's `value` changes, React re-renders the provider component itself, its subscribed consumers wherever they are, and anything that re-renders as a normal consequence of the provider re-rendering. A component passed in as `children` was created by the *parent* of the provider, so it does not re-render just because the provider's value changed.
+
+That is why a provider written as `<ThemeProvider>{children}</ThemeProvider>` is cheaper than one that renders the whole app inline: the subtree passed as `children` is untouched, and only the components that genuinely read the context pay.
+
+</Deeper>
+
+## TypeScript notes {#typescript}
+
+**The type argument goes on `createContext`,** and everything downstream infers from it.
+
+```tsx
+// The whole context is typed here, once.
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+// useContext needs no annotation — it works out ThemeValue | null.
+const value = useContext(ThemeContext)
+```
+
+**`| null` plus a throwing hook is the standard pattern**, and it exists as much for TypeScript as for runtime safety:
+
+```tsx
+export function useTheme(): ThemeValue {
+  const value = useContext(ThemeContext)
+
+  // Without this line, every consumer would need `value?.theme` everywhere.
+  // With it, TypeScript narrows to ThemeValue and the `?.` disappears.
+  if (!value) throw new Error('useTheme must be used inside <ThemeProvider>')
+
+  return value
+}
+```
+
+**A default object instead of `null` is the alternative**, and it costs you the missing-provider error:
+
+```tsx
+// Compiles, never throws, and quietly does nothing when the provider is
+// missing. Only do this when a no-op default is genuinely correct.
+const ThemeContext = createContext<ThemeValue>({
+  theme: 'light',
+  toggle: () => {},
+})
+```
+
+**Type the value shape as an interface**, not inline, so the provider and the hook agree:
+
+```tsx
+interface ThemeValue {
+  theme: 'light' | 'dark'
+  toggle: () => void
+}
+
+// Both refer to the same named type, so a change in one is a change in both.
+const ThemeContext = createContext<ThemeValue | null>(null)
+const value = useMemo<ThemeValue>(() => ({ theme, toggle }), [theme])
+```
+
+**`children` is `ReactNode`.** Every provider component takes it, and this is the type:
+
+```tsx
+import type { ReactNode } from 'react'
+
+interface ProviderProps {
+  children: ReactNode
+}
+```
+
+**Avoid `createContext({} as ThemeValue)`.** It compiles and lies: TypeScript believes the value is present, so you get no `null` checks and no runtime error — just `undefined` where a field should be, several files away from the cause.
+
+## When things go wrong {#trouble}
+
+- **The button renders but does nothing, with no error** … There is no provider above it, and the default value is being used. Switch the default to `null` and throw in the hook — see [break it on purpose](#break-provider).
+- **`Cannot destructure property 'theme' of 'null'`** … The same missing provider, caught properly. Wrap the component tree in the provider, or move the consumer inside it.
+- **The whole app re-renders constantly** … The provider's `value` is a fresh object every render. Wrap it in `useMemo` and its functions in `useCallback`.
+- **A component re-renders on changes it does not care about** … It reads a context whose value contains unrelated fields. Split the context; there is no way to subscribe to one field.
+- **`memo()` on the component did not help** … It never will for a context read. `memo` compares props; a context read is a subscription. Split the context, or move the read into a smaller child.
+- **The value updates in one part of the app but not another** … There are two providers, and the second one is shadowing the first for that subtree. The nearest provider above always wins.
+- **`undefined is not an object`, several files from the provider** … Someone wrote `createContext({} as Value)`. Use `| null` and a checking hook.
+- **The value resets when navigating** … The provider is inside the routed component, so it unmounts on every navigation. Move it above the router.
+
+## Summary & practice {#summary}
+
+<Exercise answer="The value object is rebuilt on every render of the provider, and context compares values by identity, so every consumer re-renders whether or not the theme changed. Wrap it: const value = useMemo(() => ({ theme, toggle }), [theme]) — and make sure `toggle` is stable too, via useCallback or the updater form.">
+
+Your `ThemeProvider` renders `<ThemeContext value={{ theme, toggle }}>`. Everything works, but the whole app re-renders whenever anything in the provider changes. Why?
+
+</Exercise>
+
+<Exercise answer="No. memo() compares props, and this component is not re-rendering because of a prop — it is re-rendering because it subscribed to a context whose value changed. Either split the context so this component only reads the part it cares about, or move the useContext call down into a smaller child.">
+
+You wrap an expensive component in `memo()`, but it still re-renders every time a context value changes. Does `memo()` help here? What does?
+
+</Exercise>
+
+<Exercise answer="Props. Context earns its cost at around three levels of drilling, or when distant branches need the same value. For one level, a prop is simpler, explicit, and traceable by reading the file.">
+
+You need to pass a `variant` prop from a card to its own button, one level down. Props or context?
+
+</Exercise>
+
+<SummaryBox>
+
+- Context lets a descendant read an ancestor's value directly, replacing props that only exist to be passed along
+- Three pieces every time: `createContext`, a provider wrapping the subtree, and `useContext` to read. React 19 renders the context itself as the provider
+- Always export a `useX()` hook that throws when the provider is missing, and always `useMemo` the value — a fresh object re-renders every consumer
+
+</SummaryBox>

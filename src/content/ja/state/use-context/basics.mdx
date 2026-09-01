@@ -1,0 +1,903 @@
+---
+title: 'useContext：props を使わずに値を渡す'
+minutes: 32
+slug: use-context-basics
+section: state
+description: useContext の総合リファレンス。props のバケツリレーとは何か・context がどう置き換えるか・最小の型付き例・答えを見る前に自分で考える4シナリオ（テーマ / ログインユーザー / オーバーレイ制御 / 言語）・React 19 の provider 構文と use()・使わない判断・再描画の罠・TypeScript メモ。
+level: intermediate
+prerequisites: ['state/use-state/basics', 'components/props']
+---
+
+import { ThemeContextDemo } from '@/demos/ThemeContext'
+
+<LearnBox>
+
+- props のバケツリレーと、context がコストに見合う「ちょうどの地点」
+- 答えを見る前に自分で考える 4 シナリオ：テーマ・ログインユーザー・オーバーレイ制御・言語
+- React 19 の provider 構文、`use()`、再描画の罠、そして context を快適にするカスタムフックの型
+
+</LearnBox>
+
+## useContext の正体 {#what}
+
+**`useContext` は、間にいるコンポーネント全員に手渡ししてもらうことなく、先祖の持つ値をコンポーネントが直接読むための道具です。**
+
+解決している問題には名前があります——**props のバケツリレー（prop drilling）**です。テーマがアプリの最上部にあり、5 階層下のボタンがそれを必要とする場合を考えます。
+
+```tsx
+// テーマはここ、いちばん上で生まれる。
+function App() {
+  const [theme, setTheme] = useState('light')
+  // Layout は使わないのに、渡さなければならない。
+  return <Layout theme={theme} />
+}
+
+// Layout はテーマに興味がない。ただ次へ渡すだけ。
+function Layout({ theme }) {
+  return <Sidebar theme={theme} />
+}
+
+// Sidebar も同じ。やはり次へ渡すだけ。
+function Sidebar({ theme }) {
+  return <Menu theme={theme} />
+}
+
+// Menu も同じ。読まない props を持つコンポーネントが 3 つになった。
+function Menu({ theme }) {
+  return <ThemedButton theme={theme} />
+}
+
+// ようやく、本当に欲しかった 1 つ。
+function ThemedButton({ theme }) {
+  return <button className={theme}>クリック</button>
+}
+```
+
+3 つのコンポーネントが、一度も読まない props を運んでいます。値が 2 つになれば無駄な props は 6 つ。`theme` の名前を変えれば 5 ファイルを編集することになります。
+
+context は中間を切り落とします。先祖が値を**提供（provide）**し、どれだけ深くても子孫が直接**読み（read）**ます。
+
+<Callout type="analogy">
+
+props は、一列に並んだ人にメモを手渡ししていくやり方。context は掲示板です。1 人が貼り出せば、その下にいる人は誰でも、手渡しされなくても読めます。間にいる人は、掲示板の存在すら知らなくて構いません。
+
+</Callout>
+
+実はもう context を使っています。React Router の `useLocation` も、このサイトの各ページに `Callout` や `Demo` を届けている `<MDXProvider>` も、内側は context です。
+
+## 最小の動く例 {#minimal}
+
+context はいつでも 3 つの部品です——**作る**・**提供する**・**読む**。
+
+```tsx title="src/context/ThemeContext.tsx"
+// createContext が「掲示板」を作り、useContext がそこから読む。
+import { createContext, useContext } from 'react'
+
+// ① 作る。引数は既定値で、上に provider がない場所で読まれたときだけ使われる。
+const ThemeContext = createContext('light')
+
+// ③ 読む。このコンポーネントは 3 階層下にあり、props を一切受け取らないのに、
+//    いちばん近い上の provider から値を得る。
+function ThemedButton() {
+  const theme = useContext(ThemeContext)
+  return <button className={theme}>クリック</button>
+}
+
+// 間にある、テーマに一言も触れない 2 つのコンポーネント。
+function Toolbar() {
+  return <ThemedButton />
+}
+
+function Layout() {
+  return <Toolbar />
+}
+
+export function App() {
+  return (
+    // ② 提供する。このタグの内側なら、どこでも 'dark' を読める。
+    //    React 19 では context 自体を描画する。古いコードは
+    //    <ThemeContext.Provider value="dark"> と書く。
+    <ThemeContext value="dark">
+      <Layout />
+    </ThemeContext>
+  )
+}
+```
+
+```tsx
+const ThemeContext = createContext('light')
+//    ↑                            ↑
+//    │                            └─ ② 既定値。provider が「ない」ときだけ使われる
+//    └─ ① context オブジェクトそのもの。provider にも読み手にも、これを渡す
+
+const theme = useContext(ThemeContext)
+//    ↑                  ↑
+//    │                  └─ ④ どの context を読むか。文字列ではなくオブジェクト本体
+//    └─ ③ いちばん近い上の provider の値。provider がなければ既定値
+```
+
+## 動かして確認 {#demo}
+
+下のボタンは 3 階層下にあります。レベル 1 と 2 はテーマに一切触れていません——props は通っていません。
+
+<Demo title="3 階層を越えて届く値">
+  <ThemeContextDemo />
+</Demo>
+
+## シナリオ：テーマの切り替え {#theme}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**アプリのどのコンポーネントからでも読めて切り替えられる、ダークモードのトグルを作ってください。バケツリレーはなしです。目指すのは次の 3 つです。
+
+1. テーマの state を持つ provider。
+2. 使う側が呼ぶ `useTheme()` フック（context オブジェクトをあちこちで import しない）。
+3. provider の外で使われたら、はっきりエラーになる。
+
+ヒント：目的が「provider の付け忘れを検出すること」なら、context の*既定値*は何にすべきでしょう。そして提供する値はオブジェクトです——それを毎回の描画で作り直すと、使う側にどんな問題が起きますか。
+
+</Callout>
+
+```tsx title="src/context/ThemeContext.tsx"
+// `import type` は型だけを持ってくる。ReactNode は「描画できるもの全般」。
+import type { ReactNode } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
+
+// 許されるテーマ 2 つ。ユニオンにするとタイプミスがコンパイルエラーになる。
+type Theme = 'light' | 'dark'
+
+// provider が配るものの形：今の値と、それを変える手段。両方を束ねるから、
+// 使う側は「読む」だけでなく「切り替える」こともできる。
+interface ThemeValue {
+  theme: Theme
+  toggle: () => void
+}
+
+// 既定値を null にするのは意図的。「provider のないテーマ」に意味はないので、
+// それらしく動いてしまうより、下のフックで例外にしたい。
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+// 使う側が実際に呼ぶカスタムフック。context オブジェクトを隠し、
+// 「provider がない」を、分かりにくい null ではなく明確なエラーに変える。
+export function useTheme(): ThemeValue {
+  const value = useContext(ThemeContext)
+
+  // この行以降、TypeScript は `value` を ThemeValue に絞り込む。
+  if (!value) throw new Error('useTheme は <ThemeProvider> の内側で使ってください')
+
+  return value
+}
+
+interface ThemeProviderProps {
+  children: ReactNode
+}
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  // アプリ全体のテーマの、唯一の正解。
+  const [theme, setTheme] = useState<Theme>('light')
+
+  // 値のオブジェクトは `theme` が変わったときだけ作る。useMemo がないと
+  // 毎回の描画で新しいオブジェクトになり、テーマが変わっていなくても
+  // すべての利用側が再描画される。
+  const value = useMemo<ThemeValue>(
+    () => ({
+      theme,
+      // 関数形なので、この関数は作り直す必要がない。
+      toggle: () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light')),
+    }),
+    [theme],
+  )
+
+  // React 19：context を直接 provider として描画する。
+  return <ThemeContext value={value}>{children}</ThemeContext>
+}
+```
+
+どこからでも、どの深さからでも使えます。
+
+```tsx title="src/components/ThemeToggle/ThemeToggle.tsx"
+import { useTheme } from '@/context/ThemeContext'
+
+export function ThemeToggle() {
+  // props なし、context オブジェクトの import なし、誰が提供しているかも知らない。
+  const { theme, toggle } = useTheme()
+
+  return (
+    <button type="button" onClick={toggle} aria-pressed={theme === 'dark'}>
+      {theme === 'light' ? 'ダークにする' : 'ライトにする'}
+    </button>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`createContext<ThemeValue | null>(null)`** … 1 つめのヒントの答えです。既定値を `'light'` にすると、provider の外で描画されたコンポーネントが*動いているように見え*、そのあと誰にも追跡できない形で誤動作します。`null` とフック内のチェックで、それを「問題そのものを名指しするエラー」に変えます。
+2. **`useTheme()` カスタムフック**は、毎回まねすべき型です。使う側は `ThemeContext` を import せず、`null` も扱わず、間違えれば本物のエラーメッセージを受け取ります。おまけに、利用側に一切触れずに実装を差し替えられます。
+3. **値の `useMemo`** … 2 つめのヒントの答えです。`{ theme, toggle }` をそのまま書くと provider の描画ごとに新品のオブジェクトになり、値の同一性が変わればすべての利用側が再描画されます。メモ化すれば、本当にテーマが変わったときだけコストが出ます。
+4. **`toggle` が関数形**なので、この関数は外側の描画から何も読まず、メモの依存が本当に `[theme]` だけで済みます。
+5. **`<ThemeContext value={value}>`** … React 19 の書き方です。19 より前は `<ThemeContext.Provider value={value}>` で、これも今なお動きます。
+
+## シナリオ：ログイン中のユーザー {#auth}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**ヘッダーのアバター、「マイページ」リンク、購入画面——どこからでも現在のユーザーを参照できるようにしてください。ツリー全体に `user` を流すのはなしです。目指すのは次の 3 つです。
+
+1. 「確認中」「ログイン済み」「未ログイン」の 3 状況が区別できる。
+2. `signOut` をどのコンポーネントからでも呼べる。
+3. 使う側が「確認中」を 10 か所で書かなくて済む。
+
+ヒント：「確認中」と「未ログイン」が混同されない形にするには、値をどう設計しますか。そして「確認中」の処理はどこでやりますか——利用側それぞれか、それとも一度きりか。
+
+</Callout>
+
+```tsx title="src/context/AuthContext.tsx"
+import type { ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+
+// ログインしている人について分かっていること。
+interface User {
+  id: string
+  name: string
+}
+
+// 起こりうる状況をすべて表せる 1 つの値。status が 'ready' で
+// user が null なら「確認済みで、誰もログインしていない」を意味する。
+interface AuthValue {
+  user: User | null
+  status: 'checking' | 'ready'
+  signOut: () => void
+}
+
+const AuthContext = createContext<AuthValue | null>(null)
+
+export function useAuth(): AuthValue {
+  const value = useContext(AuthContext)
+  if (!value) throw new Error('useAuth は <AuthProvider> の内側で使ってください')
+  return value
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  // 誰がログインしているか。分かるまでは null。
+  const [user, setUser] = useState<User | null>(null)
+
+  // サーバーへの問い合わせが終わったか。最初は 'checking'。
+  const [status, setStatus] = useState<'checking' | 'ready'>('checking')
+
+  useEffect(() => {
+    // このコンポーネントが消えたあとに返事が来る場合に備えるフラグ。
+    let ignore = false
+
+    // いまのセッションが誰のものかをサーバーに訊く。
+    fetch('/api/me')
+      .then((res) => (res.ok ? (res.json() as Promise<User>) : null))
+      .then((data) => {
+        if (ignore) return
+        setUser(data)
+        // どちらにせよ、確認は終わった。
+        setStatus('ready')
+      })
+      .catch(() => {
+        if (!ignore) setStatus('ready')
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, []) // provider がマウントされたときに 1 回だけ
+
+  // 今回の描画から何も読まないので、同一性が変わらない。
+  const signOut = useCallback(() => {
+    setUser(null)
+  }, [])
+
+  // 使う側が気にするものが実際に変わったときだけ作り直す。
+  const value = useMemo<AuthValue>(
+    () => ({ user, status, signOut }),
+    [user, status, signOut],
+  )
+
+  return <AuthContext value={value}>{children}</AuthContext>
+}
+```
+
+「確認中」を**一度だけ**、いちばん上で処理します。こうすれば利用側は二度と書きません。
+
+```tsx title="src/App.tsx"
+import { AuthProvider, useAuth } from '@/context/AuthContext'
+
+function Routes() {
+  const { status } = useAuth()
+
+  // 判断は 1 か所。これより下は「確認は終わっている」と仮定してよい。
+  if (status === 'checking') return <p>読み込み中…</p>
+
+  return <Shell />
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <Routes />
+    </AuthProvider>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`status` と `user` は別のフィールドで、器用に 1 つにまとめていません。**1 つめのヒントの答えは「`user: null` だけでは曖昧」ということです。それは「確認中」と「確実に未ログイン」の両方を意味してしまいます。`status` を足せば区別でき、区別を忘れた利用側は、ログイン済みの人に一瞬「ログイン」ボタンを見せることになります。
+2. **`checking` の関門はコンポーネント 1 つに置く** … 2 つめのヒントの答えです。10 個の利用側がそれぞれ `if (status === 'checking')` を書けば、書き忘れる機会も 10 回あります。
+3. **`signOut` の `useCallback`** … これは値のオブジェクトに入るので、不安定だと下の `useMemo` を無効にし、provider が描画されるたびに全利用側を再描画させます。
+4. **`[user, status, signOut]`** … オブジェクトに入る 3 つすべてです。1 つ抜けると、利用側はその項目だけ古いコピーを見続けます。
+5. **`ignore` フラグ** … [useEffect](/guide/state/use-effect/basics) の定番の競合対策です。リクエスト中に provider がアンマウントされる可能性があります。
+
+## シナリオ：オーバーレイの制御 {#overlay}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**サイト全体の検索オーバーレイを、ヘッダーのボタンからも、「該当なし」のメッセージからも、キーボードショートカットからも開けるようにしてください。それぞれが `onOpenSearch` を props で受け取るのはなしです。目指すのは次の 2 つです。
+
+1. `open`・`close`・現在の `isOpen` がどこからでも使える。
+2. オーバーレイ自体は、アプリの最上部で 1 回だけ描画される。
+
+ヒント：この値には関数 2 つと真偽値 1 つが入ります。気をつけないと毎回の描画で同一性が変わるのはどれで、それは使う側に何をもたらしますか。この中で実際に変わるのが真偽値だけなのには理由があります。
+
+</Callout>
+
+```tsx title="src/context/SearchContext.tsx"
+import type { ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+
+interface SearchValue {
+  isOpen: boolean
+  open: () => void
+  close: () => void
+}
+
+const SearchContext = createContext<SearchValue | null>(null)
+
+export function useSearch(): SearchValue {
+  const value = useContext(SearchContext)
+  if (!value) throw new Error('useSearch は <SearchProvider> の内側で使ってください')
+  return value
+}
+
+export function SearchProvider({ children }: { children: ReactNode }) {
+  // ここにある唯一の state。あとは安定した関数だけ。
+  const [isOpen, setIsOpen] = useState(false)
+
+  // 2 つとも包んで、毎回の描画をまたいで同一性を保つ。これがないと
+  // 下の値のオブジェクトが、`isOpen` が変わっていなくても変わってしまう。
+  const open = useCallback(() => setIsOpen(true), [])
+  const close = useCallback(() => setIsOpen(false), [])
+
+  const value = useMemo<SearchValue>(
+    () => ({ isOpen, open, close }),
+    [isOpen, open, close],
+  )
+
+  return <SearchContext value={value}>{children}</SearchContext>
+}
+```
+
+どこからでも開き、描画は 1 回だけ。
+
+```tsx title="src/components/Header/Header.tsx"
+import { useSearch } from '@/context/SearchContext'
+
+export function Header() {
+  // ここで要るのは `open` だけ。ただし context を読めば値は丸ごと来る。
+  const { open } = useSearch()
+
+  return (
+    <header>
+      <button type="button" onClick={open}>
+        検索
+      </button>
+    </header>
+  )
+}
+```
+
+```tsx title="src/components/SearchOverlay/SearchOverlay.tsx"
+import { useSearch } from '@/context/SearchContext'
+
+export function SearchOverlay() {
+  const { isOpen, close } = useSearch()
+
+  // 閉じているあいだは何も描かない。
+  if (!isOpen) return null
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="検索">
+      <input type="search" placeholder="商品を検索" />
+      <button type="button" onClick={close}>
+        閉じる
+      </button>
+    </div>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`open` と `close` を `useCallback` で包む** … 1 つめのヒントの答えです。インラインのアロー関数 2 つは毎回新しいオブジェクトなので、下の `useMemo` は一度も当たらず、`isOpen` が変わっていなくても provider の描画ごとに全利用側が再描画されます。
+2. **実際に変わるのは `isOpen` だけ**——だからこの形は効率的です。値のオブジェクトは「意味のあることが起きたとき」ちょうどに作り直されます。
+3. **`useSearch()` は全部を返し**、`Header` は `open` だけを取り出しています。context には「値の一部だけを購読する」手段がありません。読んだ時点で、値のどこかが変われば再描画されます。この制約が、下で述べる「context を分ける」助言の理由です。
+4. **オーバーレイは最上部で 1 回だけ描画**され、操作はどこからでも。`onOpenSearch` を 5 階層下ろす人はいません。
+
+## シナリオ：言語の切り替え {#locale}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**翻訳文字列を返す `t('key')` と現在の言語を、どのコンポーネントにも届けてください。実行中に切り替えられるようにします。目指すのは次の 2 つです。
+
+1. `t` と `locale` がどこからでも使える。
+2. キーが見つからなくてもページが落ちない。
+
+ヒント：`t` は現在の辞書を掴んでいます。言語が変わったとき `t` はどうなるべきで——変わら**なかった**ときはどうなるべきでしょう。そして、この context が提供する 2 つのうち、実際に変わるのはどちらでしょう。
+
+</Callout>
+
+```tsx title="src/context/I18nContext.tsx"
+import type { ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+
+type Locale = 'en' | 'ja'
+
+// 翻訳。言語ごと、そして文字列 ID ごとに引ける形。
+const DICTIONARIES: Record<Locale, Record<string, string>> = {
+  en: { greeting: 'Hello', cart: 'Cart' },
+  ja: { greeting: 'こんにちは', cart: 'カート' },
+}
+
+interface I18nValue {
+  locale: Locale
+  // キーを受け取り、翻訳された文字列を返す。
+  t: (key: string) => string
+  setLocale: (next: Locale) => void
+}
+
+const I18nContext = createContext<I18nValue | null>(null)
+
+export function useI18n(): I18nValue {
+  const value = useContext(I18nContext)
+  if (!value) throw new Error('useI18n は <I18nProvider> の内側で使ってください')
+  return value
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  // 現在の言語。ここから他のすべてが決まる。
+  const [locale, setLocale] = useState<Locale>('en')
+
+  // `t` は言語が変わったときだけ作り直す。この言語の辞書を掴んでいるので、
+  // 古い `t` が残ると古い言語の文字列を返し続けてしまう。
+  const t = useCallback(
+    (key: string) => {
+      // `??` は null / undefined のときだけ代替するので、意図的な空文字は
+      // 空のまま残る。落ちるのでも空白でもなく、キーをそのまま出す。
+      return DICTIONARIES[locale][key] ?? key
+    },
+    [locale],
+  )
+
+  const value = useMemo<I18nValue>(
+    () => ({ locale, t, setLocale }),
+    // setLocale は useState の更新関数で、React が不変を保証している。
+    [locale, t],
+  )
+
+  return <I18nContext value={value}>{children}</I18nContext>
+}
+```
+
+1 行ずつ。
+
+1. **`t` を `[locale]` 付きの `useCallback` で包む** … 1 つめのヒントの答えを、両方向で満たしています。言語が変わったら作り直さ*なければならない*（`DICTIONARIES[locale]` を掴んでいるので、古いままだと英語を返し続けます）。そしてそれ以外では作り直さ*ない*（さもないとメモ化した値が理由もなく変わります）。
+2. **代替値の `?? key`** … 翻訳がなければキー自体が出ます。見苦しいですが、空白で気づかれないよりずっとましです。`||` ではなく `??` を使うので、意図的な空文字は生き残ります。
+3. **`setLocale` を依存配列から外している**のは、`useState` の更新関数が安定だと保証されているからです。入れても害はありませんが、誤解を招きます。
+4. **本当の入力は `locale` だけ** … 2 つめのヒントの答えです。`t` はそこから導かれ、`setLocale` はそれと無関係なので、state 変数 1 つが context 全体を動かしています。
+
+## 呼び出し方のすべて {#signatures}
+
+**provider の 2 通りの書き方。**React 19 では context 自体を描画できます。
+
+```tsx
+// ○ React 19 以降。
+<ThemeContext value="dark">
+  <App />
+</ThemeContext>
+
+// ○ 19 を含むすべてのバージョン。既存コードのほとんどはこの形。
+<ThemeContext.Provider value="dark">
+  <App />
+</ThemeContext.Provider>
+```
+
+**既定値は「初期値」ではなく「代替値」です。**上に provider がない場所でだけ効きます。
+
+```tsx
+// provider がどこにもない状態で読まれたら 'light' になる。
+// 「provider が light から始まる」という意味ではない。
+const ThemeContext = createContext('light')
+```
+
+**入れ子は上書きします。**いちばん近い上の provider が勝つので、部分木だけ別の値にできます。
+
+```tsx
+<ThemeContext value="dark">
+  <Page /> {/* "dark" を読む */}
+
+  <ThemeContext value="light">
+    <Sidebar /> {/* "light" を読む — 近いほうが勝つ */}
+  </ThemeContext>
+</ThemeContext>
+```
+
+**複数の context** は、複数回呼んで読みます。まとめて読む書き方はありませんし、欲しがるべきでもありません。
+
+```tsx
+function Header() {
+  const { theme } = useTheme()
+  const { user } = useAuth()
+  const { t } = useI18n()
+  return <p className={theme}>{t('greeting')}, {user?.name}</p>
+}
+```
+
+**`useContext` の代わりに `use(Context)`。**React 19 の新機能で、条件分岐の中で context を読める唯一の方法です。
+
+```tsx
+import { use } from 'react'
+
+function Divider({ show }: { show: boolean }) {
+  if (show) {
+    // ○ 合法。他のどのフックとも違い、`use` は if の中で呼べる。
+    const { theme } = use(ThemeContext)
+    return <hr className={theme} />
+  }
+  return null
+}
+```
+
+普通の読み取りには `useContext` を使ってください。皆が見慣れているのはそちらです。`use` は、条件をコンポーネントの先頭に持ち上げられない場合に使います。
+
+**1 つの context を 2 つに割る**のは、めったに変わらない値と絶えず変わる値が同じ provider に同居しているときの解です。
+
+```tsx
+// ✗ context 1 つ：検索欄の 1 打鍵ごとに、テーマしか要らないコンポーネントまで
+//    再描画される。
+const AppContext = createContext({ theme, query, setQuery })
+
+// ○ context 2 つ：テーマの利用側は query の変化を完全に無視できる。
+const ThemeContext = createContext(theme)
+const SearchContext = createContext({ query, setQuery })
+```
+
+**変わらない値にメモは不要です。**定数を提供するなら、コンポーネントの外に出せば同一性はタダで安定します。
+
+```tsx
+// 描画ごとではなく、モジュールにつき一度だけ作られる。
+const CONFIG = { apiUrl: '/api', pageSize: 20 }
+
+export function ConfigProvider({ children }: { children: ReactNode }) {
+  return <ConfigContext value={CONFIG}>{children}</ConfigContext>
+}
+```
+
+## わざと壊す：provider を忘れる {#break-provider}
+
+同じ間違いの 2 つの版です。1 つめを作ってボタンを押し、どれだけ手がかりがないかを確かめてください。
+
+```tsx title="わざと間違えたコード"
+// 一見それらしい既定値。
+const ThemeContext = createContext({ theme: 'light', toggle: () => {} })
+
+function ThemeToggle() {
+  const { theme, toggle } = useContext(ThemeContext)
+  return <button onClick={toggle}>{theme}</button>
+}
+
+export function App() {
+  // ここに「ない」ものに注目：provider がまったくない。
+  return <ThemeToggle />
+}
+```
+
+描画されます。「light」と出ます。クリックしても**何も起きず、エラーも警告も、コンソールに何も出ません。**受け取った `toggle` は既定値の空の関数で、provider がないことを指し示す手がかりはどこにもありません。これが半日を溶かすバグです。
+
+次は、教えてくれる版です。
+
+```tsx
+// 「provider のないテーマ」に意味はないので、そう書く。
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+export function useTheme(): ThemeValue {
+  const value = useContext(ThemeContext)
+  if (!value) throw new Error('useTheme は <ThemeProvider> の内側で使ってください')
+  return value
+}
+```
+
+同じ間違いで、今度は描画された瞬間に `useTheme は <ThemeProvider> の内側で使ってください` が画面に出ます。コード量は同じで、半日が浮きます。
+
+context を超えて一般化できる教訓はこうです。**既定値に価値があるのは、その既定値が本当に正しいときだけ。**「provider がない」がバグなら、バグらしく振る舞わせてください。
+
+## 書き方カタログ：実際に書く形 {#catalog}
+
+```tsx
+// ① 作る — コンポーネントの外、たいていは専用ファイルで
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+// ② 使う側が呼ぶフック。context 本体ではなく、必ずこちらを export する
+export function useTheme(): ThemeValue {
+  const value = useContext(ThemeContext)
+  if (!value) throw new Error('useTheme は <ThemeProvider> の内側で使ってください')
+  return value
+}
+
+// ③ provider コンポーネント
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>('light')
+
+  // 値は必ずメモ化し……
+  const value = useMemo(() => ({ theme, setTheme }), [theme])
+
+  // ……React 19 では context 自体を描画する
+  return <ThemeContext value={value}>{children}</ThemeContext>
+}
+
+// ④ 読む。どの深さでも、props なしで
+const { theme } = useTheme()
+
+// ⑤ 条件付きで読む — React 19 のみ
+if (show) {
+  const { theme } = use(ThemeContext)
+}
+
+// ⑥ 部分木だけ上書きする
+<ThemeContext value={darkValue}>
+  <Sidebar />
+</ThemeContext>
+
+// ⑦ 変わらない値 — 外に出せばメモは不要
+const CONFIG = { apiUrl: '/api' }
+
+// ⑧ アプリを包む
+<ThemeProvider>
+  <AuthProvider>
+    <App />
+  </AuthProvider>
+</ThemeProvider>
+```
+
+## 使うとき・使わないとき {#when}
+
+context を使うのは、**部分木にとって本当にグローバルで、めったに変わらない**値です——テーマ、ログインユーザー、言語、機能フラグ、デザインシステムの設定、オーバーレイの制御。
+
+次には使いません。
+
+- **1〜2 階層下ろすだけの props。**props のほうが単純で、明示的で、追いやすいです。context が複雑さに見合うのは、だいたい 3 階層から、あるいは離れた複数の枝が同じ値を必要とするときです。
+- **1 打鍵ごと・1 フレームごとに変わる state。**値が変わるたび全利用側が再描画されます。検索語やマウス座標、スクロール量を context に入れると、部分木全体が常時再描画されます。ローカルに置くか、利用側の少ない専用の context に分けます。
+- **コンポーネント自身の state の代わり。**1 つの枝しか必要としないなら、いちばん近い共通の親で [useState](/guide/state/use-state/basics) が答えです。context の前に、まずリフトアップ。
+- **サーバーのデータ。**context は配送手段であって、キャッシュではありません。重複排除も再検証もローディングの作法もありません。データ取得ライブラリはその 3 つをくれます。
+- **大規模アプリの汎用ステート管理。**セレクタがないので、値のどこが変わっても全利用側が再描画されます。それが実コストになったら、セレクタを持つストアライブラリの出番です。
+
+## よくある間違い {#mistakes}
+
+**値に新品のオブジェクトを渡し、全利用側を再描画させる。**これが最大の落とし穴です。
+
+```tsx
+// ✗ `{ theme, toggle }` は provider の描画ごとに新品のオブジェクトなので、
+//    テーマがまったく変わっていなくても、下の全利用側が再描画される。
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState('light')
+  return (
+    <ThemeContext value={{ theme, toggle: () => setTheme(flip) }}>
+      {children}
+    </ThemeContext>
+  )
+}
+```
+
+<Diff
+  bad="<ThemeContext value={{ theme, toggle }}>"
+  good="const value = useMemo(() => ({ theme, toggle }), [theme]); <ThemeContext value={value}>"
+  note="context は値を同一性で比較する。毎回新しいオブジェクトは、毎回すべての利用側を再描画させる。"
+/>
+
+同じことがオブジェクトの中身にも当てはまります。インラインで書いた `toggle` は毎回新品なので、`useCallback` で包むか、メモの中で関数形を使って定義します。[useCallback](/guide/state/use-callback/basics) を参照。
+
+**上に provider がない状態で context を読む。**
+
+```tsx
+// ✗ 既定値で、黙って描画されてしまう。バグはあとから「テーマの切り替えが
+//   効かない」という形で現れ、原因究明に 1 時間かかる。
+const ThemeContext = createContext('light')
+
+// ○ 既定値を null にし、チェックするフックを置いて、間違いを大声にする。
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+export function useTheme() {
+  const value = useContext(ThemeContext)
+  if (!value) throw new Error('useTheme は <ThemeProvider> の内側で使ってください')
+  return value
+}
+```
+
+**`useContext` に渡すものを間違える。**
+
+```tsx
+// ✗ context ではなく provider を渡している。
+const theme = useContext(ThemeContext.Provider)
+
+// ○ context オブジェクト本体を渡す。
+const theme = useContext(ThemeContext)
+```
+
+**アプリ全体を巨大な context 1 つにする。**
+
+```tsx
+// ✗ テーマしか要らないコンポーネントが、検索欄の 1 打鍵ごとに再描画される。
+//    全部が 1 つの値に入っているから。
+const AppContext = createContext({ user, theme, cart, query, setQuery })
+```
+
+分ける基準は話題ではなく**変わる頻度**です。一緒に変わるものだけを一緒にします。
+
+<Diff
+  bad="const AppContext = createContext({ user, theme, cart, query })"
+  good="UserContext・ThemeContext・CartContext・SearchContext に分ける"
+  note="値のどこかが変われば全利用側が再描画される。context は安いので、たくさん作ってよい。"
+/>
+
+**`memo()` が context の再描画を止めると思う。**止めません。
+
+```tsx
+// ✗ ここで memo() は何もしない。memo が比べるのは「props」で、この
+//   コンポーネントが再描画されるのは props ではなく、読んでいる context のため。
+const Expensive = memo(function Expensive() {
+  const { theme } = useTheme()
+  return <Chart theme={theme} />
+})
+```
+
+context を読むことは購読することです。`memo()` はそれに割り込めません。直す方法は、context を分けるか、`useContext` の呼び出しをもっと下の小さなコンポーネントに移すかのどちらかです。
+
+## うちの標準 {#standard}
+
+<Std
+  decision="context は必ず「provider がなければ例外を投げるカスタムフック」で包み、値のオブジェクトはメモ化する。使いどころは、バケツリレーが 3 階層になったとき、または離れた枝が同じ値を要るとき"
+  alt="非常に頻繁に変わる値を多数の場所で読む場合、context だけでは再描画が過剰になります。まず context を分けてください——ほとんどのケースはそれで解決します。それでも痛いときに初めて、セレクタを持つストアライブラリが依存に見合います。"
+>
+
+context を快適にするのは 2 つの規律で、どちらを飛ばしても評判が悪くなります。**生の context オブジェクトではなく `useX()` フックを export すること**——使う側は `null` ではなく本物のエラーを受け取り、実装は自由に差し替えられます。そして**値を `useMemo` で包み、中の関数を `useCallback` で包むこと**——毎回新しいオブジェクトは、意味のある変化があってもなくても、部分木の全利用側を再描画させます。
+
+</Std>
+
+## 内部で起きていること {#internals}
+
+`createContext` が返すのは、**鍵**として働くオブジェクトです。値自体は持ちません。値は、そのとき描画されている provider の側にあります。
+
+コンポーネントが `useContext(SomeContext)` を呼ぶと、
+
+1. React はそのコンポーネントからツリーを**上へ**たどり、その context オブジェクト用のいちばん近い provider を探します。
+2. 見つかった → その provider の現在の `value` を返し、このコンポーネントをその provider の**購読者**として登録します。
+3. 見つからない → `createContext` の既定値を返します。
+
+provider が、前回と `Object.is` で等しくない `value` で描画されると、React はその部分木の**購読しているすべての利用側**を再描画します——どこにいようと、`memo()` で包まれていようと関係ありません。
+
+腹に入れるべき帰結が 2 つ。比較は**値全体**に対して行われ、その 1 フィールドだけを購読する手段はありません。読んだ時点で、どこかが変われば再描画されます。そして provider と利用側のあいだにいて `children` を通すだけのコンポーネントは、context の変化では再描画され**ません**——context を読んでおらず、購読していないからです。
+
+<Deeper title="context の更新は、読んでいないコンポーネントも再描画する？">
+
+いいえ。そしてこの区別こそが、`children` パターンを有用にしています。
+
+provider の `value` が変わると React が再描画するのは、provider コンポーネント自身、どこにいようと購読している利用側、そして provider の再描画の当然の結果として再描画されるものです。`children` として渡されたコンポーネントは provider の*親*が作ったものなので、provider の値が変わっただけでは再描画されません。
+
+だから `<ThemeProvider>{children}</ThemeProvider>` と書かれた provider は、アプリ全体を内側に直接描画する provider より安上がりです。`children` として渡された部分木は無傷で、コストを払うのは本当に context を読んでいるコンポーネントだけになります。
+
+</Deeper>
+
+## TypeScript メモ {#typescript}
+
+**型引数は `createContext` に付けます。**そこから下流はすべて推論されます。
+
+```tsx
+// context 全体の型を、ここで一度だけ決める。
+const ThemeContext = createContext<ThemeValue | null>(null)
+
+// useContext に注釈は不要——ThemeValue | null だと分かる。
+const value = useContext(ThemeContext)
+```
+
+**`| null` ＋ 例外を投げるフックが定石**で、これは実行時の安全のためであると同時に TypeScript のためでもあります。
+
+```tsx
+export function useTheme(): ThemeValue {
+  const value = useContext(ThemeContext)
+
+  // この行がないと、利用側は毎回 `value?.theme` と書く羽目になる。
+  // あれば TypeScript が ThemeValue に絞り込み、`?.` が消える。
+  if (!value) throw new Error('useTheme は <ThemeProvider> の内側で使ってください')
+
+  return value
+}
+```
+
+**`null` の代わりに既定オブジェクトを置く**選択肢もありますが、provider 忘れのエラーを失います。
+
+```tsx
+// コンパイルは通り、例外も出ず、provider がなければ静かに何もしない。
+// 「何もしない」が本当に正しいときだけ使う。
+const ThemeContext = createContext<ThemeValue>({
+  theme: 'light',
+  toggle: () => {},
+})
+```
+
+**値の形は interface で名前を付けます。**インラインにしないことで、provider とフックの認識がずれません。
+
+```tsx
+interface ThemeValue {
+  theme: 'light' | 'dark'
+  toggle: () => void
+}
+
+// どちらも同じ名前付きの型を指すので、片方を変えれば両方が変わる。
+const ThemeContext = createContext<ThemeValue | null>(null)
+const value = useMemo<ThemeValue>(() => ({ theme, toggle }), [theme])
+```
+
+**`children` の型は `ReactNode`。**provider コンポーネントは必ず受け取ります。
+
+```tsx
+import type { ReactNode } from 'react'
+
+interface ProviderProps {
+  children: ReactNode
+}
+```
+
+**`createContext({} as ThemeValue)` は避けてください。**コンパイルは通りますが、嘘です。TypeScript は値が存在すると信じるので、`null` チェックも実行時エラーもなくなり、原因から何ファイルも離れた場所でフィールドが `undefined` になるだけです。
+
+## うまくいかないとき {#trouble}
+
+- **ボタンは出るが押しても何も起きず、エラーも出ない** … 上に provider がなく、既定値が使われています。既定値を `null` にしてフックで例外を投げます——[わざと壊す](#break-provider)を参照。
+- **`Cannot destructure property 'theme' of 'null'`** … 同じ provider 忘れを、正しく捕まえた形です。ツリーを provider で包むか、利用側をその内側へ移します。
+- **アプリ全体が常時再描画される** … provider の `value` が毎回新しいオブジェクトです。`useMemo` で包み、中の関数は `useCallback` で包みます。
+- **関係のない変更でも再描画される** … 値の中に無関係なフィールドが同居しています。context を分けてください。1 フィールドだけを購読する手段はありません。
+- **`memo()` を付けても効かない** … context の読み取りには永久に効きません。`memo` は props を比べ、context の読み取りは購読です。context を分けるか、読み取りをより小さな子へ下ろします。
+- **一部の画面だけ値が更新されない** … provider が 2 つあり、その部分木では内側が外側を隠しています。いちばん近い上の provider が常に勝ちます。
+- **provider から何ファイルも離れた場所で `undefined is not an object`** … 誰かが `createContext({} as Value)` を書いています。`| null` とチェックするフックにします。
+- **画面遷移すると値がリセットされる** … provider がルーティングされるコンポーネントの内側にあり、遷移のたびにアンマウントされています。ルーターより上へ移します。
+
+## まとめと練習 {#summary}
+
+<Exercise answer="値のオブジェクトが provider の描画ごとに作り直されており、context は値を同一性で比較するので、テーマが変わったかどうかに関係なく全利用側が再描画されます。包みます：const value = useMemo(() => ({ theme, toggle }), [theme])。`toggle` も useCallback か関数形で安定させます。">
+
+`ThemeProvider` が `<ThemeContext value={{ theme, toggle }}>` と書かれています。動きはしますが、provider 内の何かが変わるたびにアプリ全体が再描画されます。なぜでしょう。
+
+</Exercise>
+
+<Exercise answer="いいえ。memo() が比較するのは props で、このコンポーネントが再描画されているのは props のせいではなく、購読している context の値が変わったからです。context を分けてこのコンポーネントが必要な部分だけを読むようにするか、useContext の呼び出しをもっと小さな子に下ろします。">
+
+重いコンポーネントを `memo()` で包んだのに、context の値が変わるたびに再描画されます。ここで `memo()` は効きますか。効くのは何でしょう。
+
+</Exercise>
+
+<Exercise answer="props です。context が見合うのはバケツリレーが 3 階層になったとき、または離れた枝が同じ値を必要とするときです。1 階層なら props のほうが単純で、明示的で、ファイルを読むだけで追えます。">
+
+カードから、その中のボタンへ `variant` を 1 階層下ろしたいとします。props と context、どちらですか。
+
+</Exercise>
+
+<SummaryBox>
+
+- context は、先祖の値を子孫が直接読めるようにし、「通すだけの props」をなくす
+- 部品はいつも 3 つ：`createContext`、部分木を包む provider、そして読む `useContext`。React 19 では context 自体を provider として描画する
+- 必ず「provider がなければ例外を投げる `useX()` フック」を export し、必ず値を `useMemo` する——新品のオブジェクトは全利用側を再描画させる
+
+</SummaryBox>
