@@ -108,6 +108,17 @@ const router = createBrowserRouter([
   note="ルーティングはアプリの最外側で 1 回。画面の中身はルート登録した各ページが持つ。"
 />
 
+## うちの標準 {#standard}
+
+<Std
+  decision="ルートは createBrowserRouter で 1 つのファイルにまとめて定義し、main.tsx では <RouterProvider> だけを描画する"
+  alt="従来の `<BrowserRouter>` ＋ 入れ子の `<Routes>` も引き続き動きますし、既存のチュートリアルの多くはこちらです。新規はデータルーターを選んでください。loader・action・errorElement はそちら側にしかありません。"
+>
+
+ルート表を 1 か所にまとめれば、「このアプリにはどんなページがあるのか」の答えがファイル 1 つになります。コンポーネントを横断して検索する必要がありません。そして `main.tsx` が描画するのが `RouterProvider` だけであれば、ルーターの居場所はちょうど 1 つに定まります。「Link を押しても何も起きない」の報告のほとんどは、もっと下に 2 つ目のルーターが生えていることが原因です。
+
+</Std>
+
 ## うまくいかないとき {#trouble}
 
 - **`useHref() may be used only in the context of a <Router>`** … `RouterProvider` の外で `<Link>` などを使っています。最外側で包みます。

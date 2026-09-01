@@ -117,6 +117,17 @@ navigate(-1) // go back one
   note="A simple move is most natural with Link. Use useNavigate when you need to 'move after some work'."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Use Link for anything the user can click to go somewhere. Reserve useNavigate for moves that happen as the result of something, like a successful submit"
+  alt="A programmatic redirect that has to happen before a page renders at all — an auth guard, for instance — belongs in a loader or a route-level check rather than in a component effect."
+>
+
+The rule is about what the user gets, not about which is more convenient. A `Link` renders a real anchor, so it can be middle-clicked, opened in a new tab, copied, and read out by a screen reader as a link. A `useNavigate` call inside an `onClick` on a `<div>` offers none of that. If a person could reasonably want to open it in a new tab, it has to be a `Link`.
+
+</Std>
+
 ## When it doesn't work {#trouble}
 
 - **You called `navigate` but nothing moves** … Check that you added `()` and called it, like `navigate('/x')`.
