@@ -60,6 +60,17 @@ fetch('https://api.example.com/products') // this is how it'd look for the real 
   note="import is for small, fixed data. Use fetch for anything that changes or is large."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Import the file directly while the data is fixed and small. Move to fetch when the data can change without a rebuild"
+  alt="Content that changes but is still owned by developers — a pricing table, a feature list — is often better served by a build-time import from a CMS export than by a runtime fetch. The question is who edits it and how often, not how big it is."
+>
+
+A direct import is resolved at build time, which makes it fast, type-checked and impossible to fail at runtime. Those are real advantages and worth keeping for as long as they hold. The moment the data has to change without you shipping a new build — stock, prices, anything a non-developer edits — the import stops being an option and everything on this page starts to apply.
+
+</Std>
+
 ## Summary & practice {#summary}
 
 <Exercise answer="fetch. After login you need to pull the latest information from the server, and import (baked in at build time) can't reflect the latest. import is for small data that doesn't change.">

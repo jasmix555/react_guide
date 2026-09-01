@@ -117,6 +117,17 @@ While the fetch is in flight, `products` is still an empty array, so for a momen
   note="A request waits and can fail. Without all three states you get a blank screen or a flicker."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Design every fetch around three visible states — loading, error, success — and decide what each one shows before writing the request"
+  alt="Once a screen has more than these three, model the situation as one status value rather than adding a fourth boolean. A union of literals makes the impossible combinations unwritable; a set of booleans does not."
+>
+
+The happy path is the easy one and the one everybody builds first. Loading and error are where the experience is actually decided: without a loading state the user sees an empty list and assumes there is nothing there, and without an error state they see the same empty list and assume the same thing. Deciding all three up front costs nothing; retrofitting them means touching every branch of a component you have already finished.
+
+</Std>
+
 ## When it doesn't work {#trouble}
 
 - **You briefly see nothing, then the data appears** … you forgot to write the `loading` branch.

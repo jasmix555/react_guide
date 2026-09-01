@@ -109,6 +109,17 @@ The type of `return { products, status }` is **inferred automatically** as `prod
   note="A function that uses useState/useEffect inside must start with use, by convention. Break the rule and React can't detect hook-rule violations."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Extract a fetch into a use-prefixed custom hook once a second component needs the same data, and return the three states from it"
+  alt="A hook used by exactly one component can stay in that component’s file until something else needs it. Extracting on the first use is speculative; extracting on the second is the point at which duplication would otherwise start."
+>
+
+A custom hook is an ordinary function that is allowed to call hooks, and the `use` prefix is what tells both React’s lint rules and the next reader that it is one. Returning `{ data, loading, error }` rather than just the data keeps the three states together, so every consumer is handed the same shape and none of them has to reinvent the loading branch.
+
+</Std>
+
 ## When it doesn't work {#trouble}
 
 - **The `React Hook ... is called in function "xxx"` warning** … your function name doesn't start with `use`. Make it something like `useProducts`.
