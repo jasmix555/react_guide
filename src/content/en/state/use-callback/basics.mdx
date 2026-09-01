@@ -1,0 +1,793 @@
+---
+title: 'useCallback: keeping a function the same function'
+minutes: 30
+slug: use-callback-basics
+section: state
+description: "The complete useCallback reference: why a new function every render breaks memo() and dependency arrays, the minimal typed example, memo explained, four real scenarios (memoised list rows, effect dependencies, event listeners, custom hooks), useMemo vs useCallback, when not to use it, the classic bugs, and the TypeScript notes."
+level: intermediate
+prerequisites: ['state/use-memo/basics', 'javascript/functions-as-values']
+---
+
+import { CallbackMemoDemo } from '@/demos/CallbackMemo'
+
+<LearnBox>
+
+- Why two functions with identical code are not "the same function" to React
+- `memo()`, and why `useCallback` is nearly pointless without it
+- Four scenarios where identity matters: memoised rows, effect dependencies, event listeners, custom hooks
+
+</LearnBox>
+
+## What useCallback actually is {#what}
+
+**`useCallback` gives you back the same function object across renders, instead of a fresh one each time.**
+
+The reason this matters starts with a fact about JavaScript that has nothing to do with React:
+
+```js
+// Two functions with byte-for-byte identical code.
+const a = () => console.log('hi')
+const b = () => console.log('hi')
+
+// JavaScript still says they are different values.
+console.log(a === b) // false
+```
+
+Each time the code runs, `() => {}` **builds a brand-new function object**. It behaves the same, but it is not the same thing — exactly like `[1, 2] === [1, 2]` being `false` ([reference vs copy](/guide/javascript/reference-vs-copy)).
+
+Now put that inside a component. React re-runs the whole component body on every update, so every handler you define is rebuilt every time:
+
+```tsx
+// Define a component. React calls this function again on every update.
+export function Parent() {
+  // Hold a number the screen shows.
+  const [count, setCount] = useState(0)
+
+  // ↓ A NEW function object, every single render. Same code, different identity.
+  const handleSave = () => save(count)
+
+  // The child receives a prop that is technically different every time.
+  return <Child onSave={handleSave} />
+}
+```
+
+Nothing is broken yet — the button still works. It becomes a problem the moment something **compares** that function with the previous one, because the comparison always fails. Three things do exactly that: `memo()`, dependency arrays, and `addEventListener` / `removeEventListener`.
+
+<Callout type="analogy">
+
+Two identical house keys still open the door, but they are two different pieces of metal. If a system checks "is this the *same key* I saw last time?", identical-but-new fails the check. `useCallback` hands you back the same physical key every time.
+
+</Callout>
+
+## The smallest working example {#minimal}
+
+```tsx title="src/components/Parent/Parent.tsx"
+// `useCallback` keeps a function stable; `useState` holds a value the screen shows.
+import { useCallback, useState } from 'react'
+
+export function Parent() {
+  // A number the screen displays. `setCount` changes it and triggers a redraw.
+  const [count, setCount] = useState(0)
+
+  // Wrap the function so React hands back the SAME function object next render.
+  const handleReset = useCallback(() => {
+    // Set the counter back to zero when this runs.
+    setCount(0)
+  }, []) // ← empty array: this function never needs rebuilding
+
+  return (
+    <div>
+      {/* Show the current number. */}
+      <p>{count}</p>
+
+      {/* Add one. Written inline because nothing compares this function. */}
+      <button type="button" onClick={() => setCount((previous) => previous + 1)}>
+        Add one
+      </button>
+
+      {/* Pass the stable function down. Its identity survives every render. */}
+      <ResetButton onReset={handleReset} />
+    </div>
+  )
+}
+```
+
+The shape is identical to `useMemo`, with one difference in what you hand it:
+
+```tsx
+const handleReset = useCallback(() => {
+//    ↑                          ↑
+//    │                          └─ ① the function you want kept. useCallback does
+//    │                             NOT call it — it just stores it
+//    └─ ③ the function that comes back: the same object as last render, if ② matched
+  setCount(0)
+}, [])
+// ↑ ② dependency array: rebuild the function only when one of these changes
+```
+
+`useMemo` runs your function and caches the **result**. `useCallback` never runs it and caches the **function itself**.
+
+## memo: the other half of the story {#memo}
+
+On its own, `useCallback` does nothing useful. It only pays off when something checks the function's identity — and the most common such thing is `memo()`.
+
+`memo()` wraps a component and tells React: *if this component's props are all unchanged, skip re-rendering it entirely.*
+
+```tsx title="src/components/ResetButton/ResetButton.tsx"
+// `memo` wraps a component so React can skip re-rendering it.
+import { memo } from 'react'
+
+// Describe what this component is given.
+interface ResetButtonProps {
+  onReset: () => void
+}
+
+// memo(...) returns a wrapped version of the component. React compares the new
+// props with the previous ones and skips the render when every one matches.
+export const ResetButton = memo(function ResetButton({ onReset }: ResetButtonProps) {
+  // Pretend this subtree is expensive to draw.
+  return (
+    <button type="button" onClick={onReset}>
+      Reset
+    </button>
+  )
+})
+```
+
+The catch is *how* `memo` compares: **shallowly, with `Object.is`, prop by prop**. Strings and numbers compare by value, so `title="Sale"` matches `title="Sale"`. Functions, objects and arrays compare by identity — so a rebuilt function fails every time.
+
+That gives the rule that makes both hooks make sense:
+
+> `memo()` on the child, `useCallback` on every function prop, `useMemo` on every object or array prop. Miss any one of the three and the optimisation quietly does nothing.
+
+## See it for yourself {#demo}
+
+The child below is wrapped in `memo()` and displays how many times it has rendered. Press the unrelated counter with **useCallback on** — the child's number does not move. Turn it **off** and the number climbs with every press, because the child receives a different function each time.
+
+<Demo title="memo with and without useCallback">
+  <CallbackMemoDemo />
+</Demo>
+
+## Scenario: a callback passed to memoised list rows {#row}
+
+The payoff case. Fifty rows, each with a delete button. Without stable callbacks, typing one character in an unrelated search box re-renders all fifty.
+
+<Callout type="note">
+
+**Try it first.** Build a product table with a search box and a list of rows, each with a Remove button. Aim for:
+
+1. Typing in the search box not re-rendering every single row.
+2. One remove handler shared by all rows, rather than one per row.
+
+Hints: three separate pieces have to line up before any of this works — name all three before you write code. Can the handler's dependency array be empty, and what has to be true of the `setProducts` call for that to be safe? And where should the per-row `() => onRemove(id)` arrow actually live — in the parent's `map`, or inside the row?
+
+</Callout>
+
+```tsx title="src/components/ProductTable/ProductTable.tsx"
+// memo skips child renders; useCallback keeps the handler identity stable.
+import { memo, useCallback, useState } from 'react'
+
+// One product record.
+interface Product {
+  id: number
+  name: string
+}
+
+// What a single row receives.
+interface RowProps {
+  product: Product
+  onRemove: (id: number) => void
+}
+
+// Wrap the row so it only re-renders when its own props change.
+const Row = memo(function Row({ product, onRemove }: RowProps) {
+  return (
+    <li>
+      {/* Show the product name. */}
+      {product.name}
+
+      {/* Call onRemove with this row's id when pressed. The arrow is created
+          here, inside the row, so it does not affect the parent's props. */}
+      <button type="button" onClick={() => onRemove(product.id)}>
+        Remove
+      </button>
+    </li>
+  )
+})
+
+export function ProductTable({ initial }: { initial: Product[] }) {
+  // The list of products currently shown.
+  const [products, setProducts] = useState(initial)
+
+  // Text in the search box. Changing this re-renders ProductTable.
+  const [query, setQuery] = useState('')
+
+  // One stable remove handler shared by every row.
+  const handleRemove = useCallback((id: number) => {
+    // Build a new array without the removed product. Never edit the old one.
+    setProducts((previous) => previous.filter((product) => product.id !== id))
+  }, []) // empty: the updater form means this reads nothing from the outside
+
+  return (
+    <div>
+      {/* Typing here re-renders the parent on every keystroke... */}
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+
+      <ul>
+        {/* ...but each Row skips its own render, because both of its props
+            are unchanged: `product` is the same object, `onRemove` the same
+            function. Only rows whose product actually changed redraw. */}
+        {products
+          .filter((product) => product.name.includes(query))
+          .map((product) => (
+            <Row key={product.id} product={product} onRemove={handleRemove} />
+          ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+Line by line:
+
+1. **`memo(function Row(...))`** — piece one. Without it nothing else on this page matters, because an unwrapped child re-renders whenever its parent does.
+2. **`useCallback(..., [])`** — piece two. The empty array is only safe because `setProducts` uses the [updater form](/guide/state/use-state/basics) (`previous => ...`), so the handler never reads `products` from the surrounding render. Write it as `previous.filter(...)` reading `products` directly and the array would need `[products]`, giving a new function every time the list changes.
+3. **`product` being the same object** — piece three, and the one people forget. Both props have to be unchanged for `memo` to skip; a stable `onRemove` next to a rebuilt `product` still re-renders.
+4. **`() => onRemove(product.id)` inside `Row`** — the per-row arrow lives in the child, where rebuilding it costs nothing because nothing compares it. Written in the parent's `map` it would hand each row a new function on every render and undo all of the above.
+
+## Scenario: a function inside a useEffect dependency array {#effect-dep}
+
+Here the consequence is not a slow render — it is an infinite loop.
+
+<Callout type="note">
+
+**Try it first.** Fetch search results for a `category` prop, using a `load` function that both an effect *and* a future "Retry" button can call. Aim for:
+
+1. Refetching whenever `category` changes.
+2. Not fetching in an endless loop.
+
+Hints: the effect calls `load`, so `load` belongs in its dependency array. Now trace what happens: what is `load`'s identity on each render, what does the effect do about that, and what does the fetch then do to state? Follow that circle once and the bug names itself.
+
+</Callout>
+
+```tsx title="src/components/SearchResults/SearchResults.tsx"
+import { useCallback, useEffect, useState } from 'react'
+
+interface Product {
+  id: number
+  name: string
+}
+
+export function SearchResults({ category }: { category: string }) {
+  // The results we fetched from the server.
+  const [products, setProducts] = useState<Product[]>([])
+
+  // Whether a request is currently in flight.
+  const [loading, setLoading] = useState(false)
+
+  // A stable fetching function. Without useCallback this would be a new
+  // function on every render, the effect below would see a changed dependency,
+  // it would fetch again, that would set state, which re-renders... forever.
+  const load = useCallback(async () => {
+    // Show the loading state before the request starts.
+    setLoading(true)
+
+    // Ask the server for this category's products.
+    const response = await fetch(`/api/products?category=${category}`)
+
+    // Turn the response body into an array of products.
+    const data = (await response.json()) as Product[]
+
+    // Store the results, which redraws the list.
+    setProducts(data)
+
+    // Hide the loading state.
+    setLoading(false)
+  }, [category]) // rebuild only when the category changes
+
+  useEffect(() => {
+    // Kick off the fetch. `void` says "I know this returns a promise and I am
+    // deliberately not awaiting it" — an effect may not be async itself.
+    void load()
+  }, [load]) // re-run whenever `load` is genuinely a different function
+
+  // While the request is running, show a placeholder instead of an empty list.
+  if (loading) return <p>Loading…</p>
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Line by line:
+
+1. **The loop you were asked to trace**: without `useCallback`, `load` is a new function every render → the effect sees a changed dependency → it fetches → `setProducts` runs → the component re-renders → `load` is new again → forever. Wrapping `load` breaks the circle at the first step.
+2. **`}, [category])` on the callback** — `load` reads `category`, so it must be listed. When the category changes, `load` genuinely becomes a different function, the effect's dependency genuinely changes, and refetching is exactly what should happen.
+3. **`}, [load])` on the effect** — not `[category]`. Depending on the function means the effect re-runs whenever the work itself changes, which is the honest description of what it needs.
+4. **`void load()`** — an effect callback may not be `async`, so you call the async function and mark the ignored promise with `void`.
+
+<Callout type="warn">
+
+`useCallback` is the fix here, not a workaround, because the function is genuinely shared — the effect calls it and a "Retry" button could too. If **only** the effect uses it, the simpler answer is to move the whole function inside the effect and drop the hook entirely. Fewer moving parts beats a correctly-wired dependency chain.
+
+</Callout>
+
+## Scenario: a stable handler for addEventListener {#listener}
+
+`removeEventListener` only removes a listener if you hand it **the exact same function** you added. A rebuilt function silently fails to remove anything, and listeners pile up.
+
+<Callout type="note">
+
+**Try it first.** Write a reusable `useEscapeKey(onEscape)` hook that runs a callback when the Escape key is pressed anywhere on the page. Aim for:
+
+1. The listener attached once, not re-attached on every render.
+2. It genuinely removed when the component goes away.
+
+Hints: what does `removeEventListener` compare by — the code in the function, or the function object itself? Then look one level out: whose function identity are you actually at the mercy of here, and what does that mean for the person calling your hook?
+
+</Callout>
+
+```tsx title="src/hooks/useKeyDown.ts"
+import { useCallback, useEffect } from 'react'
+
+// A reusable hook: run `onEscape` whenever the user presses the Escape key.
+export function useEscapeKey(onEscape: () => void) {
+  // Wrap the listener so its identity only changes when `onEscape` does.
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      // Ignore every key except Escape.
+      if (event.key !== 'Escape') return
+      // Run whatever the caller wants done.
+      onEscape()
+    },
+    [onEscape], // rebuild only if the caller passes a different function
+  )
+
+  useEffect(() => {
+    // Start listening for key presses anywhere on the page.
+    window.addEventListener('keydown', handleKeyDown)
+
+    // Stop listening — passing the SAME function object we added above.
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown]) // re-attach only when the handler genuinely changed
+}
+```
+
+Line by line:
+
+1. **`removeEventListener` compares by identity, not by code.** Hand it a function with the same body but a different object and nothing is removed — silently, with no error. The listener stays attached forever, and another is added on the next mount.
+2. **`useCallback(..., [onEscape])`** — `handleKeyDown` only changes when the caller's function changes, so the effect's `[handleKeyDown]` dependency is stable for as long as the caller's is.
+3. **`if (event.key !== 'Escape') return` first** — the listener fires for every key on the page, so bail out immediately on the ones you do not care about.
+4. **The answer to the second hint**: this shifts the burden onto the caller. `useEscapeKey(() => setOpen(false))` passes a new function every render, so the listener is torn down and re-attached every render anyway. The caller has to wrap theirs too — or the hook can sidestep the whole problem by keeping the latest callback in a [ref](/guide/state/use-ref/basics), which is what production hook libraries do.
+
+## Scenario: a function returned from a custom hook {#custom-hook}
+
+Anything your custom hook returns becomes someone else's prop or dependency. Returning an unstable function forces every consumer to work around it.
+
+<Callout type="note">
+
+**Try it first.** Write a `useCart()` hook returning the current `items` plus `add` and `remove` actions. Aim for:
+
+1. Consumers able to pass `add` and `remove` straight to `memo()` children without breaking them.
+2. `add` bumping the quantity when the product is already in the cart, rather than adding a duplicate row.
+3. Dependency arrays that are empty *and* correct.
+
+Hints: you cannot see who will use this hook — what does that imply about your defaults compared with everywhere else on this page? And what has to be true of every `setItems` call for those arrays to be legitimately empty?
+
+</Callout>
+
+```tsx title="src/hooks/useCart.ts"
+import { useCallback, useState } from 'react'
+
+interface CartItem {
+  id: number
+  quantity: number
+}
+
+// A small cart, reusable from any component.
+export function useCart() {
+  // The items currently in the cart.
+  const [items, setItems] = useState<CartItem[]>([])
+
+  // Add one of a product. Stable, so consumers can pass it to memoised children.
+  const add = useCallback((id: number) => {
+    setItems((previous) => {
+      // Look for the product already in the cart.
+      const existing = previous.find((item) => item.id === id)
+
+      // Not there yet — append it with quantity 1.
+      if (!existing) return [...previous, { id, quantity: 1 }]
+
+      // Already there — build a new array with that one item's quantity bumped.
+      return previous.map((item) =>
+        item.id === id ? { ...item, quantity: item.quantity + 1 } : item,
+      )
+    })
+  }, []) // empty: the updater form reads nothing from this render
+
+  // Remove a product entirely. Also stable.
+  const remove = useCallback((id: number) => {
+    setItems((previous) => previous.filter((item) => item.id !== id))
+  }, [])
+
+  // Hand back the state and the two stable actions.
+  return { items, add, remove }
+}
+```
+
+Line by line:
+
+1. **Both dependency arrays are empty and correct**, and the reason is the same in both: every `setItems` call uses the updater form, so neither function ever reads `items` from the surrounding render. That is the property the second hint was pointing at — break it once and the array has to grow to `[items]`, and both actions become unstable.
+2. **`add` reads only `previous`** — it finds, appends or maps entirely inside the updater. Nothing from the enclosing scope leaks in.
+3. **`previous.map(item => item.id === id ? { ...item, quantity: ... } : item)`** — a new array, with a new object for the one row that changed and the original objects for every other row. Rows that did not change keep their identity, so `memo()`'d rows can skip.
+4. **The answer to the first hint**: this is the one place to reach for `useCallback` by default rather than after measuring. A shared hook cannot know whether its consumers memoise, and an unstable return value is a trap they have to discover on their own.
+
+## Every way to call it {#signatures}
+
+**The dependency array, three ways.**
+
+```tsx
+// ① Empty — the function is rebuilt never. Only correct when it reads nothing
+//    from props or state (the updater form is what usually makes this true).
+const reset = useCallback(() => setCount(0), [])
+
+// ② Listed — rebuilt when a value it reads changes. The normal case.
+const search = useCallback(() => runSearch(query), [query])
+
+// ③ Omitted — rebuilt every render, which is what happens without the hook.
+//    A useCallback that does nothing. Never write this.
+const search = useCallback(() => runSearch(query))
+```
+
+**It is `useMemo` returning a function.** These two lines are exactly equivalent, and knowing that is the fastest way to remember what `useCallback` does:
+
+```tsx
+// useCallback stores the function you pass.
+const fn = useCallback(() => doThing(a), [a])
+
+// useMemo stores what its function RETURNS — so return the function.
+const fn = useMemo(() => () => doThing(a), [a])
+```
+
+**Accepting arguments** is normal; the parameters are not dependencies.
+
+```tsx
+// `id` arrives when the function is called, so it is not in the array.
+const remove = useCallback((id: number) => {
+  setItems((previous) => previous.filter((item) => item.id !== id))
+}, [])
+```
+
+**The updater form is what empties the array.** Compare these two:
+
+```tsx
+// Reads `count` from this render, so `count` must be listed — meaning a new
+// function on every single change.
+const increment = useCallback(() => setCount(count + 1), [count])
+
+// Reads nothing from this render, so the array can be empty and the function
+// is created exactly once for the component's whole life.
+const increment = useCallback(() => setCount((previous) => previous + 1), [])
+```
+
+**Setters from `useState` are already stable.** React guarantees `setCount` never changes identity, so it never needs wrapping and never needs listing.
+
+**Handlers written inline in JSX do not need it.** `onClick={() => setOpen(true)}` on a plain `<button>` is fine forever — DOM elements do not compare their props.
+
+## Break it on purpose: move the arrow into the map {#break-inline}
+
+Open the [demo above](#demo), turn **useCallback on**, and press the unrelated counter a few times. The child's render count sits still. Everything is working.
+
+Now here is the version that looks equally correct and is not. Take the working table from [the rows scenario](#row) and move one arrow function:
+
+```tsx title="deliberately wrong"
+// Row is still memo()'d. handleRemove is still useCallback'd.
+// The ONLY change is where the per-row arrow is written.
+<ul>
+  {products.map((product) => (
+    <Row
+      key={product.id}
+      product={product}
+      // ✗ A new function object, for every row, on every render.
+      onRemove={() => handleRemove(product.id)}
+    />
+  ))}
+</ul>
+```
+
+Type one character in the search box. **Every row re-renders**, exactly as if you had never written `memo()` or `useCallback` at all.
+
+Nothing about the child changed. `Row` is still memoised. `handleRemove` is still stable. But `memo` compares the props it actually receives, and `onRemove` is now a fresh arrow created inside `map` — a different function object per row, per render. The comparison fails every time, on every row.
+
+The fix is to move the arrow one level down, into the child:
+
+```tsx
+// Parent: pass the stable function straight through.
+<Row key={product.id} product={product} onRemove={handleRemove} />
+
+// Row: build the per-row arrow here, where nothing compares it.
+<button type="button" onClick={() => onRemove(product.id)}>Remove</button>
+```
+
+The lesson generalises past this one bug: **`useCallback` protects the function you wrapped, not the props you actually pass.** Trace the value that lands on the memoised child, not the one you created.
+
+## Cheat sheet: the shapes you will actually write {#catalog}
+
+```tsx
+// The three pieces, which only work together
+const Row = memo(function Row({ item, onPick }: RowProps) { … }) // ① memo the child
+const onPick = useCallback((id: number) => setPicked(id), []) // ② stable function
+const items = useMemo(() => raw.map(toItem), [raw]) // ③ stable object/array
+
+// Empty deps — safe because the updater form reads nothing from this render
+const add = useCallback(() => setCount((prev) => prev + 1), [])
+const remove = useCallback((id: number) => {
+  setItems((prev) => prev.filter((i) => i.id !== id))
+}, [])
+
+// Listed deps — the function reads something that can change
+const search = useCallback(() => runSearch(query), [query])
+
+// A native event listener, where identity decides whether it can be removed
+const onKey = useCallback((e: KeyboardEvent) => {
+  if (e.key === 'Escape') close()
+}, [close])
+useEffect(() => {
+  window.addEventListener('keydown', onKey)
+  return () => window.removeEventListener('keydown', onKey)
+}, [onKey])
+
+// Returned from a custom hook — wrap by default here
+return { items, add, remove }
+
+// ✗ Not needed: a handler on a plain DOM element
+<button onClick={useCallback(() => setOpen(true), [])}>Open</button>
+
+// ○ Just write it inline
+<button onClick={() => setOpen(true)}>Open</button>
+
+// ✗ Not needed: a useState setter is already stable
+const set = useCallback((v: boolean) => setOpen(v), [])
+
+// ○ Pass it directly
+onToggle={setOpen}
+```
+
+## useMemo or useCallback? {#vs}
+
+They are the same machine with different cargo, which is exactly why they get confused.
+
+| | `useMemo` | `useCallback` |
+| --- | --- | --- |
+| What you pass in | A calculation | A function you want kept |
+| Does React run it? | Yes, and stores what it returns | **No**, it just stores it |
+| What comes back | The calculated value | The function itself |
+| Cached to save | Time spent calculating | The function's identity |
+| Typical use | Filtering a list, an `Intl` formatter | A prop for a `memo()` child, an effect dependency |
+
+The one-line version: **`useMemo` caches an answer, `useCallback` caches a question.**
+
+## When to use it — and when not to {#when}
+
+Use `useCallback` when the function's **identity** is checked by something:
+
+- It is a prop on a component wrapped in `memo()`.
+- It appears in a `useEffect`, `useMemo` or `useCallback` dependency array.
+- It is handed to `addEventListener`, an observer, or any API that needs the same reference back to detach.
+- It is returned from a custom hook, where you cannot see who will use it.
+
+Do not use it for these:
+
+- **A handler on a plain DOM element.** `<button onClick={...}>` never compares props. Wrapping it adds cost and no benefit.
+- **A child that is not wrapped in `memo()`.** An unmemoised child re-renders whenever its parent does, no matter how stable its props are. `useCallback` alone buys literally nothing.
+- **Every function, reflexively.** Each `useCallback` stores an array and compares it every render. On a component with twenty of them and no memoised children, you have added twenty comparisons to make nothing faster.
+- **Making a stale closure go away.** If a handler reads an old value, the fix is the correct dependency array or the updater form — not removing the hook and hoping.
+
+## Common mistakes {#mistakes}
+
+**`useCallback` without `memo()` on the child.**
+
+```tsx
+// ✗ Child is not memoised, so it re-renders with the parent regardless.
+//   The useCallback is pure overhead.
+const handleClick = useCallback(() => doThing(), [])
+return <Child onClick={handleClick} />
+```
+
+<Diff
+  bad="const fn = useCallback(...) passed to an unwrapped <Child />"
+  good="const Child = memo(function Child(...)) — then the useCallback pays off"
+  note="An unmemoised child re-renders whenever its parent does. Stable props change nothing until memo() is checking them."
+/>
+
+**A missing dependency, giving a stale closure.**
+
+```tsx
+// ✗ `query` is captured on the first render and never updated. Searching
+//    always uses the empty string, no matter what the user typed.
+const search = useCallback(() => {
+  runSearch(query)
+}, []) // ← query is read above but not listed
+```
+
+The function is genuinely never rebuilt, which is what you asked for — so it keeps forever the `query` that existed when it was created. Either list `query`, or restructure so the function does not read it.
+
+<Diff
+  bad="useCallback(() => runSearch(query), [])"
+  good="useCallback(() => runSearch(query), [query])"
+  note="An empty array means 'never rebuild', which also means 'never see a new value'. List everything the function reads."
+/>
+
+**An inline arrow inside `map`, defeating memoised rows.**
+
+```tsx
+// ✗ A new function per row, per render — every Row re-renders every time
+{products.map((product) => (
+  <Row key={product.id} onRemove={() => handleRemove(product.id)} />
+))}
+
+// ○ Pass the stable handler down and build the per-row arrow inside Row
+{products.map((product) => (
+  <Row key={product.id} product={product} onRemove={handleRemove} />
+))}
+```
+
+**Wrapping a `useState` setter.**
+
+<Diff
+  bad="const setOpenStable = useCallback((v: boolean) => setOpen(v), [])"
+  good="setOpen"
+  note="React already guarantees setState functions never change identity. Pass the setter directly."
+/>
+
+**Expecting it to prevent the parent's own re-render.** It does not. `useCallback` affects what *children* and *effects* see; the component it is written in re-renders exactly as often as before.
+
+**Calling it conditionally.**
+
+```tsx
+// ✗ Error: hooks must be called in the same order on every render
+if (editable) {
+  const handleSave = useCallback(() => save(), [])
+}
+```
+
+## Our standard {#standard}
+
+<Std
+  decision="Add useCallback when something compares the function: a memo() child, a dependency array, or an event listener. Add it by default only in custom hooks, where you cannot see the consumer"
+  alt="With the React Compiler enabled, most hand-written useCallback becomes unnecessary — it inserts the memoisation itself. This guide deliberately leaves the compiler off so these exercises are visible on your machine. On a project that has it on, remove hand-written callbacks rather than keeping both."
+>
+
+The three pieces only work together: `memo()` on the child, `useCallback` on function props, `useMemo` on object and array props. Adding one without the others is the most common way to spend effort and change nothing. Start by wrapping the child in `memo()`, then check every prop you pass it — if any of them is rebuilt each render, the memo is doing nothing.
+
+</Std>
+
+## What React is doing under the hood {#internals}
+
+`useCallback(fn, deps)` is `useMemo(() => fn, deps)`, and React implements it almost exactly that way. The hook slot stores **the previous dependency array** and **the function object**.
+
+On every render:
+
+1. Your arrow function `() => ...` **is still created**. That allocation always happens — `useCallback` cannot stop JavaScript from building the function you wrote.
+2. React compares the new dependency array against the stored one, position by position, with `Object.is`.
+3. All equal → React returns the **stored** function and throws away the one you just made.
+4. Any difference → React stores the new function and returns it.
+
+That first step is why "wrap everything in `useCallback`" is not free: you pay the allocation *plus* the array storage and comparison. The hook does not avoid creating functions; it avoids *handing new ones out*.
+
+`memo()` sits on the other side of that. When React reaches a memoised component during a render, it walks the new props against the previous ones with `Object.is` — the same shallow comparison — and if every one matches it reuses the previous output and does not call the component function at all.
+
+<Deeper title="Why not just wrap every function, to be safe?">
+
+Because "safe" costs something measurable and buys nothing without a consumer.
+
+Each `useCallback` adds a hook slot, an array to store, and a per-render comparison. On a component with no memoised children, that is pure overhead — you have made every render slightly slower in exchange for an optimisation nobody is checking for.
+
+It also hides bugs. A stale closure inside an over-eagerly memoised handler is far harder to spot than the same function written plainly, because the plain version simply always has fresh values. Write it plainly first; wrap it when something is comparing it.
+
+</Deeper>
+
+## TypeScript notes {#typescript}
+
+`useCallback` infers the function's type from what you pass, and — unlike most hooks — the **parameters need annotating**, because there is no surrounding context to infer them from.
+
+```tsx
+// ✗ `id` is implicitly any — TypeScript has nothing to infer from
+const remove = useCallback((id) => setItems((p) => p.filter((i) => i.id !== id)), [])
+
+// ○ annotate the parameter
+const remove = useCallback((id: number) => {
+  setItems((previous) => previous.filter((item) => item.id !== id))
+}, [])
+```
+
+**Event handler parameters** need the React event types, same as any separately-defined handler:
+
+```tsx
+import type { ChangeEvent, MouseEvent } from 'react'
+
+// A change handler for a text input.
+const onInput = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+  setText(event.target.value)
+}, [])
+
+// A click handler for a button.
+const onPress = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+  event.currentTarget.blur()
+}, [])
+```
+
+**A native DOM listener uses the DOM event types**, not React's — `KeyboardEvent`, not `React.KeyboardEvent`. They are different types and mixing them is a common error:
+
+```tsx
+// window.addEventListener gives you the DOM event, so use the DOM type.
+const onKeyDown = useCallback((event: KeyboardEvent) => {
+  if (event.key === 'Escape') close()
+}, [close])
+```
+
+**Typing the prop that receives it** is where most components go wrong. Describe the signature, not `Function`:
+
+```tsx
+interface RowProps {
+  onRemove: (id: number) => void // ○ says exactly what it takes and returns
+  onSelect: Function // ✗ accepts anything, checks nothing
+}
+```
+
+**An explicit type argument** is occasionally worth it when the function is returned from a hook and you want the signature documented at the definition:
+
+```tsx
+const add = useCallback<(id: number) => void>((id) => {
+  // With the type argument present, `id` is inferred — no annotation needed.
+  setItems((previous) => [...previous, { id, quantity: 1 }])
+}, [])
+```
+
+## When things go wrong {#trouble}
+
+- **The memoised child still re-renders on every parent render** … One of its props is rebuilt each time. Check every prop, not just the function — an inline arrow in `map` is the classic, see [break it on purpose](#break-inline).
+- **I added `useCallback` and nothing got faster** … Nothing is comparing the function. Either the child is not wrapped in `memo()`, or it is a plain DOM element, which never compares props.
+- **The handler uses an old value** … A missing dependency. An empty array means "never rebuild", which also means "never see a new value". List what it reads, or take the value as an argument.
+- **A `useEffect` runs in an endless loop** … A function in its dependency array is rebuilt every render. Wrap it, or move the function inside the effect and drop it from the array.
+- **`removeEventListener` is not removing anything** … A different function object is being passed than the one that was added. Define the handler once, wrapped, and use the same reference for both calls.
+- **`Parameter 'id' implicitly has an 'any' type`** … Unlike most hooks, `useCallback` parameters get no context to infer from. Annotate them: `(id: number) => …`.
+- **The component still re-renders** … It always will. `useCallback` affects what children and effects see, not the component it is written in.
+- **Everything got slightly slower after wrapping everything** … Each `useCallback` still creates the arrow, then stores and compares an array on top. Remove the ones with no consumer.
+
+## Summary & practice {#summary}
+
+<Exercise answer="Nothing. An unmemoised child re-renders whenever its parent does, regardless of whether its props changed, so the stable function is never compared with anything. Wrap the child in memo() — or drop the useCallback.">
+
+You wrap a handler in `useCallback` and pass it to a child that is **not** wrapped in `memo()`. What does the `useCallback` buy you?
+
+</Exercise>
+
+<Exercise answer="The empty array means the function is never rebuilt, so it holds the `query` from the first render forever — an empty string. Either list it — }, [query]) — or restructure so the function receives the query as an argument instead of reading it.">
+
+`const search = useCallback(() => runSearch(query), [])` always searches for an empty string, whatever the user types. Why?
+
+</Exercise>
+
+<Exercise answer="The arrow inside map creates a new function for every row on every render, so each Row's onRemove prop differs and memo can never skip. Pass the stable handleRemove down as-is and build the per-row arrow inside Row, where it is not compared.">
+
+Rows are wrapped in `memo()` and receive `onRemove={() => handleRemove(product.id)}` from inside the parent's `map`. They still all re-render. Why, and what is the fix?
+
+</Exercise>
+
+<SummaryBox>
+
+- Every render builds new function objects. `useCallback` hands back the previous one when its dependencies are unchanged
+- It only pays off when something compares identity: a `memo()` child, a dependency array, or `removeEventListener`
+- `memo()` on the child, `useCallback` on function props, `useMemo` on object props — all three, or none of them do anything
+
+</SummaryBox>
