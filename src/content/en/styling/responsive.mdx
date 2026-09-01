@@ -107,6 +107,17 @@ Widen the window and columns are added; narrow it and they're reduced. Each card
   note="Mobile-first means fewer overrides to cancel and less breakage on phones."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Write the phone layout as the base and add wider screens on top. Lay out lists with grid and auto-fit / minmax rather than percentage widths"
+  alt="A design that genuinely starts from a fixed desktop composition — a pixel-matched hero, a print-like layout — can be authored desktop-first with max-width queries. Anything that is fundamentally a list or a card grid should stay mobile-first."
+>
+
+Mobile-first means the base rules are the ones that must never break, and every media query only adds. Get that backwards and a missing breakpoint leaves a phone rendering a desktop layout, which is the failure users actually see. For the lists in this project, `repeat(auto-fit, minmax(240px, 1fr))` replaces the percentage-and-margin arithmetic entirely: the browser decides the column count and there is no breakpoint to forget.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **Horizontal scroll appears on phones** … Often caused by a fixed width (like `width: 800px`). Use `max-width` with `width: 100%`.

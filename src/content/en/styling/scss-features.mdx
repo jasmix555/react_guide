@@ -150,6 +150,17 @@ $accent: #4f46e5;
   note="Hard-coding means hunting down and fixing every occurrence when the color changes. With a variable, it's one place."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Use nesting to group a component’s own parts and states, and stop at two levels deep. Reach for $ variables and @mixin only when the same value or the same group of rules appears more than twice"
+  alt="Deeper nesting is occasionally unavoidable when styling markup you do not control (a third-party widget, a CMS-rendered block). Everywhere else, a third level is a sign the markup wants splitting into its own component."
+>
+
+Nesting is a convenience, not a structure. Because SCSS Modules already scope every class, you do not need nesting to avoid collisions — so nest only where it genuinely expresses "part of this component", and use `&` for states like `&:hover` and `&__inner`. Three or four levels deep produces selectors nobody can search for, which is exactly the LP problem this part exists to solve.
+
+</Std>
+
 ## When things don't work {#trouble}
 
 - **Nesting doesn't work** … Check that you're writing in `.module.scss` (SCSS). Plain `.css` can't use nesting (note: newer CSS allows some of it, but here we assume SCSS).

@@ -116,6 +116,17 @@ If you want a manual toggle rather than just the OS setting, use JavaScript to s
   note="Hard-coding means searching every file when a color changes. With tokens, it's one place. Dark mode is just swapping the values."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Define colors, spacing and radii as CSS custom properties in :root, and reference them with var(). Use SCSS $ variables only for values SCSS itself needs at build time"
+  alt="A `$` variable is the right tool for something the browser never sees — a breakpoint used inside a media query, a value fed to a colour function, a map you loop over. Those are resolved at build time and cannot be swapped per theme."
+>
+
+The difference that matters: a `$` variable is gone by the time the page loads, but a custom property is still there and can be reassigned. That is what makes a dark theme a matter of redefining a handful of values under one selector, rather than rebuilding a second stylesheet. Set the whole palette once in `:root` and let components refer to it — no component should ever contain a raw hex code.
+
+</Std>
+
 ## When things don't work {#trouble}
 
 - **`var(--c-text)` doesn't work** … Check the token name's spelling, that it starts with `--`, and that it's defined in `:root`.

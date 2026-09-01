@@ -132,6 +132,17 @@ Since `className={styles.name}` is already applied, just adding one line to `.na
   note="Without .module it's treated as global CSS, and collision-free scoping doesn't kick in."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="One .module.scss per component, in that component’s folder, imported as styles and applied with className={styles.card}"
+  alt="If a class name genuinely needs a hyphen, `styles['card-body']` works — but prefer a single word or camelCase so the plain `styles.cardBody` property access keeps working."
+>
+
+Name the file after the component (`ProductCard.module.scss`) and keep it beside `ProductCard.tsx`. The `styles` import is an ordinary object, which is why a typo like `styles.crad` fails silently as `undefined` rather than raising an error — worth remembering when a style does not appear.
+
+</Std>
+
 ## When things don't work {#trouble}
 
 - **`styles.card` is `undefined`** … Check that the file name ends in `.module.scss` and that the class name is spelled correctly.
