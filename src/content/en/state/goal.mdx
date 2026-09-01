@@ -59,17 +59,14 @@ As you learn React, `useState` is a **central topic you can't get around**. That
 
 ## How this part is structured {#roadmap}
 
-From the top down, you'll deepen your understanding of state step by step.
+One page per hook, each one a complete reference you can come back to.
 
-1. **What is state** — why "just a variable" won't do (this is the key part).
-2. **The basics of useState** — hold a value, update it, and redraw the screen.
-3. **Changing state on events** — toggle it with a click.
-4. **Object state** — update it without breaking the original (reference and copy from Part 2).
-5. **Array state** — add, remove, and reorder.
-6. **Updating from the previous value** — what `setCount(c => c + 1)` means.
-7. **useEffect** — "side effects" that run after the display.
-8. **useRef** — values that don't redraw the screen (focusing an input, holding a timer id).
-9. **useMemo / useCallback / memo** — skipping work that didn't need redoing.
+1. **useState** — why "just a variable" won't do, then form inputs, toggles, lists, object state, and the updater form.
+2. **useEffect** — syncing with the outside world: listeners, observers, fetching, and cleanup.
+3. **useRef** — values that don't redraw the screen (focusing an input, holding a timer id).
+4. **useContext** — letting a deep component read a value without props being passed through everything in between.
+5. **useMemo** — caching a calculated value so it is not redone on every update.
+6. **useCallback** — keeping a function the same function, so `memo()` and dependency arrays work.
 
 Each page comes with a **live demo** and **practice**. Don't just read—always write it out yourself and run it.
 

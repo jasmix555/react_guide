@@ -103,37 +103,44 @@ export const navigation: AuthoredTab[] = [
           {
             group: 'useState',
             pages: [
-              { route: 'state/use-state/what-is-state', title: 'state とは何か' },
-              { route: 'state/use-state/basics', title: 'useState の基本' },
-              { route: 'state/use-state/events', title: 'イベントで state を変える' },
               {
-                route: 'state/use-state/updating-objects',
-                title: 'オブジェクトの state を更新する',
-              },
-              {
-                route: 'state/use-state/updating-array-state',
-                title: '配列の state を更新する',
-              },
-              {
-                route: 'state/use-state/functional-updates',
-                title: '前の値をもとに更新する',
+                route: 'state/use-state/basics',
+                title: '描画をまたいで値を覚える',
               },
             ],
           },
           {
             group: 'useEffect',
-            pages: [{ route: 'state/use-effect/basics', title: 'useEffect とは（副作用）' }],
+            pages: [{ route: 'state/use-effect/basics', title: 'React の外側と同期する' }],
           },
           {
             group: 'useRef',
-            pages: [{ route: 'state/use-ref/basics', title: '画面を描き直さない値' }],
+            pages: [{ route: 'state/use-ref/basics', title: 'DOM に触れる・値を覚える' }],
+          },
+          {
+            group: 'useContext',
+            pages: [
+              {
+                route: 'state/use-context/basics',
+                title: 'props を使わずに値を渡す',
+              },
+            ],
           },
           {
             group: 'useMemo',
             pages: [
               {
                 route: 'state/use-memo/basics',
-                title: 'ムダな計算を省く（useMemo / memo）',
+                title: '計算結果をキャッシュする',
+              },
+            ],
+          },
+          {
+            group: 'useCallback',
+            pages: [
+              {
+                route: 'state/use-callback/basics',
+                title: '関数を「同じ関数」のままにする',
               },
             ],
           },

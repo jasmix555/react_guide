@@ -27,7 +27,9 @@ We've touched the heart of React from end to end. Here are the key points.
 - **The functional form** … Updates determined by the previous value use `set(prev => ...)`. It won't drop updates even under rapid updates.
 - **useEffect** … Side effects run after rendering. The dependency array decides "when it runs", and `return` handles cleanup.
 - **useRef** … A box you read as `.current`, for DOM elements (focus, scroll) and values that are never displayed. Writing to it doesn't redraw.
-- **useMemo / useCallback / memo** … Skip work that didn't need redoing. Write it plainly first, and memoize only the spot you measured as slow.
+- **useContext** … Give a whole subtree a value — theme, signed-in user, language — instead of threading props through components that never read them. Always behind a `useX()` hook, always with a memoised value.
+- **useMemo** … Cache a calculated value and redo it only when a listed dependency changes. Write it plainly first, and memoize only the spot you measured as slow.
+- **useCallback / memo** … Keep a function’s identity stable so a `memo()` child or a dependency array can actually skip work. All three pieces, or none of them do anything.
 
 Behind everything that "makes the screen change" there's always state — this way of seeing things will keep paying off from here on.
 

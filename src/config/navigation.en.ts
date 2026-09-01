@@ -92,33 +92,31 @@ export const navigation: AuthoredTab[] = [
           {
             group: 'useState',
             pages: [
-              { route: 'state/use-state/what-is-state', title: 'What is state' },
-              { route: 'state/use-state/basics', title: 'useState basics' },
-              { route: 'state/use-state/events', title: 'Changing state on events' },
               {
-                route: 'state/use-state/updating-objects',
-                title: 'Updating object state',
-              },
-              {
-                route: 'state/use-state/updating-array-state',
-                title: 'Updating array state',
-              },
-              {
-                route: 'state/use-state/functional-updates',
-                title: 'Updating from the previous value',
+                route: 'state/use-state/basics',
+                title: 'Remembering values between renders',
               },
             ],
           },
           {
             group: 'useEffect',
-            pages: [{ route: 'state/use-effect/basics', title: 'What is useEffect (side effects)' }],
+            pages: [{ route: 'state/use-effect/basics', title: 'Syncing with the outside world' }],
           },
           {
             group: 'useRef',
             pages: [
               {
                 route: 'state/use-ref/basics',
-                title: "Values that don't redraw the screen",
+                title: 'Reaching the DOM and remembering values',
+              },
+            ],
+          },
+          {
+            group: 'useContext',
+            pages: [
+              {
+                route: 'state/use-context/basics',
+                title: 'Passing values without props',
               },
             ],
           },
@@ -127,7 +125,16 @@ export const navigation: AuthoredTab[] = [
             pages: [
               {
                 route: 'state/use-memo/basics',
-                title: 'Skipping wasted work (useMemo / memo)',
+                title: 'Caching a calculated value',
+              },
+            ],
+          },
+          {
+            group: 'useCallback',
+            pages: [
+              {
+                route: 'state/use-callback/basics',
+                title: 'Keeping a function the same function',
               },
             ],
           },
