@@ -1,9 +1,9 @@
 ---
-title: useEffect とは（副作用）
-minutes: 11
+title: 'useEffect：React の外側と同期する'
+minutes: 33
 slug: use-effect-basics
 section: state
-description: 描画のあとに動く副作用を useEffect で書く。構文を分解し、時計を全文で書いて、依存配列とクリーンアップを整理する。依存配列を忘れて無限ループになる罠と書き方カタログ。
+description: useEffect の総合リファレンス。役割・最小の型付き例・答えを見る前に自分で考える5シナリオ（スクロール監視 / IntersectionObserver / fetch / スクロールロック / メディアクエリ）・全シグネチャ・使わない判断・よくあるバグ・内部の動作順・TypeScript の落とし穴。
 level: beginner
 prerequisites: ['state/use-state/basics']
 ---
@@ -12,193 +12,843 @@ import { ClockDemo } from '@/demos/Clock'
 
 <LearnBox>
 
-- 「副作用」とは何か、なぜ `useEffect` が要るのか
-- `useEffect` の構文（処理・依存配列・後片付け）を分解する
-- 依存配列を忘れて無限ループになる罠と、書き方カタログ
+- `useEffect` は何のためにあるか——そして**使ってはいけない**場面のほうが多いこと
+- 答えを見る前に自分で考える 5 シナリオ：スクロール監視・IntersectionObserver・fetch・スクロールロック・メディアクエリ
+- 全シグネチャ、定番のバグ、実行順、TypeScript が出すエラー
 
 </LearnBox>
 
-## 副作用とは「描画の外側の仕事」 {#why}
+## useEffect の正体 {#what}
 
-これまでのコンポーネントは「state を受け取って JSX を返す」だけでした。でも実際のアプリには、それ以外の仕事もあります——**タイマーを動かす、サーバーからデータを取る、`document.title` を変える**など。こうした「**画面を描くこと以外の仕事**」を **副作用（side effect）** と呼びます。
+`useEffect` は、**React の外側にあるものを、コンポーネントと同期させ続ける**ための道具です。仕事はこれだけです。
 
-副作用は JSX を返す途中で書けません（描画が不安定になります）。代わりに、**描画が終わったあとに実行する**専用の置き場所が **`useEffect`** です。
+React が管理しているのは、自分が描画した DOM だけです。ブラウザのスクロール位置、`document.title`、`setInterval`、`IntersectionObserver`、WebSocket、サーバー——これらはすべて React の外側にあります。コンポーネントが現れたら、そうした外側のものに**接続**し、消えるときには**切断**する必要があります。その接続／切断のペアを書く場所が `useEffect` です。
 
-## useEffect の構文を分解する {#anatomy}
+置き換わるのは、LP でおなじみのこの書き方です。
 
-`useEffect` は「実行したい処理」と「依存配列」を渡します。骨格に名前を付けます。
+```js
+// スクロールの監視を始める。このリスナーを外す処理はどこにもないが、
+// LP ではそれで問題ない——訪問者が離脱するまでページは生きているから。
+window.addEventListener('scroll', onScroll)
 
-```tsx
-useEffect(() => {
-  // ① 実行したい処理（描画のあとに動く）
-  return () => {
-    // ② 後片付け（クリーンアップ）：次の実行前と、消えるときに動く
-  }
-}, [running])
-//  ↑
-//  └─ ③ 依存配列：この中の値が変わったら、もう一度実行（[] なら初回だけ）
+// ページ全体で 1 つのオブザーバーを作る。
+const io = new IntersectionObserver(reveal)
+
+// そのクラスを持つ要素を全部探し、1 つずつオブザーバーに渡す。
+document.querySelectorAll('.fade').forEach((el) => io.observe(el))
 ```
 
-- **① 処理** … 描画のあとに実行したい中身（タイマー開始、データ取得など）。
-- **② 後片付け（`return () => {...}`）** … 開始したもの（タイマー・購読）を止める。**省略可**だが、タイマー系では必須。
-- **③ 依存配列 `[...]`** … 「いつ実行するか」を決める。空 `[]` なら初回だけ、`[running]` なら `running` が変わるたび。
+LP のスクリプトは一度走ってページを離れるまで生き続けるので、これで成立します。React のコンポーネントは違います。モーダル・ルート・タブパネルのように、**マウントされ、アンマウントされ、また現れます**。マウントのたびに `addEventListener` して `removeEventListener` しなければ、リスナーが積み上がってページがもたつきます。
 
-## 時計を全文で書く {#build}
+<Callout type="analogy">
 
-`src/components/Clock/Clock.tsx` を新規作成して、**この全文**を貼り付けてください。1 秒ごとに数が増える時計です。
+「描画のあとに走る処理」ではなく、**電話**だと考えてください。セットアップが「かける」、クリーンアップが「切る」。props が変わって別の番号にかけ直す必要が出たら、React は古い電話を切ってから新しい番号にかけます。書いたエフェクトはすべて「いつでも切れる電話」になっているべきです。
 
-```tsx title="src/components/Clock/Clock.tsx（新規作成・全文）"
+</Callout>
+
+## 最小の動く例 {#minimal}
+
+```tsx title="src/components/UnreadTitle/UnreadTitle.tsx"
+// useEffect はコンポーネントが出たあとにコードを走らせ、useState は値を持つ。
 import { useEffect, useState } from 'react'
 
-export function Clock() {
-  const [seconds, setSeconds] = useState(0)
+export function UnreadTitle() {
+  // 未読の件数。0 から始まる。
+  const [count, setCount] = useState(0)
 
   useEffect(() => {
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000) // ① 開始
-    return () => clearInterval(id) // ② 後片付け
-  }, []) // ③ 初回だけ
+    // React の外側の仕事：ブラウザのタブの文字を書き換える。document.title は
+    // React の持ち物ではないので、下の JSX には書けない。
+    document.title = `未読 ${count} 件`
+  }, [count]) // ← `count` が変わるたびに、これをもう一度走らせる
 
-  return <p>{seconds} 秒</p>
+  return (
+    // 押すと `count` が変わり、再描画され、エフェクトが再実行される。
+    <button type="button" onClick={() => setCount((c) => c + 1)}>
+      未読を 1 件増やす（{count}）
+    </button>
+  )
 }
 ```
 
-`setInterval` で 1 秒ごとに `setSeconds` を呼び、`clearInterval` で止めています。`setSeconds((s) => s + 1)` が関数形なのは、[前のページ](/guide/state/use-state/functional-updates)の理由（前の値から更新）と同じです。
+部品は 3 つ。どんなエフェクトでも、この 3 つで出来ています。
 
-## 保存すると何が起きるか {#result}
+```tsx
+useEffect(() => {
+  // ① セットアップ — 外側のものに接続する
+  return () => {
+    // ② クリーンアップ — 切断する。省略可だが、動き続けるものには必須
+  }
+}, [count])
+//  ↑ ③ 依存配列 — セットアップが読む値。変わったら React がかけ直す
+```
 
-画面に `0 秒` が出て、1 秒ごとに `1 秒`、`2 秒`…と増えていきます。コンポーネントが表示された**あと**に `useEffect` が動いてタイマーを開始し、`setSeconds` が毎秒 state を更新するので、そのたびに再描画されて数字が進みます。
+`document.title` にクリーンアップが要らないのは、代入が「動き続けるもの」ではないからです。切るべき電話がありません。タイマー・リスナー・オブザーバーはすべて動き続けるので、②が必要です。
 
-## 実際の動き {#demo}
+## 動かして確認 {#demo}
 
-下は、これに「止める／動かす」を足したものです（`running` を依存配列に入れています）。触ってみてください。
+下の時計は、エフェクトの中で `setInterval` を開始し、クリーンアップで `clearInterval` しています。停止すると `running` が変わるので、React は古いタイマーを片付けてから新しいエフェクトを実行します。
 
 <Demo title="useEffect のタイマー">
   <ClockDemo />
 </Demo>
 
-## 依存配列で「いつ動くか」を決める {#deps}
+## シナリオ：スクロール監視（追従ヘッダー） {#scroll}
 
-2 つ目の `[ ]` は「**この中の値が変わったら、もう一度実行する**」という指定です。3 パターンあります。
+<Callout type="note">
 
-- **`[]`（空）** … 最初の 1 回だけ。初回のデータ取得やタイマー開始に。
-- **`[query]`** … `query` が変わるたびに実行し直す。
-- **書かない** … **毎回の描画で実行**。ほとんど誤りで、無限ループの原因（次で見ます）。
+**まず自分で書いてみる。**ページを 80px スクロールしたら見た目が変わる追従ヘッダーを作ってください。目指すのは次の 3 つです。
 
-## return で後片付けする {#cleanup}
+1. 「いま追従状態かどうか」を持つ state。
+2. リスナーは一度だけ張り、コンポーネントが消えるときに外す。
+3. ページの途中でリロードされても、ヘッダーが即座に正しい見た目になる。
 
-`return () => {...}` は、**次に実行し直す前**と、**コンポーネントが消えるとき**に呼ばれます。開始したタイマーや購読を止めないと、二重に動いたり消えても動き続けたりします。
-
-```tsx
-useEffect(() => {
-  const id = setInterval(() => setSeconds((s) => s + 1), 1000)
-  return () => clearInterval(id) // これが無いとタイマーが増え続ける
-}, [])
-```
-
-<Callout type="analogy">
-
-部屋を出るときに電気を消すのと同じです。`setInterval`（点ける）をしたら `clearInterval`（消す）まで責任を持つ。後片付けを書く癖が、そのまま安全なコードになります。
+ヒント：`stuck` を持つのはどのフックで、リスナーを張るのはどのフックでしょう。エフェクトからは何を返す必要がありますか。そして、まだ一度も発火していない読み込み直後、リスナーは何を知っているでしょうか。
 
 </Callout>
 
-## わざと壊す：依存配列を忘れて無限ループ {#break-loop}
+```tsx title="src/components/StickyHeader/StickyHeader.tsx"
+import { useEffect, useState } from 'react'
 
-依存配列を書かず、中で state を更新するとどうなるか見ます。
+export function StickyHeader() {
+  // ヘッダーの見た目を変えるほどスクロールしたかどうか。
+  const [stuck, setStuck] = useState(false)
+
+  useEffect(() => {
+    // リスナーはエフェクトの「中」で定義する。こうするとセットアップと
+    // クリーンアップが、まったく同じ関数オブジェクトを指す。
+    const onScroll = () => {
+      // window.scrollY は、ページをどれだけ下へスクロールしたか（px）。
+      // 比較の結果は true / false になり、そのまま state に入る。
+      setStuck(window.scrollY > 80)
+    }
+
+    // ① まず 1 回その場で実行する。ページ途中でリロードした訪問者にも、
+    //    ホイールを回す前から正しいヘッダーが見えるように。
+    onScroll()
+
+    // ② 監視を始める。`passive: true` は「preventDefault は呼びません」
+    //    という宣言で、ブラウザはこちらを待たずにスクロールできる。
+    window.addEventListener('scroll', onScroll, { passive: true })
+
+    // ③ コンポーネントが消えるときに監視をやめる。「同じ」関数オブジェクトを
+    //    渡さないと、何も外れない。
+    return () => window.removeEventListener('scroll', onScroll)
+  }, []) // 空配列：マウント時に一度だけ張り、張り直さない
+
+  return (
+    // クラスではなくデータ属性にしておくと、JavaScript でクラス名を
+    // こねくり回さずに CSS 側で [data-stuck='true'] を書ける。
+    <header data-stuck={stuck}>
+      <p>Logo</p>
+    </header>
+  )
+}
+```
+
+1 行ずつ、見落としやすい 3 点はここです。
+
+1. **`onScroll()` をその場で 1 回呼ぶ。**リスナーは*変化*しか教えてくれません。この行がないと、ページ下部でリロードした訪問者には、あと 1px スクロールするまで「追従していないヘッダー」が見えます。
+2. **`{ passive: true }`。**これがないと、ブラウザは `preventDefault()` を呼ばれる可能性に備えて、ハンドラの完了を待ってからでないとスクロールできません。付けるだけでタダで速くなるので、スクロール監視には必ず付けます。
+3. **クリーンアップに同じ関数の参照を渡す。**`removeEventListener` はコードではなく同一性で比較します。`onScroll` をエフェクトの中で定義しているので、セットアップとクリーンアップが同じオブジェクトを掴みます。外で定義すると描画ごとに新しいものができ、追加していない関数を外そうとして失敗します。
+
+依存配列が空でよい理由：このエフェクトは props からも state からも何も読んでいません。`setStuck` は `useState` の更新関数で、React が同一性の不変を保証しています。
+
+## シナリオ：IntersectionObserver でスクロール表示 {#observer}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**中身が初めて画面に入ったときに「表示済み」にする、プロモサイト定番のふわっと出る囲みコンポーネントを作ってください。目指すのは次の 3 つです。
+
+1. スクロール監視は使わず、`IntersectionObserver` で行う。
+2. 一度発火したら、そこで監視をやめる。
+3. 一度も現れないまま削除された場合も、きちんと後片付けする。
+
+ヒント：本物の DOM 要素を指す方法が要ります——どのフックでしょう。その値は初回描画の時点で何になっていて、それは「どこで読めるか」に何を意味しますか。そして、2 回読むよりローカル変数に写すほうが安全なのはなぜでしょう。
+
+</Callout>
+
+```tsx title="src/components/Reveal/Reveal.tsx"
+// `import type` は型だけを持ってくる。ReactNode は「React が描けるもの全般」
+// ——文字列でも、要素でも、その並びでも。
+import type { ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+interface RevealProps {
+  children: ReactNode
+}
+
+export function Reveal({ children }: RevealProps) {
+  // React が作ったあとの本物の div 要素を入れておく箱。
+  // 初回描画の今この瞬間は null。
+  const ref = useRef<HTMLDivElement>(null)
+
+  // その要素がもう画面に現れたかどうか。
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    // 要素をローカル変数に写す。クリーンアップが走る頃には ref.current が
+    // null になっている可能性があるが、この const は要素を指したまま。
+    const el = ref.current
+
+    // 用心深いようで必要。TypeScript も null の可能性を知っているし、
+    // 実際に null になる描画もある。
+    if (!el) return
+
+    // 監視役を作る。要素がビューポートに入る／出るたびに、この関数が呼ばれる。
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        // `entry.isIntersecting` は実際に見えているときだけ true。
+        // そうでなければ何もせず、次の報告を待つ。
+        if (!entry.isIntersecting) return
+
+        // 現れたことを記録する。これで表示用のスタイルに切り替わる。
+        setShown(true)
+
+        // 必要なのは一度だけなので、その場で監視をやめる。
+        io.disconnect()
+      },
+      // 1px 見えた瞬間ではなく、20% 見えたら発火する。
+      { threshold: 0.2 },
+    )
+
+    // この要素の監視を始める。
+    io.observe(el)
+
+    // 一度も現れないまま削除された場合も、監視をやめる。
+    return () => io.disconnect()
+  }, []) // 空：オブザーバーはマウント時に一度だけ用意する
+
+  return (
+    // `ref` があるから、React はこの要素を ref.current に入れてくれる。
+    // アニメーション自体は `data-shown` を見て CSS が担当する。
+    <div ref={ref} data-shown={shown}>
+      {children}
+    </div>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`useRef<HTMLDivElement>(null)` と `ref={ref}` のペア**が、本物の要素を手に入れる方法です。React が `ref.current` を埋めるのは描画の*あと*なので、オブザーバーの用意が描画本体ではなくエフェクトにあるのは必然です。
+2. **冒頭の `const el = ref.current`** … クリーンアップはあとで走り、そのとき React はすでに ref を `null` に戻しているかもしれません。ローカルの `const` は監視した要素を指したままです。ref をエフェクトの中で読むのは正しく、*描画中に*読むのは別です（[useRef](/guide/state/use-ref/basics) 参照）。
+3. **`io.disconnect()` が 2 か所にある** … コールバックの中は「仕事が終わったから」、クリーンアップの中は「仕事が終わる前に消えるかもしれないから」。両方必要です。
+4. **`{ threshold: 0.2 }`** … どれだけ見えたら数えるかの割合です。`0` は 1px で発火し、`1` は全体が見えるまで待ちます。
+
+## シナリオ：fetch と読み込み中・エラー表示 {#fetch}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**`category` という prop の商品一覧を取得し、取得中はローディング、失敗時はエラーを出してください。目指すのは次の 3 つです。
+
+1. `category` が変わったら取り直す。
+2. 素早く切り替えられても、違うカテゴリの結果を絶対に表示しない。
+3. 「消えたコンポーネントを更新した」という警告を出さない。
+
+ヒント：エフェクト本体は `async` にできません——なぜで、代わりにどうしますか。2 本のリクエストが同時に飛んだとき、既定ではどちらが勝ちますか。それはユーザーが最後に押したほうでしょうか。リクエストを中断するブラウザ API があり、それを使う場所はクリーンアップです。
+
+</Callout>
+
+```tsx title="src/components/ProductList/ProductList.tsx"
+import { useEffect, useState } from 'react'
+
+// サーバーから返ってくる商品 1 件の形。
+interface Product {
+  id: number
+  name: string
+  price: number
+}
+
+interface ProductListProps {
+  category: string
+}
+
+export function ProductList({ category }: ProductListProps) {
+  // 商品そのもの。最初は空のリスト。
+  const [products, setProducts] = useState<Product[]>([])
+
+  // いまどの状況にいるか。真偽値 3 つではなく 1 つの値にすることで、
+  // 「読み込み中かつエラー」を表現できなくしている。
+  const [status, setStatus] = useState<'loading' | 'error' | 'done'>('loading')
+
+  useEffect(() => {
+    // このリクエストを中断するためのリモコン。
+    const controller = new AbortController()
+
+    // リクエストを出す前に、読み込み中の表示にする。
+    setStatus('loading')
+
+    // サーバーに問い合わせる。`signal` があとで中断を可能にする。
+    fetch(`/api/products?category=${category}`, { signal: controller.signal })
+      .then((res) => {
+        // fetch は 404 や 500 では例外を投げない。自分で確認する必要がある。
+        if (!res.ok) throw new Error(String(res.status))
+
+        // 本文を JSON として解釈する。`as` でどんな形が来るか伝えている。
+        return res.json() as Promise<Product[]>
+      })
+      .then((data) => {
+        // 結果を保存し、完了の状況に移る。
+        setProducts(data)
+        setStatus('done')
+      })
+      .catch((err: unknown) => {
+        // 中断すると Promise は reject されるが、中断は失敗ではなく成功。
+        // だからエラー表示に進む前に抜ける。
+        if (err instanceof DOMException && err.name === 'AbortError') return
+
+        // それ以外は本物の失敗。
+        setStatus('error')
+      })
+
+    // `category` が変わるとき、あるいはコンポーネントが消えるときに、
+    // 飛んでいるリクエストを中断する。下で説明する競合を防ぐのがこれ。
+    return () => controller.abort()
+  }, [category]) // カテゴリが変わるたびに再実行する
+
+  // 早期 return にしておくと、下の一覧がすっきりする。
+  if (status === 'loading') return <p>読み込み中…</p>
+  if (status === 'error') return <p>商品を取得できませんでした。</p>
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.id}>
+          {product.name} — {product.price.toLocaleString()}円
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+1 行ずつ。
+
+1. **`new AbortController()` は飾りではありません。**カテゴリを素早く切り替えると 2 本のリクエストが同時に飛びます。中断しなければ、あとから*返ってきた*ほうが勝ちます——それが最初に押したほうかもしれません。クリーンアップで中断すれば、`category` が変わった瞬間に古いリクエストが捨てられます。
+2. **`if (!res.ok) throw`** … `fetch` が reject するのは通信自体が失敗したときだけです。404 も 500 も「成功した Promise の `ok: false`」として届くので、確認しない fetch はエラーページを黙ってデータとして描画します。
+3. **`AbortError` の除外** … 中断による reject は、正しく仕事をした証拠です。この行がないと、カテゴリを切り替えるたびにエラーメッセージが一瞬出ます。
+4. **`return () => controller.abort()`** … クリーンアップは次のエフェクトの*前*に走るので、新しいリクエストが始まる前に古いほうが中断されます。
+
+この形は[データ取得のパート](/guide/data/three-states)で詳しく扱い、[useProducts カスタムフックに切り出す](/guide/data/custom-hook)で部品化します。
+
+## シナリオ：モーダル表示中に背面をロックする {#lock}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**モーダル表示中に背面のページがスクロールしないようにする、再利用できるフックを書いてください。目指すのは次の 3 つです。
+
+1. モーダルが閉じているあいだは、何もしない。
+2. 開くとロックし、閉じると解除する。
+3. ほかの何かがすでに `overflow` を変えていた場合、それを踏みつぶさない。
+
+ヒント：エフェクトは途中で `return` して構いません——その回、React は何を記録するでしょう。そして元に戻すとき、本当に `''` が正しい戻し先でしょうか。
+
+</Callout>
+
+```tsx title="src/hooks/useBodyScrollLock.ts"
+import { useEffect } from 'react'
+
+// カスタムフック——名前が "use" で始まり、他のフックを呼べる、ただの関数。
+// どのコンポーネントからでも使える。
+export function useBodyScrollLock(locked: boolean) {
+  useEffect(() => {
+    // ロックしないなら何もしない。React はこの回のクリーンアップを
+    // 記録しないだけで、エフェクトは実質何もしないものになる。
+    if (!locked) return
+
+    // 触る前に、もともと入っていた overflow の値を覚えておく。
+    const previous = document.body.style.overflow
+
+    // 背面のページのスクロールを止める。
+    document.body.style.overflow = 'hidden'
+
+    // 解除時（またはアンマウント時）に、決め打ちの既定値ではなく
+    // 「もともと入っていたもの」をそのまま戻す。
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [locked]) // locked が切り替わるたびに再実行する
+}
+```
+
+1 行ずつ。
+
+1. **早期 `return`** … エフェクトはセットアップ前に抜けてよく、React はその回のクリーンアップを記録しないだけです。本体全体を `if` ブロックで包む必要はありません。
+2. **書き込む前の `const previous = ...`** … 古い値をセットアップ時に捕まえ、クリーンアップが使うのと同じクロージャに置いています。
+3. **`''` ではなく `previous` を戻す** … 他のコンポーネントもロックしていた場合、`''` を決め打ちするとそちらのロックまで解除してしまいます。もともとの値を戻せば正しく共存できます。
+4. **`[locked]`** … エフェクトが `locked` を読んでいるので、必ず並べます。切り替わると React は古い値のクリーンアップを実行してから、新しい値のセットアップを実行します。
+
+## シナリオ：prefers-reduced-motion に反応する {#media}
+
+<Callout type="note">
+
+**まず自分で書いてみる。**訪問者が OS で「動きを減らす」を選んでいたら `true` を返すフックを書き、その人にはアニメーションを出さないようにしてください。目指すのは次の 3 つです。
+
+1. コンポーネントが出た時点で正しい答えになっている。
+2. ページを開いたまま設定を変えられても、その場で追従する。
+3. サーバー側で描画されても落ちない。
+
+ヒント：`window.matchMedia('(prefers-reduced-motion: reduce)')` は `matches`（真偽値）と `change` イベントを持つオブジェクトを返します。セットアップで読むのはどちらで、購読するのはどちらでしょう。そして、サーバー上で `window` は何を意味しますか。
+
+</Callout>
+
+```tsx title="src/hooks/useReducedMotion.ts"
+import { useEffect, useState } from 'react'
+
+// 括弧のあとの `: boolean` は、このフックが何を返すかの宣言。
+export function useReducedMotion(): boolean {
+  // 安全な既定値から始める。サーバー描画では `window` が存在しないので、
+  // この時点でブラウザに訊くことはできない。
+  const [reduced, setReduced] = useState(false)
+
+  useEffect(() => {
+    // エフェクトはブラウザでしか走らないので、ここでは `window` が必ずある。
+    // matchMedia は、1 つの CSS メディアクエリを追跡するオブジェクトを返す。
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+    // 現在の答えを一度読む。マウント直後の描画が正しくなるように。
+    setReduced(mq.matches)
+
+    // そのうえで購読を続ける。OS の設定をその場で変えられた場合に備えて。
+    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches)
+    mq.addEventListener('change', onChange)
+
+    // コンポーネントが消えるときに購読をやめる。
+    return () => mq.removeEventListener('change', onChange)
+  }, []) // 空：購読は一度だけ
+
+  // 呼び出したコンポーネントに答えを返す。
+  return reduced
+}
+```
+
+1 行ずつ。
+
+1. **`useState(false)` にしてから、エフェクトで `mq.matches` を読む**——この分け方は意図的です。初期値は `window` のないサーバーを含め、どこでも計算できる安全なものでなければなりません。本当の答えは 1 描画あとに届きます。
+2. **`mq.matches` と `change` リスナーは別物です** … `matches` は*今*の答え、リスナーは*これから*の変化。両方ないと、フックは古いままか、初回描画で間違うかのどちらかになります。
+3. **`Event` ではなく `MediaQueryListEvent`** … 具体的な型にすることで、キャストなしに `event.matches` が使えます。
+
+モーションライブラリは同等のものを持っています——[モーション設定の尊重](/libraries/framer-motion/reduced-motion)を参照。
+
+## 呼び出し方のすべて {#signatures}
+
+**依存配列の 3 パターン。**重要なのはこの引数だけです。
+
+```tsx
+// ① 配列なし — 毎回の描画後に走る。ほぼ確実にバグ。
+useEffect(() => {
+  console.log('毎回')
+})
+
+// ② 空配列 — コンポーネントが出たときに一度セットアップし、消えるときに
+//    クリーンアップする。中身が変わりようがないので、二度と再実行されない。
+useEffect(() => {
+  console.log('マウントされた')
+}, [])
+
+// ③ 値を並べる — どれかが変わるたびに再実行。
+useEffect(() => {
+  console.log('query が変わった:', query)
+}, [query])
+```
+
+**クリーンアップは「返した関数」だけ。**それ以外を返すと TypeScript が弾きます。
 
 ```tsx
 useEffect(() => {
-  setSeconds(seconds + 1) // 依存配列なし
+  // 繰り返しのタイマーを開始し、返ってきた id を控える。
+  const id = setInterval(() => setSeconds((s) => s + 1), 1000)
+
+  // それを止める関数を返す。React が次の実行の前と、
+  // コンポーネントが消えるときに呼ぶ。
+  return () => clearInterval(id)
+}, [])
+```
+
+**エフェクト本体を `async` にはできません。**`async` 関数は Promise を返しますが、React はクリーンアップ関数を期待しています。中で非同期関数を定義します。
+
+```tsx
+useEffect(() => {
+  // async が「使える」内側で、非同期関数を定義する。
+  const load = async () => {
+    const res = await fetch('/api/products')
+    setProducts((await res.json()) as Product[])
+  }
+
+  // 呼ぶ。`void` は TypeScript に「Promise が返るのは承知のうえで、
+  // あえて await しない」と伝えるもの。
+  void load()
+}, [])
+```
+
+**張り直さずに最新の値を読む。**リスナーの中で今の `label` が欲しいが、`label` が変わるたびにリスナーを付け直すのは無駄——そんなときは値を ref に置きます。
+
+```tsx
+// 描画をまたいで残り、描画を起こさない箱。
+const labelRef = useRef(label)
+
+// prop が変わるたびに箱を最新にする。リスナーの張り直しがないので安い。
+useEffect(() => {
+  labelRef.current = label
+}, [label])
+
+useEffect(() => {
+  // リスナーは箱を読むので、常に今の値が見える……
+  const onScroll = () => console.log(labelRef.current, window.scrollY)
+  window.addEventListener('scroll', onScroll, { passive: true })
+  return () => window.removeEventListener('scroll', onScroll)
+}, []) // ……一方でこのエフェクト自体は二度と再実行されない
+```
+
+**依存にはオブジェクトではなくプリミティブを。**オブジェクトリテラルは毎回の描画で新品なので、前回と一致することがありません。
+
+```tsx
+// ✗ 毎回新しいオブジェクト＝依存が一致しない＝エフェクトが永久に
+//    片付けと再セットアップを繰り返す。
+useEffect(() => {
+  observe({ threshold, rootMargin })
+}, [{ threshold, rootMargin }])
+
+// ○ プリミティブを並べる。数値や文字列は値で比較される。
+useEffect(() => {
+  observe({ threshold, rootMargin })
+}, [threshold, rootMargin])
+```
+
+**関心ごとに 1 つのエフェクト。**無関係な仕事を 1 つにまとめると、片方が変わっただけで両方が作り直されます。
+
+```tsx
+// ✗ タイマーと検索は無関係なのに依存配列を共有している。
+//    だから検索欄に打つとタイマーが再起動する。
+useEffect(() => {
+  const id = setInterval(tick, 1000)
+  search(query)
+  return () => clearInterval(id)
+}, [query])
+
+// ○ エフェクト 2 つ、依存配列 2 つ、独立した寿命 2 つ。
+useEffect(() => {
+  const id = setInterval(tick, 1000)
+  return () => clearInterval(id)
+}, [])
+
+useEffect(() => {
+  search(query)
+}, [query])
+```
+
+## わざと壊す：依存配列を書き忘れる {#break-loop}
+
+`seconds` の state を持つコンポーネントにこれを貼り付けて保存し、読み進める前に何が起きるか見てください。
+
+```tsx title="わざと間違えたコード"
+useEffect(() => {
+  // 依存配列をまったく付けずに state を更新する。
+  setSeconds(seconds + 1)
 })
 ```
 
-保存すると、コンソールにこう出て画面が固まります。
+タブが固まり、コンソールが次で埋まります。
 
 ```
 Warning: Maximum update depth exceeded.
 ```
 
-「**更新が深すぎる（無限ループ）**」です。描画 → `useEffect` が `setSeconds` を実行 → state が変わって再描画 → また `useEffect` が実行 → また `setSeconds`……と永遠に繰り返すからです。依存配列を書かないと「毎回実行」になるのが原因。**「いつ動くか」を必ず `[ ]` で指定**します。
+ループを自分で追ってください。この先も必ずまた会います——描画 → エフェクトが走る（配列なしは「毎回の描画後」）→ `setSeconds` → state が変わったので再描画 → またエフェクトが走る → 永遠に。止めるものは何もありません。いつ止まるかを、誰も伝えていないからです。
 
-## 書き方カタログ：useEffect の3パターン {#catalog}
-
-使う形はだいたいこの 3 つです。まとめて覚えておきます。
+配列を足して保存し直します。
 
 ```tsx
-// ① マウント時に1回だけ（初回のデータ取得など）
 useEffect(() => {
-  console.log('最初の1回だけ')
+  setSeconds(seconds + 1)
+}, []) // ←「初回描画のあとだけ」
+```
+
+固まりが即座に止まります。**依存配列は省略可能な飾りではなく、「これはいつ走るのか」という問いへの答えそのもの**です。付け忘れは、ページを少し間違わせるのではなく、ページを落とす唯一の間違いです。
+
+## 書き方カタログ：エフェクトの型 {#catalog}
+
+```tsx
+// ① コンポーネントが現れたときに 1 回 — 購読、初回のデータ取得
+useEffect(() => {
+  console.log('マウントされた')
 }, [])
 
-// ② 特定の値が変わるたび
+// ② 値が変わるたび
 useEffect(() => {
   console.log('query が変わった:', query)
 }, [query])
 
-// ③ 後片付けが要るもの（タイマー・購読）
+// ③ 動き続けるもの — 必ずクリーンアップとセット
 useEffect(() => {
   const id = setInterval(tick, 1000)
   return () => clearInterval(id)
 }, [])
-```
 
-<Together
-  task="ページを開いたときに1回だけ document.title を「商品一覧アプリ」に変える useEffect を書いてみてください。（document.title = '...' で変えられます）"
-  hint="useEffect(() => { document.title = '商品一覧アプリ' }, []) — 依存配列は空 [] で「最初の1回だけ」。"
->
-
-```tsx
+// ④ ブラウザのイベントリスナー
 useEffect(() => {
-  document.title = '商品一覧アプリ'
+  const onScroll = () => setY(window.scrollY)
+  onScroll() // 現在値を一度読む
+  window.addEventListener('scroll', onScroll, { passive: true })
+  return () => window.removeEventListener('scroll', onScroll)
+}, [])
+
+// ⑤ オブザーバー
+useEffect(() => {
+  const el = ref.current
+  if (!el) return
+  const io = new IntersectionObserver(onCross, { threshold: 0.2 })
+  io.observe(el)
+  return () => io.disconnect()
+}, [])
+
+// ⑥ データ取得。入力が変わったらリクエストを中断する
+useEffect(() => {
+  const controller = new AbortController()
+  void load(query, controller.signal)
+  return () => controller.abort()
+}, [query])
+
+// ⑦ 非同期処理 — エフェクト本体は決して async にしない
+useEffect(() => {
+  const run = async () => {
+    await doThing()
+  }
+  void run()
 }, [])
 ```
 
-`document.title` を変えるのは「画面を描くこと以外の仕事」＝副作用なので `useEffect` の中に書きます。依存配列 `[]` で最初の 1 回だけ実行されます。
+## 使うとき・使わないとき {#when}
 
-</Together>
+`useEffect` を使うのは、コンポーネントが **React の外に手を伸ばす**とき——DOM API、ブラウザ、ネットワーク、タイマー、サードパーティのライブラリインスタンスです。
+
+次の用途には使いません。それぞれもっと良い答えがあります。
+
+- **props や state から値を導く**……描画中にそのまま計算します（`const total = items.length`）。`useState` ＋ `useEffect` で「同期させる」と、描画が 1 回増え、バグの余地も増えます。計測して重かったときだけ [useMemo](/guide/state/use-memo/basics) を使います。エフェクトではありません。
+- **クリック・送信・入力への反応**……ハンドラの中に書きます。`submitted` フラグを見張るエフェクトは描画の**あと**に走るので、通信が 1 フレーム遅れ、無関係な再描画でも動いてしまいます。
+- **props が変わったら state をリセットする**……`key` を渡します（`<Editor key={userId} />`）。React が古いインスタンスを捨てて作り直すので、古い値がちらつくこともありません。
+- **重い初期値の計算**……遅延初期化を使います（`useState(() => parse(raw))`）。初回描画の**前**に一度だけ走ります。
+- **描画前に DOM を測って位置を直す**……`useLayoutEffect` の仕事です。ブラウザが描く前に走ります。`useEffect` は描いたあとなので、1 フレームだけ間違った位置が見えます。
+- **React 外のストアを購読する**……`useSyncExternalStore` がそのために存在し、表示のズレも正しく扱います。
 
 ## よくある間違い {#mistakes}
 
-<Diff
-  bad="useEffect(() => { setX(x + 1) })（依存配列なし＋state更新）"
-  good="useEffect(() => { setX(x + 1) }, [])"
-  note="依存配列を忘れると毎回実行。state を更新していれば無限ループになる。"
-/>
+**依存の書き忘れは値を凍結させる（古いクロージャ）。**
+
+```tsx
+// ✗ ずっと「count: 0」と出続ける。
+useEffect(() => {
+  // このアロー関数は、作られた瞬間の `count` を掴んだまま。
+  const id = setInterval(() => console.log('count:', count), 1000)
+  return () => clearInterval(id)
+}, []) // ← 上で count を読んでいるのに、ここに書いていない
+```
+
+エフェクトは初回描画の 1 回だけ走り、そのとき `count` は `0` でした。中で作られたアロー関数はその `0` を掴んだままで、二度と入れ替わりません。直し方は意図によって 2 つ。`count` を配列に足す（変わるたびにタイマーを張り直す）か、[呼び出し方のすべて](#signatures)のように `count` を ref に置く（タイマーはそのまま、値だけ新しく読む）かです。
 
 <Diff
-  bad="const id = setInterval(...)（後片付けなし）"
-  good="return () => clearInterval(id)"
-  note="開始したタイマー・購読は return で止める。放置すると多重に動く。"
+  bad="useEffect(() => { ... count を読む ... }, [])"
+  good="useEffect(() => { ... count を読む ... }, [count])"
+  note="セットアップが読むコンポーネント内の値は、すべて依存配列に入れる。抜けた値は初回描画の値のまま凍る。"
 />
+
+**依存にオブジェクトや配列を置くと無限に再実行される。**
+
+```tsx
+// ✗ `options` は毎回の描画で作り直されるので、前回と同じオブジェクトに
+//    なることがなく、エフェクトが走り、描画され、また作り直され……
+const options = { threshold: 0.2 }
+useEffect(() => {
+  observe(options)
+}, [options])
+```
+
+React は依存を `Object.is` で比較します。中身が同じでも、別のオブジェクトは別物です。プリミティブなフィールドを並べるか、オブジェクトをエフェクトの中に移します。
+
+**依存配列なしで state を更新する。**
+
+```tsx
+// ✗ Warning: Maximum update depth exceeded.
+//   描画 → エフェクト → setSeconds → 再描画 → エフェクト → 無限。
+useEffect(() => {
+  setSeconds(seconds + 1)
+})
+```
+
+誰もが一度は出すループです。
+
+<Diff
+  bad="useEffect(() => { setX(x + 1) })"
+  good="useEffect(() => { setX(x + 1) }, [])"
+  note="配列なしは「毎回の描画後」。そこに state 更新を書くと無限ループになる。"
+/>
+
+**動き続けるものにクリーンアップがない。**
+
+<Diff
+  bad="useEffect(() => { window.addEventListener('scroll', onScroll) }, [])"
+  good="useEffect(() => { window.addEventListener('scroll', onScroll); return () => window.removeEventListener('scroll', onScroll) }, [])"
+  note="リスナー・タイマー・オブザーバー・購読は、クリーンアップがないとマウントのたびに積み上がる。"
+/>
+
+**2 つのレスポンスが競り、遅いほうが勝つ。**[fetch のシナリオ](#fetch)で扱ったとおり、クリーンアップで中断するか、`ignore` フラグを使います。
+
+```tsx
+useEffect(() => {
+  // この回が、自分のレスポンスが届いたときに確認するためのフラグ。
+  let ignore = false
+
+  fetch(`/api/products?category=${category}`)
+    .then((res) => res.json() as Promise<Product[]>)
+    .then((data) => {
+      // すでにクリーンアップが走っていれば、この回は古い——結果を捨てる。
+      if (!ignore) setProducts(data)
+    })
+
+  // クリーンアップは「この回のクロージャ」のフラグだけを立てる。
+  return () => {
+    ignore = true
+  }
+}, [category])
+```
+
+**エフェクトで state を別の state に写す。**
+
+```tsx
+// ✗ 変更ごとに描画が 2 回走り、1 回目の `fullName` は古い。
+const [fullName, setFullName] = useState('')
+useEffect(() => {
+  setFullName(`${first} ${last}`)
+}, [first, last])
+
+// ○ 描画 1 回、古くならない、そして同期の手間が 1 つ減る。
+const fullName = `${first} ${last}`
+```
 
 ## うちの標準 {#standard}
 
 <Std
-  decision="副作用は useEffect に書き、依存配列を必ず指定し、開始したもの（タイマー・購読）は return で後片付けする"
-  alt="サーバーからのデータ取得も useEffect でできますが、規模が大きくなると取得ライブラリのほうが楽になります（データのパートで扱います）。まずは useEffect の形を掴みます。"
+  decision="useEffect は「React の外側に接続するとき」だけ。セットアップとクリーンアップは必ず同じ編集で書く"
+  alt="データ取得だけは、教科書的な答えと実務の答えがずれる場面です。エンドポイントが数本を超えたら、ルーターの loader やデータ取得ライブラリのほうがキャッシュ・重複排除・競合処理をまとめて面倒を見てくれます。まずはエフェクト版を理解してください——どのライブラリも、このコードにキャッシュを載せたものです。"
 >
 
-`useEffect(処理, 依存配列)`。依存配列は「いつ動くか」——初回だけなら `[]`、特定の値に反応するなら `[値]`。省略しない。開始したものは `return` で止める。この 3 点を守れば `useEffect` の事故はほぼ防げます。
+セットアップと `return` のクリーンアップは、コードを走らせる前に、同じタイミングで書きます。あとから足すクリーンアップは、他の 3 箇所で忘れているクリーンアップです。そのうえで、セットアップが読むコンポーネント内の値を**すべて**依存配列に並べます。減らしてはいけません。`react-hooks/exhaustive-deps` に見張らせます。
 
 </Std>
 
+## 内部で起きていること {#internals}
+
+1 回の更新の順序です。
+
+1. **描画（render）** … React がコンポーネント関数を呼び、JSX が返る。エフェクトはまだ走っていません。
+2. **コミット（commit）** … 差分が実際の DOM に反映されます。
+3. **ペイント（paint）** … ブラウザが描画します。ユーザーの目に入ります。
+4. **エフェクト** … 変更のあったエフェクトについて、前回のクリーンアップを実行してから、新しいセットアップを実行します。
+
+エフェクトはペイントの**あと**なので、初回フレームを遅らせません。同時に、`useEffect` の中でレイアウトを測って直すと、見えるガタつきになります。
+
+比較は**位置ごとの浅い比較**です。React は前回の配列を保持し、インデックス順に `Object.is` で比べます。1 つでも違えばエフェクト全体を（クリーンアップから）やり直します。この位置合わせがあるので、フックを `if` やループの中に置いてはいけません——フックの並びが描画ごとに一致する必要があるためです。
+
+<Deeper title="開発中だけエフェクトが 2 回走るのはなぜ？">
+
+`src/main.tsx` で有効にしている `StrictMode` では、開発時にマウント時のエフェクトを **セットアップ → クリーンアップ → セットアップ** の順でわざと実行します。抜き打ち検査です。クリーンアップが正しいエフェクトは何事もなく通り抜けますが、リスナーを積んだりタイマーを二重に起動したりするエフェクトは、その場で症状を出します——本番でユーザーが同じモーダルを 2 回開いたときではなく、あなたのマシンで。
+
+本番ビルドでは起きません。2 回走ることで壊れるなら、悪いのはクリーンアップのほうです。`StrictMode` を外してはいけません。
+
+</Deeper>
+
+## TypeScript メモ {#typescript}
+
+`useEffect` に型引数はなく、必要もありません。推論で足ります。出るエラーはすべて**戻り値**についてで、`void` かクリーンアップ関数でなければなりません。
+
+**アロー関数の省略形は値を返してしまい、エラーになります。**
+
+```tsx
+// ✗ 波括弧のないアロー関数は、式の評価結果をそのまま返す——ここでは
+//   代入された文字列。React はクリーンアップ関数を期待していた。
+useEffect(() => (document.title = title), [title])
+
+// ○ 波括弧にすると本体が「文」になり、何も返らない。
+useEffect(() => {
+  document.title = title
+}, [title])
+```
+
+同じ落とし穴の裏返しが `useEffect(() => setOpen(false), [])` です。こちらは通ります——`setOpen` の戻り値が `void` だからです。問題は「何をするか」ではなく「何を返すか」です。
+
+**`async` が弾かれるのも同じ理由です。**
+
+```tsx
+// ✗ Type 'Promise<void>' is not assignable to type 'void | Destructor'.
+//   async 関数は必ず Promise を返し、クリーンアップ関数は返せない。
+useEffect(async () => {
+  await load()
+}, [])
+```
+
+**タイマー ID は `number` ではありません。**`setInterval` はブラウザでは `number`、Node では `Timeout` オブジェクトを返し、エディタがどちらを見ているかは環境次第です。TypeScript に任せます。
+
+```tsx
+// 「ここでの setInterval が返す型、または null」。どちらの環境でも通る。
+const idRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+useEffect(() => {
+  // クリーンアップから届くように id を保存しておく。
+  idRef.current = setInterval(tick, 1000)
+
+  return () => {
+    // この null チェックが、渡して安全だと TypeScript を納得させる。
+    if (idRef.current !== null) clearInterval(idRef.current)
+  }
+}, [])
+```
+
+**イベントリスナーの型は、インラインのときだけ推論されます。**
+
+```tsx
+// ○ インラインなら、MediaQueryList の 'change' が MediaQueryListEvent を
+//   出すことを TypeScript が知っているので、`event` の型はタダで付く。
+mq.addEventListener('change', (event) => setReduced(event.matches))
+
+// ✗ 別の場所で定義した関数にはその文脈がない。自分で注釈する。
+const onChange = (event: MediaQueryListEvent) => setReduced(event.matches)
+mq.addEventListener('change', onChange)
+```
+
+**ref には絞り込みが要ります。**`useRef<HTMLDivElement>(null)` の型は `HTMLDivElement | null` です。IntersectionObserver のシナリオにあった `if (!el) return` は用心深さではなく、それ以降で `el` を `HTMLDivElement` にするための必須の 1 行です。
+
 ## うまくいかないとき {#trouble}
 
-- **`Maximum update depth exceeded`** … 依存配列なしの `useEffect` で state を更新しています。`[]` などの依存配列を付けます。
-- **タイマーが二重に動く／消えても動き続ける** … `return` の後片付けを書いていません。`clearInterval` などで止めます。
-- **1 回だけのつもりが何度も動く** … 依存配列が `[]` になっているか確認します。
+- **`Maximum update depth exceeded` / タブが固まる** … 依存配列のないエフェクトが更新関数を呼んでいます。配列を足します——[わざと壊す](#break-loop)を参照。
+- **1 回でよかったのに毎回の描画で走る** … 配列がないか、配列の中に毎回新しくなるオブジェクト・配列があります。プリミティブに依存させます。
+- **開発時だけマウントで 2 回走る** … `StrictMode` が仕事をしています。2 回で壊れるならクリーンアップが誤りです。`StrictMode` を外さないでください。
+- **タイマーが倍速になる／消えたあとも動き続ける** … クリーンアップがありません。`return () => clearInterval(id)` を書きます。
+- **モーダルを開閉するたびにページが重くなる** … リスナーが積み上がっています。`removeEventListener` には追加したときと同じ関数オブジェクトが必要なので、ハンドラはエフェクトの中で定義します。
+- **エフェクト内の値が初回描画の値のまま固まっている** … 依存の書き忘れ（古いクロージャ）です。配列に足すか、値を ref に置きます。
+- **素早く操作すると違うデータが出る** … 2 本のリクエストが競り、遅いほうが勝っています。クリーンアップで中断するか、`ignore` フラグを使います。
+- **`Type 'Promise<void>' is not assignable to type 'void | Destructor'`** … エフェクト本体が `async` です。中で非同期関数を定義し、`void` で呼びます。
+- **`Type 'string' is not assignable to type 'void | Destructor'`** … 省略形のアロー関数が値を返しています。波括弧にします。
+- **`Can't perform a React state update on an unmounted component`** … コンポーネントが消えたあとに非同期の結果が届いています。クリーンアップで中断するか `ignore` で守ります。
 
 ## まとめと練習 {#summary}
 
-<Exercise answer="依存配列を書かないと毎回の描画で実行され、中で setState すると再描画→また実行…の無限ループ（Maximum update depth exceeded）になります。[] などの依存配列を付けます。">
+<Exercise answer="リスナーを外していないためです。マウントのたびに 1 つ増え、アンマウントしても残るので、モーダルを 5 回開閉するとスクロール 1 回につきハンドラが 5 回走ります。直し方は、エフェクトから return () => window.removeEventListener('scroll', onScroll) を返すこと。追加したときと同じ関数の参照を渡します。">
 
-`useEffect` の中で `setState` を呼んでいて `Maximum update depth exceeded` が出ました。原因と直し方を説明してください。
+モーダルのコンポーネントが、`useEffect` に `[]` を付けて `window.addEventListener('scroll', onScroll)` しています。動きますが、モーダルを何度か開閉するとページが重くなります。何が起きていて、どう直しますか。
+
+</Exercise>
+
+<Exercise answer="どちらでもありません。描画中に計算します（const filtered = products.filter((p) => p.category === category)）。導出データを state に持つと描画が 1 回増え、1 フレームだけ古い一覧が見えることがあります。計測して遅かったときだけ useMemo を検討します。">
+
+`category` が変わるたびに絞り込んだ一覧を出したいとき、`filtered` を `useState` に持って `useEffect` で更新すべきでしょうか。それとも別の方法がありますか。
 
 </Exercise>
 
 <SummaryBox>
 
-- 副作用（タイマー・データ取得・`document.title` など）は `useEffect` に書く。実行は描画のあと
-- 構文は `useEffect(処理, 依存配列)`。`[]` は初回だけ、`[値]` はその値が変わるたび
-- 開始したものは `return` で後片付け。依存配列を忘れると無限ループの元
+- `useEffect` は React の外側と接続し、クリーンアップが切断する。この 2 つは必ずセットで書く
+- 依存配列にはセットアップが読む値をすべて並べる。`[]` はマウント時のみ、配列なしは毎回（ほぼバグ）
+- 値の導出・クリック処理・props 変更時のリセット・重い初期値には、エフェクトより良い答えがある
 
 </SummaryBox>
