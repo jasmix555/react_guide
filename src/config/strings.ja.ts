@@ -173,7 +173,7 @@ export const strings = {
         body: 'コンポーネント → props → state と、手を動かしながら順に。',
         links: [
           { label: 'variant で再利用する', to: '/guide/components/button-variants' },
-          { label: '配列の state を更新する', to: '/guide/state/use-state/updating-array-state' },
+          { label: 'useState をひととおり', to: '/guide/state/use-state/basics' },
         ],
       },
       {
