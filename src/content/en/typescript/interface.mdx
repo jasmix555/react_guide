@@ -134,6 +134,17 @@ const p: Product = {
   note="Naming it saves you from rewriting the same shape over and over, and changes happen in one place."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Describe object shapes with interface. Use type for unions, and for anything that is not an object shape"
+  alt="The two are near-interchangeable for plain objects, and a codebase that has standardised on `type` everywhere is not wrong — consistency matters more than the choice. What you should not do is mix them arbitrarily within one project."
+>
+
+The practical split: `interface` for the shape of a thing (props, a record, an API response), `type` for everything else a name can stand for — a union of literals, a function signature, a mapped or derived type. `interface` also merges across declarations, which is what you want when extending a library’s types and almost never what you want by accident, so keeping it to object shapes limits the surprise.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **`Property 'x' is missing`** … A required property is missing. Add it, or make it `x?` in the `interface`.

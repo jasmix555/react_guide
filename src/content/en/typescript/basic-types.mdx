@@ -119,6 +119,17 @@ function toYen(price: number): string {
   note="Writing types where inference works is redundant. Concentrate types on 'places inference can't help'."
 />
 
+## Our standard {#standard}
+
+<Std
+  decision="Let inference do the work for variables with an initial value. Write types explicitly on function parameters, and on anything that starts empty or null"
+  alt="A return type is worth writing by hand on an exported function that other files depend on — it pins the contract, so a change inside the function fails at the definition rather than at every call site."
+>
+
+Writing `const count: number = 0` adds nothing that `const count = 0` did not already say, and every redundant annotation is one more thing to keep in sync. The places inference genuinely cannot help are the ones to annotate: a parameter has no initial value to learn from, and `[]` or `null` tells TypeScript nothing about what will eventually go in.
+
+</Std>
+
 ## When things go wrong {#trouble}
 
 - **`Type 'X' is not assignable to type 'Y'`** … The value's type differs from the annotated or inferred type. Line up either the value or the type.
